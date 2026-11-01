@@ -30,7 +30,7 @@ A folder files a dashboard under exactly one project; a **tag** is the orthogona
 
 This is how yucca ships (immich-app/yucca#315, see that repo's `o11y/README.md`). The project's CI renders each dashboard into a self-contained `GrafanaDashboard` CR (JSON embedded as `spec.gzipJson`) plus any `GrafanaAlertRuleGroup` CRs and a `GrafanaFolder`, pushes them as **one signed OCI artifact** (`flux push artifact` + cosign keyless), and o11y consumes the whole thing with a single Flux `OCIRepository` + `Kustomization`. New dashboards/alerts flow automatically on the next artifact.
 
-o11y's consumer side lives once in `kubernetes/apps/base/tenants/yucca/bundle.yaml`, one file per tenant listed by `base/tenants/kustomization.yaml`, which each env's `o11y` overlay pulls in. A bundle applies with kustomize-controller's own cluster-wide rights (no `serviceAccountName`), and the signature check pins it to its repo's workflow; this is accepted while each bundle repo's writers are also yucca-o11y's:
+o11y's consumer side lives once in `kubernetes/apps/base/tenants/yucca/bundle.yaml`, one file per tenant listed by `base/tenants/kustomization.yaml`, which each env's `o11y` overlay pulls in. A bundle applies with kustomize-controller's own cluster-wide rights (no `serviceAccountName`), and the signature check pins it to its repo's workflow; this is accepted while each bundle repo's writers are also futo-o11y-platform's:
 
 ```yaml
 apiVersion: source.toolkit.fluxcd.io/v1

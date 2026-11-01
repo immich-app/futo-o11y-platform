@@ -1,4 +1,4 @@
-# Yucca O11y
+# FUTO O11y Platform
 
 The centralized observability platform for FUTO services. A single Talos Kubernetes cluster per environment, stretched across multiple OVH datacentres and managed by Flux. It hosts the metrics, dashboards, and alerting stack, and is the **central metrics store** that other FUTO clusters remote-write into.
 

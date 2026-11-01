@@ -3,7 +3,7 @@ instance:
     networkPolicy: false
   sync:
     kind: GitRepository
-    url: https://github.com/immich-app/yucca-o11y.git
+    url: https://github.com/immich-app/futo-o11y-platform.git
     ref: refs/heads/main
     path: kubernetes/clusters/${env}
   kustomize:
