@@ -136,7 +136,7 @@ locals {
   # Collapse back into the variable default once every env runs the same version.
   talos_version_by_env = {
     staging     = "v1.14.5"
-    production  = "v1.13.12"
+    production  = "v1.14.5"
     development = "v1.13.8"
   }
 }
