@@ -58,12 +58,11 @@ export TF_VAR_env=staging
 
    1. `//bootstrap:nodes` renders the machine configs with topf and applies them over the public IPs, because the nodes are in maintenance mode and NetBird is not running yet. Nodes that already have a config are skipped.
    2. `//bootstrap:etcd` bootstraps etcd on the first control plane. It reaches the node on its private IP, so your NetBird client must route to the vRack. The nodes join the mesh after they install. The host firewall then closes the public NIC (everything except `:30443` on workers).
-   3. `//talos:kubeconfig` writes the kubeconfig (see [Cluster access](#cluster-access)).
-   4. `//bootstrap:ready` waits until every apiserver answers and every node is `Ready`.
+   3. `//talos:kubeconfig` writes the kubeconfig (see [Cluster access](#cluster-access)). The task then points it at the first control plane, because the mesh gateway does not exist yet.
+   4. `//bootstrap:ready` waits until every node is registered and `Ready`.
    5. `//bootstrap:resources` applies the namespaces, the `bootstrap-settings` ConfigMap and the bootstrap secrets (cert-manager OVH DNS credentials, the NetBird routing-peer key, the 1Password Connect token for external-secrets).
    6. `//bootstrap:apps` installs CoreDNS, the Flux Operator and the FluxInstance with helmfile (`bootstrap/helmfile.yaml`). Chart versions and values come from the Flux apps, so Flux takes over the same releases.
-
-   The bootstrap stages use the **direct** kubeconfig context. The default context targets the mesh gateway, which exists only after Flux reconciles.
+   7. `//talos:kubeconfig` writes the kubeconfig again with the mesh endpoint.
 
 Flux then reconciles from `kubernetes/clusters/<env>/apps.yaml`, fanning out to the per-app Kustomizations in dependency order.
 
@@ -85,12 +84,11 @@ mise run //talos:kubeconfig         # for kubectl
 mise run //talos:talosconfig        # for talosctl
 ```
 
-Each writes to `.private/$ENVIRONMENT/` (mode 600). topf signs the files from the Talos secrets bundle. The kubeconfig carries a new admin certificate that expires after 12 hours, so run the task again when it expires. The kubeconfig has two contexts:
+Each writes to `.private/$ENVIRONMENT/` (mode 600). topf signs the files from the Talos secrets bundle. The kubeconfig carries a new admin certificate that expires after 12 hours, so run the task again when it expires.
 
-- **`o11y-<env>`** (default) — the HA endpoint `kube.<mesh-zone>:6443`, fronted by the Envoy mesh gateway (TLS passthrough to every apiserver). Survives any single CP being down and never hairpins through a NetBird routing peer.
-- **`o11y-<env>-direct`** — a control-plane private IP, for bootstrap/DR before the mesh gateway exists: `kubectl --context o11y-<env>-direct`. Every CP IP is an apiserver cert SAN, so TLS validates on both paths. (The floating VIP `.5` is in-cluster-only — it doesn't ARP across DCs.)
+The kubeconfig has one context, `o11y-<env>`. It uses the HA endpoint `kube.<mesh-zone>:6443`, which the Envoy mesh gateway fronts with TLS passthrough to every apiserver. That endpoint survives any single control plane being down, and it never hairpins through a NetBird routing peer. Before the mesh gateway exists (bootstrap, DR), reach a control plane directly with `kubectl --server https://<cp-private-ip>:6443`. Every control-plane IP is an apiserver cert SAN, so TLS validates on both paths. The floating VIP `.5` works only inside the cluster, because it does not ARP across DCs.
 
-**Point your tools at them:**
+**Point your tools at them.** When mise is active in the repository, it sets `KUBECONFIG` and `TALOSCONFIG` to these files for `$ENVIRONMENT`. Otherwise, export them:
 
 ```bash
 export KUBECONFIG=$PWD/.private/$ENVIRONMENT/kubeconfig

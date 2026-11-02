@@ -34,42 +34,28 @@ run = """
 {{vars.topf}} render --output "${usage_output:?}"
 """
 
-# The default context is the HA mesh endpoint kube.<zone>; <cluster>-direct is the
-# first control plane's private IP, for bootstrap and DR before the mesh gateway
-# exists. Both are apiserver cert SANs. topf signs a fresh admin cert (12h).
+# One context, o11y-<env>, on the HA mesh endpoint kube.<zone>. Before the mesh
+# gateway exists (bootstrap, DR), point it at a control plane instead with
+# `kubectl config set-cluster o11y-<env> --server https://<cp-ip>:6443`; every CP
+# IP is an apiserver cert SAN. topf signs a fresh admin cert (12h).
 [tasks.kubeconfig]
-description = "Write a 12h admin kubeconfig for $ENVIRONMENT to .private/<env>/kubeconfig"
+description = "Write a 12h admin kubeconfig for $ENVIRONMENT to $KUBECONFIG"
 run = """
-: "${ENVIRONMENT:?set ENVIRONMENT=staging (or production) first}" "${MISE_MONOREPO_ROOT:?}"
-mkdir -p "$MISE_MONOREPO_ROOT/.private/$ENVIRONMENT"
+: "${ENVIRONMENT:?set ENVIRONMENT=staging (or production) first}"
+mkdir -p "$(dirname "$KUBECONFIG")"
 umask 077
 kubeconfig="$(topf kubeconfig)"
-export CLUSTER="o11y-$ENVIRONMENT"
-export MESH="https://kube.$(yq '.data.meshDnsZone' "$TOPFCONFIG"):6443"
-export DIRECT="https://$(yq '[.nodes[] | select(.role == "control-plane")][0].ip' "$TOPFCONFIG"):6443"
-printf '%s\n' "$kubeconfig" | yq '
-  .clusters[0].cluster as $c | .users[0].user as $u | {
-    "apiVersion": "v1",
-    "kind": "Config",
-    "current-context": strenv(CLUSTER),
-    "clusters": [
-      {"name": strenv(CLUSTER), "cluster": ($c | .server = strenv(MESH))},
-      {"name": strenv(CLUSTER) + "-direct", "cluster": ($c | .server = strenv(DIRECT))}
-    ],
-    "users": [{"name": "admin@" + strenv(CLUSTER), "user": $u}],
-    "contexts": [
-      {"name": strenv(CLUSTER), "context": {"cluster": strenv(CLUSTER), "user": "admin@" + strenv(CLUSTER)}},
-      {"name": strenv(CLUSTER) + "-direct", "context": {"cluster": strenv(CLUSTER) + "-direct", "user": "admin@" + strenv(CLUSTER)}}
-    ]
-  }' > "$MISE_MONOREPO_ROOT/.private/$ENVIRONMENT/kubeconfig"
+printf '%s\n' "$kubeconfig" > "$KUBECONFIG"
+kubectl config set-cluster "o11y-$ENVIRONMENT" --server "https://kube.$(yq '.data.meshDnsZone' "$TOPFCONFIG"):6443"
+kubectl config rename-context "topf@o11y-$ENVIRONMENT" "o11y-$ENVIRONMENT"
 """
 
 [tasks.talosconfig]
-description = "Write the talosconfig for $ENVIRONMENT to .private/<env>/talosconfig"
+description = "Write the talosconfig for $ENVIRONMENT to $TALOSCONFIG"
 run = """
-: "${ENVIRONMENT:?set ENVIRONMENT=staging (or production) first}" "${MISE_MONOREPO_ROOT:?}"
-mkdir -p "$MISE_MONOREPO_ROOT/.private/$ENVIRONMENT"
+: "${ENVIRONMENT:?set ENVIRONMENT=staging (or production) first}"
+mkdir -p "$(dirname "$TALOSCONFIG")"
 umask 077
 talosconfig="$(topf talosconfig)"
-printf '%s\n' "$talosconfig" > "$MISE_MONOREPO_ROOT/.private/$ENVIRONMENT/talosconfig"
+printf '%s\n' "$talosconfig" > "$TALOSCONFIG"
 """

@@ -30,6 +30,9 @@ cosign = "3.1.4"
 TF_VAR_dist_dir = "{{config_root}}/dist"
 # The topf config for $ENVIRONMENT, read by the talos/ and bootstrap/ tasks.
 TOPFCONFIG = "{{config_root}}/talos/{{ get_env(name='ENVIRONMENT', default='') }}/topf.yaml"
+# Written by //talos:kubeconfig and //talos:talosconfig; kubectl, helmfile and talosctl read them.
+KUBECONFIG = "{{config_root}}/.private/{{ get_env(name='ENVIRONMENT', default='') }}/kubeconfig"
+TALOSCONFIG = "{{config_root}}/.private/{{ get_env(name='ENVIRONMENT', default='') }}/talosconfig"
 
 # Maps long env names (development/staging/production) to the short suffixes
 # used by 1Password vault paths (dev/staging/prod).

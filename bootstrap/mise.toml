@@ -1,8 +1,6 @@
-[env]
-KUBECONFIG = "{{config_root}}/../.private/{{ get_env(name='ENVIRONMENT', default='') }}/kubeconfig"
-TALOSCONFIG = "{{config_root}}/../.private/{{ get_env(name='ENVIRONMENT', default='') }}/talosconfig"
-
 # Stages of a fresh bring-up, in order. Each stage is safe to re-run on its own.
+# Until Flux brings up the mesh gateway, the kubeconfig points at the first
+# control plane; the last step writes it again with the mesh endpoint.
 [tasks.cluster]
 description = "Bootstrap $ENVIRONMENT end to end: Talos configs, etcd, kubeconfig, Flux prerequisites, Flux"
 confirm = "Bootstrap o11y-{{ get_env(name='ENVIRONMENT', default='') }}?"
@@ -10,9 +8,12 @@ run = [
   { task = "nodes" },
   { task = "etcd" },
   { task = "//talos:kubeconfig" },
+  '''kubectl config set-cluster "o11y-$ENVIRONMENT" --server "https://$(yq '[.nodes[] | select(.role == "control-plane")][0].ip' "$TOPFCONFIG"):6443"''',
   { task = "ready" },
   { task = "resources" },
   { task = "apps" },
+  # A string, because mise runs a task only once per invocation.
+  "mise run //talos:kubeconfig",
 ]
 
 # Fresh nodes boot into maintenance mode and answer only on their public IPs
@@ -72,23 +73,17 @@ echo "etcd is bootstrapped on $cp"
 """
 
 [tasks.ready]
-description = "Wait until every apiserver answers and every $ENVIRONMENT node is Ready"
+description = "Wait until every $ENVIRONMENT node is registered and Ready"
 shell = "bash -c"
 run = """
 set -euo pipefail
 : "${ENVIRONMENT:?set ENVIRONMENT=staging (or production) first}"
-for ip in $(yq '.nodes[] | select(.role == "control-plane") | .ip' "$TOPFCONFIG"); do
-  until [[ "$(curl -ks -o /dev/null -w '%{http_code}' --connect-timeout 2 --max-time 5 "https://$ip:6443/readyz")" == 200 ]]; do
-    echo "waiting for kube-apiserver on $ip"
-    sleep 5
-  done
-done
 want="$(yq '.nodes | length' "$TOPFCONFIG")"
-until [[ "$(kubectl --context "o11y-$ENVIRONMENT-direct" get nodes --no-headers 2>/dev/null | wc -l)" -ge "$want" ]]; do
+until [[ "$(kubectl get nodes --no-headers --request-timeout=10s 2>/dev/null | wc -l)" -ge "$want" ]]; do
   echo "waiting for $want nodes to register"
   sleep 5
 done
-kubectl --context "o11y-$ENVIRONMENT-direct" wait nodes --all --for=condition=Ready --timeout=15m
+kubectl wait nodes --all --for=condition=Ready --timeout=15m
 """
 
 [tasks.resources]
@@ -106,12 +101,12 @@ BOOTSTRAP_NETBIRD_EGRESS_GW="$(jq -er .egress_gateway.value <<<"$netbird")"
 export BOOTSTRAP_MESH_DOMAIN BOOTSTRAP_NETBIRD_GATEWAY_VIP \
   BOOTSTRAP_NETBIRD_SERVICE_CIDR BOOTSTRAP_NETBIRD_EGRESS_CIDR BOOTSTRAP_NETBIRD_EGRESS_GW
 manifests="$(flux envsubst --strict < resources.yaml | op inject {{vars.op_account}})"
-kubectl --context "o11y-$ENVIRONMENT-direct" apply --server-side --force-conflicts -f - <<<"$manifests"
+kubectl apply --server-side --force-conflicts -f - <<<"$manifests"
 """
 
 [tasks.apps]
 description = "Install CoreDNS, the Flux Operator and the FluxInstance on $ENVIRONMENT (helmfile sync)"
 run = """
 : "${ENVIRONMENT:?set ENVIRONMENT=staging (or production) first}"
-helmfile --environment "$ENVIRONMENT" --kube-context "o11y-$ENVIRONMENT-direct" sync --hide-notes
+helmfile --environment "$ENVIRONMENT" sync --hide-notes
 """
