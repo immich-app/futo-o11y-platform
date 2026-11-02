@@ -131,14 +131,6 @@ locals {
   }
 
   topology = local.topology_by_env[local.env]
-
-  # Staged Talos rollout: staging leads and production follows after a soak.
-  # Collapse back into the variable default once every env runs the same version.
-  talos_version_by_env = {
-    staging     = "v1.14.5"
-    production  = "v1.14.5"
-    development = "v1.13.8"
-  }
 }
 
 dependency "rootly" {
@@ -155,7 +147,6 @@ inputs = {
   worker_nodes         = local.topology.worker_nodes
   private_network_cidr = local.topology.private_network_cidr
   loadbalancer_zones   = local.topology.loadbalancer_zones
-  talos_version        = local.talos_version_by_env[local.env]
   # lookup: the attribute is missing entirely while the rootly module's state
   # predates the status page (mocks only cover a dependency with no outputs).
   status_page_cname_records = lookup(dependency.rootly.outputs, "status_page_cname_records", {})

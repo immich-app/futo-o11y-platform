@@ -86,6 +86,4 @@ inputs = {
   worker_nics             = local.worker_nics
   netbird_setup_key       = dependency.netbird_cluster.outputs.talos_setup_key
   mesh_dns_zone           = dependency.netbird_cluster.outputs.mesh_dns_zone
-  # CI applies on merge; production never reboots unattended (see variables.tf).
-  apply_mode = local.env == "production" ? "staged_if_needing_reboot" : "auto"
 }

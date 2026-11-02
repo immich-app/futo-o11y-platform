@@ -92,12 +92,11 @@ variable "worker_nics" {
   }))
 }
 
-# How machine-config changes reach the nodes. "auto" lets the provider reboot a
-# node whenever the change needs it: every node at once, since the applies are
-# not ordered. "staged_if_needing_reboot" dry-runs first and stages any
-# reboot-requiring change instead, so the node keeps its running config until an
-# operator reboots it; the dry-run needs the node reachable at plan time and
-# falls back to "auto" when it isn't.
+# How machine-config changes reach the nodes. Talos 1.14 applies most changes
+# without a reboot and no longer reports whether one is needed, so the provider
+# resolves "staged_if_needing_reboot" to "auto" on 1.14+ nodes. "staged" holds a
+# change until an operator reboots the node; the applies are not ordered, so any
+# reboot under "auto" hits every node at once.
 variable "apply_mode" {
   type    = string
   default = "auto"
