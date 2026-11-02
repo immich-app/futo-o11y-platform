@@ -5,7 +5,7 @@ data "talos_machine_configuration" "worker" {
   machine_secrets    = talos_machine_secrets.this.machine_secrets
   kubernetes_version = var.kubernetes_version != "" ? var.kubernetes_version : null
   # Config contract; see controlplane.tf.
-  talos_version = "v1.13"
+  talos_version = "v1.14"
 }
 
 resource "talos_machine_configuration_apply" "worker" {
@@ -25,50 +25,6 @@ resource "talos_machine_configuration_apply" "worker" {
   config_patches = concat([
     yamlencode({
       machine = {
-        # Same set as futo-internal-platform's workers. Pre-1.14 field (1.14+: SysctlConfig).
-        sysctls = {
-          # Kernel default 0 refuses every user namespace; pods with hostUsers: false
-          # need a budget before they can start.
-          "user.max_user_namespaces" = "11255"
-          # New network namespaces inherit the congestion control, so pods (Envoy's
-          # public TLS above all) get BBR; fq provides the pacing it expects. BBR is
-          # built into the Talos kernel.
-          "net.core.default_qdisc"          = "fq"
-          "net.ipv4.tcp_congestion_control" = "bbr"
-          # Global ceiling for SO_RCVBUF/SO_SNDBUF, for UDP bursts on NetBird's
-          # WireGuard tunnel.
-          "net.core.rmem_max" = "16777216"
-          "net.core.wmem_max" = "16777216"
-        }
-        # Install disk isn't pinned: OVH's BYOI provisioning picks the disk and
-        # Talos keeps that install, so pinning here has no effect on production.
-        # worker_disk is the real install target on staging (uniform hardware).
-        install = {
-          disk  = var.worker_disk
-          image = var.talos_installer_images.bare_metal
-        }
-        # Spegel (kube-system DaemonSet) serves images peer-to-peer, so containerd
-        # must keep unpacked layers around to serve them. Talos merges *.part files
-        # into its CRI config; applying this reboots the node (containerd restart).
-        files = [
-          {
-            op      = "create"
-            path    = "/etc/cri/conf.d/20-customization.part"
-            content = <<-TOML
-              [plugins."io.containerd.cri.v1.images"]
-                discard_unpacked_layers = false
-            TOML
-          }
-        ]
-        # Pin the kubelet node IP to the vRack (CPs already do): kubelet otherwise picks the
-        # lowest 10.x host address — the Multus bridge IP once stole a worker's InternalIP.
-        kubelet = {
-          nodeIP = {
-            validSubnets = [var.private_network_cidr]
-          }
-          # Explicit because Talos's CoreDNS is disabled (see controlplane.tf).
-          clusterDNS = ["10.96.0.10"]
-        }
         network = {
           # NIC names aren't uniform across OVH workers (even within a plan code),
           # so they're per-node via var.worker_nics. Port 0 = public (DHCP),
@@ -85,6 +41,73 @@ resource "talos_machine_configuration_apply" "worker" {
           ]
         }
       }
+    }),
+    # Same set as futo-internal-platform's workers.
+    yamlencode({
+      apiVersion = "v1alpha1"
+      kind       = "SysctlConfig"
+      params = {
+        # Kernel default 0 refuses every user namespace; pods with hostUsers: false
+        # need a budget before they can start.
+        "user.max_user_namespaces" = "11255"
+        # New network namespaces inherit the congestion control, so pods (Envoy's
+        # public TLS above all) get BBR; fq provides the pacing it expects. BBR is
+        # built into the Talos kernel.
+        "net.core.default_qdisc"          = "fq"
+        "net.ipv4.tcp_congestion_control" = "bbr"
+        # Global ceiling for SO_RCVBUF/SO_SNDBUF, for UDP bursts on NetBird's
+        # WireGuard tunnel.
+        "net.core.rmem_max" = "16777216"
+        "net.core.wmem_max" = "16777216"
+      }
+    }),
+    # Only read for a fresh install: an installed node records the install as done
+    # and never re-runs the installer. OVH's BYOI provisioning picks the disk on
+    # production; worker_disk is the real install target on staging (uniform hardware).
+    yamlencode({
+      apiVersion = "v1alpha1"
+      kind       = "UnattendedInstallConfig"
+      installer = {
+        image = var.talos_installer_images.bare_metal
+      }
+      provisioning = {
+        diskSelector = {
+          match = "disk.dev_path == \"${var.worker_disk}\""
+        }
+      }
+    }),
+    # Spegel (kube-system DaemonSet) serves images peer-to-peer, so containerd
+    # must keep unpacked layers around to serve them. Changing this restarts
+    # containerd without a reboot.
+    yamlencode({
+      apiVersion = "v1alpha1"
+      kind       = "CRICustomizationConfig"
+      name       = "spegel"
+      content    = <<-TOML
+        [plugins."io.containerd.cri.v1.images"]
+          discard_unpacked_layers = false
+      TOML
+    }),
+    # Pin the kubelet node IP to the vRack (CPs already do): kubelet otherwise picks the
+    # lowest 10.x host address — the Multus bridge IP once stole a worker's InternalIP.
+    yamlencode({
+      apiVersion = "v1alpha1"
+      kind       = "KubeNodeConfig"
+      nodeIP = {
+        validSubnets = [var.private_network_cidr]
+      }
+    }),
+    # Explicit because Talos's CoreDNS is disabled (see controlplane.tf).
+    yamlencode({
+      apiVersion = "v1alpha1"
+      kind       = "KubeletConfig"
+      clusterDNS = ["10.96.0.10"]
+    }),
+    # Workload isolation stays off; see controlplane.tf.
+    yamlencode({
+      apiVersion        = "v1alpha1"
+      kind              = "SecurityProfileConfig"
+      workloadIsolation = false
     }),
     <<-EOT
       apiVersion: v1alpha1
