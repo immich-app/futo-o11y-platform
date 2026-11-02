@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+#MISE description="Wait until every $ENVIRONMENT node is registered and Ready"
+set -euo pipefail
+: "${ENVIRONMENT:?set ENVIRONMENT=staging (or production) first}"
+
+want="$(yq '.nodes | length' "$TOPFCONFIG")"
+until [[ "$(kubectl get nodes --no-headers --request-timeout=10s 2>/dev/null | wc -l)" -ge "$want" ]]; do
+  echo "waiting for $want nodes to register"
+  sleep 5
+done
+kubectl wait nodes --all --for=condition=Ready --timeout=15m

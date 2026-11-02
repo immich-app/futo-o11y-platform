@@ -2,60 +2,20 @@
 # topf runs the secretsProvider named in topf.yaml from PATH.
 _.path = ["{{config_root}}/bin"]
 
-[vars]
-# For the tasks that render configs: op run resolves the NetBird setup key from
-# the env vault (written by deployment/modules/netbird/cluster) and conceals it
-# in topf's output. `$$` leaves the variable to the task shell, because mise
-# expands vars before the root env sets ENVIRONMENT_SHORT.
-topf = "NETBIRD_SETUP_KEY=op://o11y_tf_$${ENVIRONMENT_SHORT}/NETBIRD_TALOS_SETUP_KEY/password op run {{vars.op_account}}-- topf"
-
-# Args after `--` reach topf, e.g. `mise run //talos:diff -- --nodes-filter cp-gra`.
+# The tasks that render configs run topf under `op run`, which resolves the
+# references in .env (the NetBird setup key) and conceals the values in topf's
+# output. Args after `--` reach topf, e.g. `mise run //talos:diff -- --nodes-filter cp-gra`.
 [tasks.diff]
 description = "Show the machine-config changes topf would apply to $ENVIRONMENT (exits 2 when there are changes)"
-run = """
-: "${ENVIRONMENT:?set ENVIRONMENT=staging (or production) first}"
-{{vars.topf}} apply --dry-run
-"""
+run = "op run {{vars.op_account}}--env-file=.env -- topf apply --dry-run"
 
 [tasks.apply]
 description = "Apply the machine configs to $ENVIRONMENT, one node at a time, confirming each diff"
-run = """
-: "${ENVIRONMENT:?set ENVIRONMENT=staging (or production) first}"
-{{vars.topf}} apply
-"""
+run = "op run {{vars.op_account}}--env-file=.env -- topf apply"
 
 # The rendered files hold the cluster's private keys, so the output dir is
 # required (topf's default ./output is inside the repo); use a temp dir.
 [tasks.render]
 description = "Render $ENVIRONMENT's machine configs, secrets included, into <output>"
 usage = 'arg "<output>" help="Directory for the rendered configs (use a temp dir)"'
-run = """
-: "${ENVIRONMENT:?set ENVIRONMENT=staging (or production) first}"
-{{vars.topf}} render --output "${usage_output:?}"
-"""
-
-# One context, o11y-<env>, on the HA mesh endpoint kube.<zone>. Before the mesh
-# gateway exists (bootstrap, DR), point it at a control plane instead with
-# `kubectl config set-cluster o11y-<env> --server https://<cp-ip>:6443`; every CP
-# IP is an apiserver cert SAN. topf signs a fresh admin cert (12h).
-[tasks.kubeconfig]
-description = "Write a 12h admin kubeconfig for $ENVIRONMENT to $KUBECONFIG"
-run = """
-: "${ENVIRONMENT:?set ENVIRONMENT=staging (or production) first}"
-mkdir -p "$(dirname "$KUBECONFIG")"
-umask 077
-kubeconfig="$(topf kubeconfig)"
-printf '%s\n' "$kubeconfig" > "$KUBECONFIG"
-kubectl config set-cluster "o11y-$ENVIRONMENT" --server "https://kube.$(yq '.data.meshDnsZone' "$TOPFCONFIG"):6443"
-kubectl config rename-context "topf@o11y-$ENVIRONMENT" "o11y-$ENVIRONMENT"
-"""
-
-[tasks.talosconfig]
-description = "Write the talosconfig for $ENVIRONMENT to $TALOSCONFIG"
-run = """
-: "${ENVIRONMENT:?set ENVIRONMENT=staging (or production) first}"
-mkdir -p "$(dirname "$TALOSCONFIG")"
-umask 077
-talosconfig="$(topf talosconfig)"
-printf '%s\n' "$talosconfig" > "$TALOSCONFIG"
-"""
+run = 'op run {{vars.op_account}}--env-file=.env -- topf render --output "$usage_output"'

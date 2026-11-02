@@ -19,9 +19,9 @@ Control planes and workers use **different** Talos Factory schematics, on purpos
 
 ### Machine configuration
 
-- **topf renders every node's config** from `talos/`. Each environment has one `talos/<env>/topf.yaml` with its nodes, versions and network values. Both environments share the patches in `talos/patches/`. The Talos secrets bundle stays in the `talos/cluster` Terraform state, and topf reads it through `talos/bin/talos-secrets`. Nothing secret is committed.
+- **topf renders the configuration of every node** from `talos/`. Each environment has one `talos/<env>/topf.yaml` with its nodes, versions and network values. Both environments share the patches in `talos/patches/`. The Talos secrets bundle stays in the Terraform state of `talos/cluster`. topf reads the bundle through `talos/bin/talos-secrets`, so the repository holds no secret.
 - **Control-plane endpoint** is the floating VIP (`10.150.200.5`); the apiserver cert SANs include the VIP, every CP private IP (the direct/break-glass path), and `kube.<mesh-domain>` — the HA endpoint the mesh gateway fronts via TLS passthrough, which `kubectl` uses by default.
-- **CoreDNS is installed before Flux.** Flux needs cluster DNS from its first reconcile, so `bootstrap/` installs the chart with helmfile from the Flux app in `kubernetes/apps/base/coredns`. Flux then manages the same release. Talos's own CoreDNS is disabled and the chart owns the `kube-dns` Service. The kubelet's `clusterDNS` pins its IP. The Corefile adds a `futo.network` zone forwarded to the NetBird mesh DNS (see the infrastructure guide).
+- **bootstrap/ installs CoreDNS before Flux.** Flux needs cluster DNS for its first reconcile. `bootstrap/` installs the chart with helmfile from the Flux app in `kubernetes/apps/base/coredns`, and Flux then manages the same release. The CoreDNS of Talos is off, and the chart owns the `kube-dns` Service. The `clusterDNS` setting of the kubelet pins its IP. The Corefile adds a `futo.network` zone, which it forwards to the NetBird mesh DNS (see the infrastructure guide).
 - **kubelet's node IP is pinned to the vRack subnet** — otherwise kubelet auto-detects, and a lower-sorting host address (such as the Multus egress bridge) steals the node's InternalIP and breaks apiserver→kubelet traffic.
 - **Component metrics** for kube-controller-manager, kube-scheduler, and etcd bind to all interfaces rather than localhost, so VMAgent (running on a worker) can scrape them. The host firewall keeps these ports private. The controller-manager and scheduler endpoints are authenticated HTTPS; etcd's is plain HTTP, so the firewall is its only protection.
 - **kube-proxy** is told to answer NodePorts on every interface (not just the node's primary vRack IP), so the IPLB can reach Envoy on the workers' public NIC; its own metrics endpoint is likewise bound for scraping. These settings are generated into the cluster-wide kube-proxy DaemonSet.
@@ -29,11 +29,13 @@ Control planes and workers use **different** Talos Factory schematics, on purpos
 
 ### Upgrades
 
-tuppr (`kubernetes/apps/base/tuppr`) upgrades Talos and Kubernetes from inside the cluster, one node at a time. A `TalosUpgrade` and a `KubernetesUpgrade` hold the target versions. Production pins its own versions in `kubernetes/apps/production/system-upgrade/patches/`. tuppr checks that the nodes, the Postgres clusters, the VictoriaMetrics, VictoriaLogs and VictoriaTraces clusters, and Dragonfly are healthy. For a Talos upgrade it checks before the run and before each node. For a Kubernetes upgrade it checks only before the run, so watch those workloads while it runs.
+tuppr (`kubernetes/apps/base/tuppr`) upgrades Talos and Kubernetes from inside the cluster, one node at a time. The `TalosUpgrade` and the `KubernetesUpgrade` in `kubernetes/apps/base/tuppr-upgrades` hold the target versions. Production pins its own versions in `kubernetes/apps/production/system-upgrade/patches/`.
 
-The versions in `talos/<env>/topf.yaml` must match the versions tuppr rolls out. If they differ, the next topf apply renders the old Kubernetes component images. Renovate groups each environment's Talos versions into one PR and its Kubernetes versions into another.
+Before an upgrade, tuppr makes sure that the nodes, the Postgres clusters and Dragonfly are healthy. It also makes sure that the VictoriaMetrics, VictoriaLogs and VictoriaTraces clusters are healthy. A Talos upgrade does this again before each node. A Kubernetes upgrade does it only before it starts, so watch those workloads while it runs.
 
-tuppr reaches the Talos API with an `os:admin` talosconfig. Talos issues it only to the `system-upgrade` namespace (`talos/patches/control-plane/05-talos-api-access.yaml`).
+The versions in `talos/<env>/topf.yaml` must match the versions that tuppr rolls out. If they differ, the next topf apply renders the old Kubernetes component images. For each environment, Renovate puts the Talos versions in one PR and the Kubernetes versions in another PR.
+
+tuppr connects to the Talos API with an `os:admin` talosconfig. Talos gives that talosconfig only to the `system-upgrade` namespace (`talos/patches/control-plane/05-talos-api-access.yaml`).
 
 ### Worker storage
 
@@ -58,7 +60,7 @@ Default-deny ingress on every node; anything not listed is dropped at the host. 
 | CP component metrics (CPs) | 10257, 10259, 2381/tcp | vRack + pod CIDR                      |
 | Node metrics (all nodes)   | 10249, 9100/tcp        | vRack + pod CIDR                      |
 
-Pod CIDR is allowed on `apid` (for tuppr), `kubelet` and the metrics ports because pod-to-own-node-IP traffic skips flannel masquerade (a same-node scrape keeps its pod-IP source), which the vRack-only rule would otherwise drop.
+The rules for `apid` (for tuppr), `kubelet` and the metrics ports also allow the pod CIDR. Traffic from a pod to the IP of its own node skips the flannel masquerade, so it keeps the pod IP as its source. A rule for the vRack alone drops that traffic.
 
 Operator `talosctl`/`kubectl` traffic forwarded through the NetBird route arrives masqueraded to a routing peer's vRack IP, which the vRack allow covers. Traffic addressed to the elected routing peer's _own_ vRack IP never traverses the forward path — it is delivered locally with the operator's NetBird source intact — so `apid` and `kube-apiserver` also allow the NetBird peer range. Without it the elected router is unreachable at its own IP; the matching NetBird-side accept is the `yucca → talos` peer policy, since resource policies only program forwarding.
 
@@ -91,6 +93,6 @@ Today the only overrides are version pins. Chart (and the CloudNativePG Postgres
 Per-environment values are **not** hardcoded in `base/` and **not** patched into each overlay. Instead, `cluster-apps` carries a single patch that targets every child Kustomization and injects `postBuild.substituteFrom` pointing at **two** ConfigMaps, resolved by Flux's envsubst at apply time — the prefix tells you who owns the value:
 
 - **`cluster-settings`** (`CLUSTER_*`, committed in `kubernetes/clusters/<env>/`) — git-owned values: `CLUSTER_APP_DOMAIN`, the telemetry identity pair `CLUSTER_NAME`/`CLUSTER_ENV` (the `cluster` and `env` labels, see the [shipping guide](05-shipping-metrics-guide.md)), the 1Password vault names, VictoriaMetrics retention/storage class, and the bootstrap Connect VIP.
-- **`bootstrap-settings`** (`BOOTSTRAP_*`, created in-cluster by `mise run //bootstrap:resources` from the `netbird/cluster` Terraform outputs) — Terraform-owned values that must never drift from the infrastructure: the mesh DNS zone and the NetBird gateway VIP, ServiceCIDR, and egress CIDR/gateway. The entry is `optional` because offline renderers (flate CI) can't see an in-cluster-only ConfigMap; consumers still fail loudly at apply if it's genuinely missing.
+- **`bootstrap-settings`** (`BOOTSTRAP_*`) holds values that Terraform owns and that must match the infrastructure: the mesh DNS zone, the gateway VIP of NetBird, its ServiceCIDR, and its egress CIDR and gateway. `mise run //bootstrap:resources` creates the ConfigMap in the cluster from the `bootstrap_settings` output of `netbird/cluster`. The entry is `optional`, because offline renderers such as the flate CI job cannot read a ConfigMap that exists only in the cluster. If the ConfigMap is missing, the apps that need it still fail at apply.
 
 Because of this, values that vary by environment live exactly once — in git or in Terraform — rather than being duplicated across overlays; only versions are still patched per environment. A rendered object can be checked exactly as Flux will produce it using the `flate` CLI.

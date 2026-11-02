@@ -33,9 +33,11 @@ talos/
 ├── <env>/topf.yaml           # nodes, versions and network values per environment
 ├── patches/                  # machine-config patches: all/, control-plane/, worker/
 ├── schematics/               # Talos Factory schematics (control plane, worker)
-└── bin/talos-secrets         # topf secrets provider: reads the bundle from Terraform state
+├── bin/talos-secrets         # topf secrets provider: reads the bundle from Terraform state
+├── mise-tasks/               # longer tasks as scripts (talosconfig)
+└── .env                      # 1Password references for `op run` (NetBird setup key)
 
-bootstrap/                    # bring-up stages (mise tasks), resources.yaml, helmfile for CoreDNS + Flux
+bootstrap/                    # bring-up stages (mise.toml, mise-tasks/), resources.yaml, helmfile for CoreDNS + Flux
 
 kubernetes/
 ├── apps/

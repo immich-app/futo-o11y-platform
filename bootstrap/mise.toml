@@ -1,112 +1,31 @@
-# Stages of a fresh bring-up, in order. Each stage is safe to re-run on its own.
-# Until Flux brings up the mesh gateway, the kubeconfig points at the first
-# control plane; the last step writes it again with the mesh endpoint.
+[env]
+# topf runs the secretsProvider named in topf.yaml from PATH.
+_.path = ["{{config_root}}/../talos/bin"]
+
+# The stages of a fresh bring-up, in order; each is also a task of its own and
+# safe to run again. The longer stages are scripts in mise-tasks/. The kubeconfig
+# points at the first control plane until Flux brings up the mesh gateway.
 [tasks.cluster]
 description = "Bootstrap $ENVIRONMENT end to end: Talos configs, etcd, kubeconfig, Flux prerequisites, Flux"
 confirm = "Bootstrap o11y-{{ get_env(name='ENVIRONMENT', default='') }}?"
 run = [
-  { task = "nodes" },
-  { task = "etcd" },
-  { task = "//talos:kubeconfig" },
-  '''kubectl config set-cluster "o11y-$ENVIRONMENT" --server "https://$(yq '[.nodes[] | select(.role == "control-plane")][0].ip' "$TOPFCONFIG"):6443"''',
-  { task = "ready" },
-  { task = "resources" },
-  { task = "apps" },
-  # A string, because mise runs a task only once per invocation.
-  "mise run //talos:kubeconfig",
+  "mise run //bootstrap:nodes",
+  "mise run //bootstrap:etcd",
+  "mise run //bootstrap:kubeconfig --direct",
+  "mise run //bootstrap:ready",
+  "mise run //bootstrap:resources",
+  "mise run //bootstrap:apps",
+  "mise run //bootstrap:kubeconfig",
 ]
 
-# Fresh nodes boot into maintenance mode and answer only on their public IPs
-# until the NetBird extension runs. A configured node's firewall drops public
-# apid traffic, so a short TCP probe tells the two apart before talosctl can
-# hang; configured nodes are then confirmed on their private IP with the
-# cluster's talosconfig. Use //talos:apply to change configured nodes.
-[tasks.nodes]
-description = "Apply the machine configs to $ENVIRONMENT's maintenance-mode nodes over their public IPs"
-shell = "bash -c"
-run = """
-set -euo pipefail
-: "${ENVIRONMENT:?set ENVIRONMENT=staging (or production) first}"
-dir="$(mktemp -d)"
-trap 'rm -rf "$dir"' EXIT
-mise run //talos:render "$dir"
-mise run //talos:talosconfig
-ovh="$(mise run //deployment/modules/ovh/account:output -- -json)"
-apid_open() {
-  [[ "$(curl -sk -o /dev/null -w '%{time_connect}' --connect-timeout 5 --max-time 10 "https://$1:50000" || true)" != 0.000000 ]]
-}
-while read -r host private; do
-  public="$(jq -er --arg host "$host" '[.controlplane_nodes.value, .worker_nodes.value][][] | select(.name == $host) | .public_ip' <<<"$ovh")"
-  if apid_open "$public"; then
-    if out="$(talosctl apply-config --insecure --nodes "$public" --file "$dir/$host.yaml" </dev/null 2>&1)"; then
-      echo "$host: config applied over $public"
-    elif [[ "$out" == *"certificate required"* ]]; then
-      echo "$host: already configured, skipped"
-    else
-      echo "$host: $out" >&2
-      exit 1
-    fi
-  elif apid_open "$private" && talosctl --nodes "$private" --endpoints "$private" version </dev/null >/dev/null 2>&1; then
-    echo "$host: already configured, skipped"
-  else
-    echo "$host: apid answers neither in maintenance mode on $public nor with the cluster talosconfig on $private" >&2
-    exit 1
-  fi
-done < <(yq '.nodes[] | .host + " " + .ip' "$TOPFCONFIG")
-"""
-
-# Reaches the first control plane on its private IP, so the operator's NetBird
-# route to the vRack must work (the nodes joined the mesh after install).
-[tasks.etcd]
-description = "Bootstrap etcd on $ENVIRONMENT's first control plane (waits until it is up)"
-shell = "bash -c"
-run = """
-set -euo pipefail
-: "${ENVIRONMENT:?set ENVIRONMENT=staging (or production) first}"
-mise run //talos:talosconfig
-cp="$(yq '[.nodes[] | select(.role == "control-plane")][0].ip' "$TOPFCONFIG")"
-until out="$(talosctl --nodes "$cp" --endpoints "$cp" bootstrap 2>&1)"; [[ "$out" == *AlreadyExists* ]]; do
-  echo "etcd bootstrap on ${cp}: ${out:-requested}; checking again in 5s"
-  sleep 5
-done
-echo "etcd is bootstrapped on $cp"
-"""
-
-[tasks.ready]
-description = "Wait until every $ENVIRONMENT node is registered and Ready"
-shell = "bash -c"
-run = """
-set -euo pipefail
-: "${ENVIRONMENT:?set ENVIRONMENT=staging (or production) first}"
-want="$(yq '.nodes | length' "$TOPFCONFIG")"
-until [[ "$(kubectl get nodes --no-headers --request-timeout=10s 2>/dev/null | wc -l)" -ge "$want" ]]; do
-  echo "waiting for $want nodes to register"
-  sleep 5
-done
-kubectl wait nodes --all --for=condition=Ready --timeout=15m
-"""
-
+# The bootstrap-settings ConfigMap comes from the netbird/cluster output of the same name.
 [tasks.resources]
 description = "Apply the namespaces, secrets and bootstrap-settings ConfigMap Flux needs to $ENVIRONMENT"
-shell = "bash -c"
-run = """
-set -euo pipefail
-: "${ENVIRONMENT:?set ENVIRONMENT=staging (or production) first}"
-netbird="$(mise run //deployment/modules/netbird/cluster:output -- -json)"
-BOOTSTRAP_MESH_DOMAIN="$(jq -er .mesh_dns_zone.value <<<"$netbird")"
-BOOTSTRAP_NETBIRD_GATEWAY_VIP="$(jq -er .gateway_vip.value <<<"$netbird")"
-BOOTSTRAP_NETBIRD_SERVICE_CIDR="$(jq -er .service_cidr.value <<<"$netbird")"
-BOOTSTRAP_NETBIRD_EGRESS_CIDR="$(jq -er .egress_cidr.value <<<"$netbird")"
-BOOTSTRAP_NETBIRD_EGRESS_GW="$(jq -er .egress_gateway.value <<<"$netbird")"
-export BOOTSTRAP_MESH_DOMAIN BOOTSTRAP_NETBIRD_GATEWAY_VIP \
-  BOOTSTRAP_NETBIRD_SERVICE_CIDR BOOTSTRAP_NETBIRD_EGRESS_CIDR BOOTSTRAP_NETBIRD_EGRESS_GW
-manifests="$(flux envsubst --strict < resources.yaml | op inject {{vars.op_account}})"
-kubectl apply --server-side --force-conflicts -f - <<<"$manifests"
-"""
+run = [
+  "op inject {{vars.op_account}}--in-file resources.yaml | kubectl apply --server-side --force-conflicts --filename -",
+  "mise run //deployment/modules/netbird/cluster:output -- -raw bootstrap_settings | kubectl apply --server-side --force-conflicts --filename -",
+]
 
 [tasks.apps]
 description = "Install CoreDNS, the Flux Operator and the FluxInstance on $ENVIRONMENT (helmfile sync)"
-run = """
-: "${ENVIRONMENT:?set ENVIRONMENT=staging (or production) first}"
-helmfile --environment "$ENVIRONMENT" sync --hide-notes
-"""
+run = 'helmfile --environment "$ENVIRONMENT" sync --hide-notes'

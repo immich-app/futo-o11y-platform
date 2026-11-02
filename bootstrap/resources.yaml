@@ -1,9 +1,7 @@
 ---
-# Namespaces and inputs Flux needs on its first reconcile, applied by
-# `mise run //bootstrap:resources`. The task fills the shell-style variables
-# from the netbird/cluster Terraform outputs (flux envsubst --strict) and the
-# op:// references from 1Password (op inject). Re-run it after the
-# netbird/cluster outputs change.
+# Namespaces and secrets that Flux needs on its first reconcile, applied by
+# `mise run //bootstrap:resources`. op inject fills the op:// references from
+# 1Password, and ENVIRONMENT_SHORT comes from the root mise env.
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -50,7 +48,7 @@ metadata:
   name: onepassword-connect-environment
   namespace: external-secrets
 stringData:
-  token: "{{ op://o11y_tf_${ENVIRONMENT_SHORT}/1PASS_CONNECT_O11Y_READ/password }}"
+  token: "{{ op://o11y_tf_$ENVIRONMENT_SHORT/1PASS_CONNECT_O11Y_READ/password }}"
 ---
 # Enrolment key for the netbird-router pods.
 apiVersion: v1
@@ -59,18 +57,4 @@ metadata:
   name: netbird-setup-key
   namespace: netbird
 stringData:
-  setupKey: "{{ op://o11y_tf_${ENVIRONMENT_SHORT}/NETBIRD_K8S_ROUTING_PEER_SETUP_KEY/password }}"
----
-# Terraform-owned values for Flux's postBuild substitution
-# (kubernetes/clusters/<env>/apps.yaml).
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: bootstrap-settings
-  namespace: flux-system
-data:
-  BOOTSTRAP_MESH_DOMAIN: "${BOOTSTRAP_MESH_DOMAIN}"
-  BOOTSTRAP_NETBIRD_GATEWAY_VIP: "${BOOTSTRAP_NETBIRD_GATEWAY_VIP}"
-  BOOTSTRAP_NETBIRD_SERVICE_CIDR: "${BOOTSTRAP_NETBIRD_SERVICE_CIDR}"
-  BOOTSTRAP_NETBIRD_EGRESS_CIDR: "${BOOTSTRAP_NETBIRD_EGRESS_CIDR}"
-  BOOTSTRAP_NETBIRD_EGRESS_GW: "${BOOTSTRAP_NETBIRD_EGRESS_GW}"
+  setupKey: "{{ op://o11y_tf_$ENVIRONMENT_SHORT/NETBIRD_K8S_ROUTING_PEER_SETUP_KEY/password }}"

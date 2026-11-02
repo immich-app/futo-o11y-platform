@@ -53,7 +53,7 @@ NetBird connects operators, other FUTO clusters, and the bootstrap cluster to th
 
 All the ranges involved — the vRack, the gateway ServiceCIDR, and the egress CIDR — are registered in NetBox by the `netbox/cluster` module from the same Terraform values that allocate them.
 
-Operators point `talosctl` at a control plane's static private IP over the node mesh (not the floating VIP — cross-DC ARP for the VIP is unreliable over the route; it remains the in-cluster apiserver endpoint). `kubectl` defaults to `kube.<mesh-domain>` through the mesh gateway. For bootstrap and DR, `kubectl --server https://<cp-private-ip>:6443` reaches a control plane directly.
+Operators point `talosctl` at the static private IP of a control plane over the node mesh. They do not use the floating VIP, because ARP for the VIP across data centers is not reliable over the route. The VIP stays the apiserver endpoint inside the cluster. By default, `kubectl` uses `kube.<mesh-domain>` through the mesh gateway. For a bootstrap or a recovery, `kubectl --server https://<cp-private-ip>:6443` connects to a control plane directly.
 
 ## Cost
 
