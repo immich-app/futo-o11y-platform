@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+#MISE description="Create the CRDs that other apps consume on $ENVIRONMENT, before Flux starts"
+
+# Renders the charts in crds.yaml and creates only the CRDs that are missing.
+# Flux installs the charts later and takes over these CRDs. Existing CRDs
+# belong to Flux, so a rerun, even from an older checkout, never changes them.
+set -euo pipefail
+: "${ENVIRONMENT:?set ENVIRONMENT=staging (or production) first}"
+
+crds="$(helmfile --quiet --file crds.yaml --environment "$ENVIRONMENT" template --include-crds --skip-deps |
+  yq eval-all --exit-status 'select(.kind == "CustomResourceDefinition")')"
+
+for name in $(yq eval-all --no-doc '.metadata.name' <<<"$crds"); do
+  if kubectl get crd "$name" >/dev/null 2>&1; then
+    echo "$name: exists, skipped"
+  else
+    NAME="$name" yq eval-all 'select(.metadata.name == strenv(NAME))' <<<"$crds" | kubectl create --filename -
+  fi
+done
