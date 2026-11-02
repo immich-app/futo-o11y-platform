@@ -12,3 +12,15 @@ spec:
   values:
     crds:
       create: true
+    # Every operator replica serves the admission webhooks (leader election only gates the
+    # reconcilers), so a second replica keeps Cluster/Database applies working through node
+    # drains. pdb.yaml keeps one up; the chart has no PDB value.
+    replicaCount: 2
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: cloudnative-pg
+            app.kubernetes.io/instance: cloudnative-pg
