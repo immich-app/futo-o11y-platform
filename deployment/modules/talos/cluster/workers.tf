@@ -103,7 +103,8 @@ resource "talos_machine_configuration_apply" "worker" {
       kind       = "KubeletConfig"
       clusterDNS = ["10.96.0.10"]
     }),
-    # Workload isolation stays off; see controlplane.tf.
+    # Workload isolation stays off and the generated weekly trim stays on; see
+    # controlplane.tf.
     yamlencode({
       apiVersion        = "v1alpha1"
       kind              = "SecurityProfileConfig"

@@ -153,6 +153,9 @@ resource "talos_machine_configuration_apply" "controlplane" {
     # VIP for in-cluster traffic; CP private IPs for direct/break-glass operator
     # access; kube.<mesh-zone> for the HA endpoint the mesh gateway fronts (Envoy
     # TLS-passthrough -> apiservers). The floating VIP doesn't ARP across DCs.
+    # The v1.14 defaults give kube-apiserver kubeadm-style startup/readiness/liveness
+    # probes, which need the generated KubeAuthenticationConfig's anonymous access
+    # to /livez, /readyz and /healthz; every other path still requires credentials.
     yamlencode({
       apiVersion = "v1alpha1"
       kind       = "KubeAPIServerConfig"
@@ -164,7 +167,8 @@ resource "talos_machine_configuration_apply" "controlplane" {
     }),
     # The v1.14 contract enables workload isolation (sandboxd) by default. Turning
     # it on restarts containerd, the kubelet and every pod, so it is not part of
-    # the contract change.
+    # the contract change. The generated FilesystemTrimConfig (weekly trim of
+    # every eligible volume) is kept.
     yamlencode({
       apiVersion        = "v1alpha1"
       kind              = "SecurityProfileConfig"
@@ -198,7 +202,8 @@ resource "talos_machine_configuration_apply" "controlplane" {
     # delivered locally and never traverses POSTROUTING, so masquerade doesn't fire
     # and it arrives with the operator's Netbird peer source. apid/apiserver
     # therefore also trust the Netbird peer CIDR (10.254.0.0/15) — Netbird ACLs
-    # gate reachability and both services require client TLS regardless.
+    # gate reachability and both services require client TLS regardless, except
+    # the apiserver's anonymous health endpoints (see KubeAPIServerConfig above).
     <<-EOT
       apiVersion: v1alpha1
       kind: NetworkDefaultActionConfig
