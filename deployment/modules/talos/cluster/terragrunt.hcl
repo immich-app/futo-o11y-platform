@@ -39,13 +39,6 @@ locals {
       sbg = { public = "enp4s0f0np0", private = "enp4s0f1np1" }
     }
   }, local.env, {})
-
-  # Staged Kubernetes rollout: staging leads and production follows after a soak.
-  # Bump an env only after talosctl upgrade-k8s rolled it out (see variables.tf).
-  kubernetes_version = lookup({
-    staging    = "1.37.2"
-    production = "1.36.2"
-  }, local.env, "1.36.2")
 }
 
 dependency "ovh" {
@@ -83,7 +76,7 @@ dependency "netbird_cluster" {
 }
 
 inputs = {
-  kubernetes_version      = local.kubernetes_version
+  kubernetes_version      = "1.37.2"
   controlplane_nodes      = dependency.ovh.outputs.controlplane_nodes
   worker_nodes            = dependency.ovh.outputs.worker_nodes
   private_network_cidr    = dependency.ovh.outputs.private_network_cidr
