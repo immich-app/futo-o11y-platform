@@ -15,6 +15,7 @@ run = [
   "mise run //bootstrap:kubeconfig --direct",
   "mise run //bootstrap:ready",
   "mise run //bootstrap:resources",
+  "mise run //bootstrap:crds",
   "mise run //bootstrap:apps",
 ]
 
@@ -25,6 +26,11 @@ run = [
   "op inject {{vars.op_account}}--in-file resources.yaml | kubectl apply --server-side --force-conflicts --filename -",
   "mise run //deployment/modules/netbird/cluster:output -- -raw bootstrap_settings | kubectl apply --server-side --force-conflicts --filename -",
 ]
+
+# Applies only the CRDs of the charts in crds.yaml; Flux installs the charts later.
+[tasks.crds]
+description = "Apply the CRDs that other apps consume to $ENVIRONMENT, before Flux starts"
+run = 'helmfile --quiet --file crds.yaml --environment "$ENVIRONMENT" template --include-crds --skip-deps | yq eval-all "select(.kind == \"CustomResourceDefinition\")" | kubectl apply --server-side --force-conflicts --field-manager bootstrap --filename -'
 
 [tasks.apps]
 description = "Install CoreDNS, the Flux Operator and the FluxInstance on $ENVIRONMENT (helmfile sync)"

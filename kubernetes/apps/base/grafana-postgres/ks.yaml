@@ -9,7 +9,6 @@ spec:
   dependsOn:
     - name: cloudnative-pg
     - name: external-secrets
-    - name: prometheus-operator-crds
   healthChecks:
     - apiVersion: postgresql.cnpg.io/v1
       kind: Cluster

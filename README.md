@@ -37,7 +37,7 @@ talos/
 ├── mise-tasks/               # longer tasks as scripts (talosconfig)
 └── .env                      # 1Password references for `op run` (NetBird setup key)
 
-bootstrap/                    # bring-up stages (mise.toml, mise-tasks/), resources.yaml, helmfile for CoreDNS + Flux
+bootstrap/                    # bring-up stages (mise.toml, mise-tasks/), resources.yaml, helmfiles for CRDs, CoreDNS + Flux
 
 kubernetes/
 ├── apps/

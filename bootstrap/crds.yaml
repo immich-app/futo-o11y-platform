@@ -1,0 +1,20 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/helmfile
+# Charts whose CRDs other apps only consume (ServiceMonitor, PrometheusRule,
+# GrafanaDashboard). `mise run //bootstrap:crds` renders these releases and
+# applies only their CRDs, so the consuming apps need no Flux dependsOn on them.
+# Nothing here is installed: Flux installs the charts later and takes over the
+# CRDs (HelmRelease install.disableTakeOwnership defaults to false).
+bases:
+  - defaults.yaml
+---
+releases:
+  - name: prometheus-operator-crds
+    namespace: o11y
+    inherit:
+      - template: default
+
+  - name: grafana-operator
+    namespace: o11y
+    inherit:
+      - template: default

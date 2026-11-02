@@ -6,8 +6,6 @@ metadata:
   name: cert-manager
   namespace: flux-system
 spec:
-  dependsOn:
-    - name: prometheus-operator-crds
   healthChecks:
     - apiVersion: helm.toolkit.fluxcd.io/v2
       kind: HelmRelease

@@ -8,7 +8,6 @@ metadata:
 spec:
   dependsOn:
     - name: envoy-proxy
-    - name: prometheus-operator-crds
     # The pod's netbird-egress annotation needs the NAD to exist to schedule.
     - name: multus-networks
   healthChecks:

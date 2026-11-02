@@ -1,25 +1,15 @@
 ---
 # yaml-language-server: $schema=https://json.schemastore.org/helmfile
 # Installs what Flux needs before it can reconcile: CoreDNS, the Flux Operator
-# and the FluxInstance. Chart, version and values come from the Flux apps in
-# kubernetes/apps (production pins included), so Flux then takes over the
-# same releases unchanged. Run through `mise run //bootstrap:apps`.
-environments:
-  staging: {}
-  production: {}
+# and the FluxInstance. Run through `mise run //bootstrap:apps`.
+bases:
+  - defaults.yaml
 ---
 helmDefaults:
   cleanupOnFail: true
   forceConflicts: true
   wait: true
   waitForJobs: true
-
-templates:
-  default:
-    chart: '{{ (readFile (printf "../kubernetes/apps/base/%s/app/ocirepository.yaml" .Release.Name) | fromYaml).spec.url }}'
-    version: '{{ tpl (readFile "templates/version.gotmpl") . | trim }}'
-    values:
-      - templates/values.yaml.gotmpl
 
 releases:
   - name: coredns
