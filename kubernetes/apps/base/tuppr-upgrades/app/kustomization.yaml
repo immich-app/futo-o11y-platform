@@ -1,0 +1,32 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ./kubernetesupgrade.yaml
+  - ./talosupgrade.yaml
+# Both upgrades wait for the same workloads to be healthy.
+patches:
+  - target:
+      group: tuppr.home-operations.com
+    patch: |-
+      - op: add
+        path: /spec/healthChecks
+        value:
+          - apiVersion: v1
+            kind: Node
+            expr: status.conditions.exists(c, c.type == "Ready" && c.status == "True")
+          - apiVersion: postgresql.cnpg.io/v1
+            kind: Cluster
+            expr: status.phase == "Cluster in healthy state"
+          - apiVersion: operator.victoriametrics.com/v1beta1
+            kind: VMCluster
+            expr: status.updateStatus == "operational"
+          - apiVersion: operator.victoriametrics.com/v1
+            kind: VLCluster
+            expr: status.updateStatus == "operational"
+          - apiVersion: operator.victoriametrics.com/v1
+            kind: VTCluster
+            expr: status.updateStatus == "operational"
+          - apiVersion: dragonflydb.io/v1alpha1
+            kind: Dragonfly
+            expr: status.phase == "Ready"

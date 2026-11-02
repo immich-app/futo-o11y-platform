@@ -26,20 +26,6 @@
       ],
       "datasourceTemplate": "{{#if datasource}}{{{datasource}}}{{else}}github-releases{{/if}}",
       "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}"
-    },
-    {
-      "customType": "regex",
-      "description": "Talos and Kubernetes versions: talos/<env>/topf.yaml, the tuppr upgrade CRs and the OVH image variable",
-      "managerFilePatterns": [
-        "/(^|/)talos/[^/]+/topf\\.yaml$/",
-        "/(^|/)kubernetes/apps/.+\\.ya?ml$/",
-        "/(^|/)deployment/modules/.+\\.tf$/"
-      ],
-      "matchStrings": [
-        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s*\\n\\s*(?:version|talosVersion|kubernetesVersion|default)\\s*[:=]\\s*\"?v?(?<currentValue>\\d[^\"\\s]*)\"?"
-      ],
-      "extractVersionTemplate": "^v?(?<version>.+)$",
-      "versioningTemplate": "semver"
     }
   ],
   "packageRules": [

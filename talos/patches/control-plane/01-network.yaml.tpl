@@ -10,7 +10,7 @@ machine:
         addresses:
           - {{ .Node.IP }}/{{ splitList "/" .Data.privateNetwork | last }}
         vip:
-          ip: {{ .Data.controlplaneVip }}
+          ip: {{ (urlParse .ClusterEndpoint).hostname }}
 cluster:
   # Control-plane components bind their metrics to localhost by default, so
   # VMAgent (on a worker) cannot scrape them. Bind to all interfaces; the

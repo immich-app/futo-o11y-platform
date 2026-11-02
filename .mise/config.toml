@@ -16,7 +16,6 @@ flux2 = "2.10.0"
 sd = "1.1.0"
 talosctl = "1.14.5"
 "aqua:postfinance/topf" = "0.6.2"
-vals = "0.50.0"
 helm = "4.3.1"
 helmfile = "1.8.2"
 jq = "1.8.2"
@@ -29,12 +28,13 @@ cosign = "3.1.4"
 
 [env]
 TF_VAR_dist_dir = "{{config_root}}/dist"
+# The topf config for $ENVIRONMENT, read by the talos/ and bootstrap/ tasks.
+TOPFCONFIG = "{{config_root}}/talos/{{ get_env(name='ENVIRONMENT', default='') }}/topf.yaml"
 
 # Maps long env names (development/staging/production) to the short suffixes
 # used by 1Password vault paths (dev/staging/prod).
 ENVIRONMENT_SHORT = "{% set e = get_env(name='ENVIRONMENT', default='development') %}{% if e == 'development' or e == '' %}dev{% elif e == 'production' %}prod{% else %}{{ e }}{% endif %}"
 
-# CI authenticates with a service-account token, which op rejects alongside --account.
 # Rendered at the root, so {{config_root}} here is the repo root from any subproject.
 [vars]
 # Shared Grafana dashboards: fetched from upstream and patched for the fleet
@@ -48,7 +48,9 @@ pin_fleet = "yq '(select(.kind == \"GrafanaDashboard\") | .spec.json) |= (fromjs
 # The sync-job emits the kube-prometheus bundle in map order; sort documents so an unchanged
 # upstream renders byte-identical and the artifact's content layer keeps its digest.
 sort_docs = "yq eval-all '[.] | sort_by(.metadata.name) | .[] | splitDoc'"
-tg = "op run {% if get_env(name='OP_SERVICE_ACCOUNT_TOKEN', default='') == '' %}--account 'team-futo.1password.com' {% endif %}'--env-file={{config_root}}/deployment/.env' -- terragrunt"
+# CI authenticates with a service-account token, which op rejects alongside --account.
+op_account = "{% if get_env(name='OP_SERVICE_ACCOUNT_TOKEN', default='') == '' %}--account 'team-futo.1password.com' {% endif %}"
+tg = "op run {{vars.op_account}}'--env-file={{config_root}}/deployment/.env' -- terragrunt"
 
 # Escape hatch for terragrunt subcommands the tasks below don't cover
 # (state rm/import/force-unlock, ...); operates on the caller's directory.

@@ -19,7 +19,9 @@ spec:
         kind: GitRepository
         url: https://github.com/immich-app/futo-o11y-platform.git
         ref: refs/heads/main
-        path: ${CLUSTER_FLUX_PATH}
+        # CLUSTER_ENV is the telemetry env label, `prod` on production; the
+        # directory is kubernetes/clusters/production.
+        path: kubernetes/clusters/${CLUSTER_ENV/prod/production}
       kustomize:
         patches:
           - # Increase the number of workers

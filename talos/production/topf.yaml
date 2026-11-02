@@ -5,9 +5,9 @@ clusterName: o11y-production
 # apiservers through kube.<meshDnsZone> or a control-plane IP instead.
 clusterEndpoint: https://10.150.100.5:6443
 # renovate: datasource=docker depName=ghcr.io/siderolabs/kubelet
-kubernetesVersion: 1.37.2
+kubernetesVersion: v1.37.2
 # renovate: datasource=github-releases depName=siderolabs/talos
-talosVersion: 1.14.5
+talosVersion: v1.14.5
 platform: metal
 schematicId: "@../schematics/worker.yaml"
 patchesDir: ../patches
@@ -16,18 +16,19 @@ secretsProvider: talos-secrets
 data:
   privateNetwork: 10.150.100.0/24
   privateGateway: 10.150.100.1
-  controlplaneVip: 10.150.100.5
   controlplaneIps:
     - 10.150.100.11
     - 10.150.100.12
     - 10.150.100.10
   meshDnsZone: o11y.futo.network
-  # CEL selectors for the worker spare-disk UserVolumes. Both volumes use the
-  # same model + !system_disk match, so Talos spreads them across the two
-  # non-system disks. OVH's BYOI install picks the system disk per node, so
-  # anything position- or serial-specific would need upkeep by hand.
+  # Worker spare-disk UserVolumes and the CEL selector for their disk. All
+  # volumes share the model + !system_disk match, so Talos spreads them across
+  # the two non-system disks. OVH's BYOI install picks the system disk per node,
+  # so anything position- or serial-specific would need upkeep by hand.
+  workerDataVolumes:
+    - local-hostpath
+    - local-hostpath-2
   workerDataDiskMatch: 'disk.model == "SAMSUNG MZQL21T9HCJR-00A07" && !system_disk'
-  workerDataDisk2Match: 'disk.model == "SAMSUNG MZQL21T9HCJR-00A07" && !system_disk'
 nodes:
   - host: o11y-production-cp-gra
     ip: 10.150.100.11

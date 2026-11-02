@@ -9,5 +9,9 @@ terraform {
       source  = "registry.terraform.io/futo-org/netbird"
       version = "1.0.2" # fixes group TF->API resources decode (rename of groups with tagged resources)
     }
+    onepassword = {
+      source  = "1Password/onepassword"
+      version = "~> 3.3"
+    }
   }
 }

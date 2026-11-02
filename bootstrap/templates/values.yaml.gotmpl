@@ -1,17 +1,10 @@
 {{- /*
-  The HelmRelease values with Flux's postBuild substitution done here: ${VAR}
-  comes from the env's cluster-settings, else from the environment
-  (BOOTSTRAP_*, exported by bootstrap/mise.toml).
+  The HelmRelease values through Flux's own postBuild substitution (flux
+  envsubst --strict), fed the env's cluster-settings. Production HelmRelease
+  value patches are not applied; only the chart version pin is (version.gotmpl).
 */ -}}
 {{- $spec := (readFile (printf "../../kubernetes/apps/base/%s/app/helmrelease.yaml" .Release.Name) | fromYaml).spec -}}
-{{- $values := dig "values" dict $spec | toYaml -}}
 {{- $settings := (readFile (printf "../../kubernetes/clusters/%s/cluster-settings.yaml" .Environment.Name) | fromYaml).data -}}
-{{- range regexFindAll "\\$\\{[A-Z0-9_]+\\}" $values -1 | uniq -}}
-{{- $name := trimSuffix "}" (trimPrefix "${" .) -}}
-{{- if hasKey $settings $name -}}
-{{- $values = replace . (index $settings $name | toString) $values -}}
-{{- else -}}
-{{- $values = replace . (requiredEnv $name) $values -}}
-{{- end -}}
-{{- end -}}
-{{ $values }}
+{{- $env := list -}}
+{{- range $name, $value := $settings }}{{ $env = append $env (printf "%s=%v" $name $value) }}{{ end -}}
+{{ exec "env" (concat $env (list "flux" "envsubst" "--strict")) (dig "values" dict $spec | toYaml) }}

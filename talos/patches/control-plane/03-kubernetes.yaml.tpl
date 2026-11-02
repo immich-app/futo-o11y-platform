@@ -64,7 +64,7 @@ extraArgs:
 apiVersion: v1alpha1
 kind: KubeAPIServerConfig
 certExtraSANs:
-  - {{ .Data.controlplaneVip }}
+  - {{ (urlParse .ClusterEndpoint).hostname }}
 {{- range .Data.controlplaneIps }}
   - {{ . }}
 {{- end }}

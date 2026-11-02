@@ -7,8 +7,8 @@ resource "talos_machine_secrets" "this" {
   }
 }
 
-# topf applies the machine configs and bootstraps etcd. Destroying a config
-# apply resets its node (on_destroy reset = true), so these only leave state.
+# topf applies the machine configs and bootstrap/ bootstraps etcd. Destroying a
+# config apply resets its node (on_destroy reset = true), so these only leave state.
 removed {
   from = talos_machine_configuration_apply.controlplane
 

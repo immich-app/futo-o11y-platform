@@ -80,7 +80,8 @@ spec:
           - name: loop
           - name: reload
           - name: loadbalance
-      # Mesh names resolve through the netbird-router DNS Service.
+      # Mesh names resolve through the netbird-router DNS Service
+      # (kubernetes/apps/base/netbird-router/app/service-dns.yaml).
       - zones:
           - zone: futo.network
         port: 53
@@ -89,4 +90,4 @@ spec:
           - name: cache
             parameters: 30
           - name: forward
-            parameters: . ${BOOTSTRAP_NETBIRD_DNS_IP}
+            parameters: . 10.96.0.53

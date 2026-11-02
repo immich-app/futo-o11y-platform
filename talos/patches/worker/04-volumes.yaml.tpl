@@ -16,24 +16,15 @@ provisioning:
     match: system_disk
   minSize: 20GB
   grow: true
+{{- range .Data.workerDataVolumes }}
 ---
-# Spare-disk volumes; the CEL selectors are in topf.yaml.
+# Spare-disk volume; the list and the CEL selector are in topf.yaml.
 apiVersion: v1alpha1
 kind: UserVolumeConfig
-name: local-hostpath
+name: {{ . }}
 provisioning:
   diskSelector:
-    match: {{ .Data.workerDataDiskMatch | squote }}
-  minSize: 100GB
-  grow: true
-{{- if hasKey .Data "workerDataDisk2Match" }}
----
-apiVersion: v1alpha1
-kind: UserVolumeConfig
-name: local-hostpath-2
-provisioning:
-  diskSelector:
-    match: {{ .Data.workerDataDisk2Match | squote }}
+    match: {{ $.Data.workerDataDiskMatch | squote }}
   minSize: 100GB
   grow: true
 {{- end }}

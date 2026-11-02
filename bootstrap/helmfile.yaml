@@ -16,8 +16,8 @@ helmDefaults:
 
 templates:
   default:
-    chart: '{{ (fromYaml (tpl (readFile "templates/release.yaml.gotmpl") .)).chart }}'
-    version: '{{ (fromYaml (tpl (readFile "templates/release.yaml.gotmpl") .)).version }}'
+    chart: '{{ (readFile (printf "../kubernetes/apps/base/%s/app/ocirepository.yaml" .Release.Name) | fromYaml).spec.url }}'
+    version: '{{ tpl (readFile "templates/version.gotmpl") . | trim }}'
     values:
       - templates/values.yaml.gotmpl
 

@@ -13,9 +13,6 @@ data:
   # rootly module's remote_cluster heartbeat for this env.
   CLUSTER_REMOTE_HEARTBEAT: father
   CLUSTER_ENV: prod
-  # FluxInstance sync path (kubernetes/apps/base/flux-instance); CLUSTER_ENV is
-  # the telemetry label, which is `prod` on production.
-  CLUSTER_FLUX_PATH: kubernetes/clusters/production
   CLUSTER_OP_O11Y_VAULT: o11y_tf_prod
   CLUSTER_OP_SHARED_VAULT: shared_tf_prod
   CLUSTER_VMLOGS_RETENTION: 120d

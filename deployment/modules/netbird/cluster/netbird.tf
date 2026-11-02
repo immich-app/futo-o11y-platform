@@ -142,8 +142,8 @@ resource "netbird_network_resource" "k8s_gateway" {
   enabled    = true
 }
 
-# Reusable, ephemeral enrolment key for the router Pods; output -> //bootstrap:resources ->
-# the netbird-setup-key Secret.
+# Reusable, ephemeral enrolment key for the router Pods; env vault (onepassword.tf) ->
+# //bootstrap:resources -> the netbird-setup-key Secret.
 resource "netbird_setup_key" "k8s_routing_peer" {
   name           = "O11Y_${upper(var.env)}_K8S_ROUTING_PEER"
   type           = "reusable"

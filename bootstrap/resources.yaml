@@ -59,7 +59,7 @@ metadata:
   name: netbird-setup-key
   namespace: netbird
 stringData:
-  setupKey: "${NETBIRD_ROUTING_PEER_SETUP_KEY}"
+  setupKey: "{{ op://o11y_tf_${ENVIRONMENT_SHORT}/NETBIRD_K8S_ROUTING_PEER_SETUP_KEY/password }}"
 ---
 # Terraform-owned values for Flux's postBuild substitution
 # (kubernetes/clusters/<env>/apps.yaml).
@@ -74,4 +74,3 @@ data:
   BOOTSTRAP_NETBIRD_SERVICE_CIDR: "${BOOTSTRAP_NETBIRD_SERVICE_CIDR}"
   BOOTSTRAP_NETBIRD_EGRESS_CIDR: "${BOOTSTRAP_NETBIRD_EGRESS_CIDR}"
   BOOTSTRAP_NETBIRD_EGRESS_GW: "${BOOTSTRAP_NETBIRD_EGRESS_GW}"
-  BOOTSTRAP_NETBIRD_DNS_IP: "${BOOTSTRAP_NETBIRD_DNS_IP}"
