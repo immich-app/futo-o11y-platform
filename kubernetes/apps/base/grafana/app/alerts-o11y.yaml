@@ -624,15 +624,17 @@ spec:
                 reducer:
                   type: last
                   params: []
+    # Postgres rules group by job (<namespace>/<CNPG cluster>): o11y runs more than one CNPG
+    # cluster, and the CNPG metrics carry no other label naming it.
     - uid: o11y-postgres-primary-count
-      title: o11y grafana-postgres primary count off
+      title: o11y Postgres primary count off
       condition: B
       for: 5m
       labels:
         project: o11y
         severity: critical
       annotations:
-        summary: grafana-postgres in {{ $labels.cluster }} does not have exactly one primary; the cluster may be headless or split-brain.
+        summary: Postgres {{ $labels.job }} in {{ $labels.cluster }} does not have exactly one primary; the cluster may be headless or split-brain.
       execErrState: Error
       noDataState: OK
       data:
@@ -647,7 +649,7 @@ spec:
             datasource:
               type: prometheus
               uid: VictoriaMetrics
-            expr: sum by (cluster) (1 - cnpg_pg_replication_in_recovery{cluster="${CLUSTER_NAME}"})
+            expr: sum by (cluster, job) (1 - cnpg_pg_replication_in_recovery{cluster="${CLUSTER_NAME}"})
             instant: true
             range: false
             intervalMs: 1000
@@ -680,14 +682,14 @@ spec:
                   type: last
                   params: []
     - uid: o11y-postgres-standbys-detached
-      title: o11y grafana-postgres standby detached
+      title: o11y Postgres standby detached
       condition: B
       for: 15m
       labels:
         project: o11y
         severity: warning
       annotations:
-        summary: grafana-postgres in {{ $labels.cluster }} has fewer than 2 standbys streaming from the primary; HA is degraded.
+        summary: Postgres {{ $labels.job }} in {{ $labels.cluster }} has fewer than 2 standbys streaming from the primary; HA is degraded.
       execErrState: Error
       noDataState: OK
       data:
@@ -702,7 +704,7 @@ spec:
             datasource:
               type: prometheus
               uid: VictoriaMetrics
-            expr: max by (cluster) (cnpg_pg_replication_streaming_replicas{cluster="${CLUSTER_NAME}"})
+            expr: max by (cluster, job) (cnpg_pg_replication_streaming_replicas{cluster="${CLUSTER_NAME}"})
             instant: true
             range: false
             intervalMs: 1000
@@ -735,14 +737,14 @@ spec:
                   type: last
                   params: []
     - uid: o11y-postgres-replication-lag
-      title: o11y grafana-postgres replication lag
+      title: o11y Postgres replication lag
       condition: B
       for: 15m
       labels:
         project: o11y
         severity: warning
       annotations:
-        summary: grafana-postgres standby {{ $labels.pod }} in {{ $labels.cluster }} is more than 5m behind the primary.
+        summary: Postgres {{ $labels.job }} standby {{ $labels.pod }} in {{ $labels.cluster }} is more than 5m behind the primary.
       execErrState: Error
       noDataState: OK
       data:
@@ -757,7 +759,7 @@ spec:
             datasource:
               type: prometheus
               uid: VictoriaMetrics
-            expr: max by (cluster, pod) (cnpg_pg_replication_lag{cluster="${CLUSTER_NAME}"})
+            expr: max by (cluster, job, pod) (cnpg_pg_replication_lag{cluster="${CLUSTER_NAME}"})
             instant: true
             range: false
             intervalMs: 1000

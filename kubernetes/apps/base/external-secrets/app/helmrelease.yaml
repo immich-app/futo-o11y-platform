@@ -15,3 +15,15 @@ spec:
       k8s.v1.cni.cncf.io/networks: kube-system/netbird-egress
     serviceMonitor:
       enabled: true
+    # The validating webhook gates every ExternalSecret/SecretStore apply. With one replica a
+    # node drain left Flux dry-runs failing ("connection refused") until the next hourly
+    # reconcile. The chart fills in the spread constraint's label selector.
+    webhook:
+      replicaCount: 2
+      podDisruptionBudget:
+        enabled: true
+        minAvailable: 1
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway

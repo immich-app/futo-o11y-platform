@@ -120,7 +120,7 @@ talosctl -n 10.150.200.10 health   # any CP private IP; the talosconfig also lis
 
 ## Apply guardrails
 
-- **Production never reboots unattended.** The production Talos module applies with `staged_if_needing_reboot`: a machine-config change that needs a reboot is written to the node but stays inactive until the node reboots (the plan shows `resolved_apply_mode = "staged"` for those nodes). Roll them yourself, one at a time, checking `talosctl health` between nodes and doing the elected NetBird routing peer last (rebooting it drops the vRack route until another peer is elected). Staging applies with `auto`, so it reboots on its own and proves the change first.
+- **Both environments apply Talos config with `auto`.** Talos 1.14 applies most machine-config changes without a reboot, and it no longer reports whether a change needs one, so `staged_if_needing_reboot` acts like `auto`. The applies are not ordered, so a change that needs a reboot under `auto` reboots every node at once. For such a change, apply it to production with `apply_mode = "staged"`. Then reboot the nodes yourself, one at a time, and run `talosctl health` between nodes. Reboot the elected NetBird routing peer last. Rebooting it drops the vRack route until another peer is elected. Apply the change to staging first.
 - **Servers cannot be destroyed by an apply.** The OVH control-plane instances, the bare-metal workers, and the Talos machine secrets carry `prevent_destroy`; a plan that would replace or delete one fails instead. Tearing one down deliberately means removing that lifecycle rule in the same change.
 
 ## Tooling
