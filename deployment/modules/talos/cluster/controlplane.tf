@@ -54,6 +54,10 @@ resource "talos_machine_configuration_apply" "controlplane" {
         # and scheduler (:10259) serve authenticated HTTPS; etcd (:2381) is
         # unauthenticated HTTP, so the firewall is its only protection.
         etcd = {
+          # Peer and client URLs on the vRack only: the CPs also hold a public
+          # (eth0) and a NetBird (wt0) address, and a reinstalled member must
+          # never advertise those.
+          advertisedSubnets = [var.private_network_cidr]
           extraArgs = {
             "listen-metrics-urls" = "http://0.0.0.0:2381"
           }
@@ -97,11 +101,19 @@ resource "talos_machine_configuration_apply" "controlplane" {
         validSubnets = [var.private_network_cidr]
       }
     }),
-    # Explicit: Talos CoreDNS is disabled; the TF-seeded chart keeps this Service IP.
+    # clusterDNS is explicit: Talos CoreDNS is disabled; the TF-seeded chart keeps
+    # this Service IP. The shutdown grace periods (Talos default 30s/10s) give
+    # Postgres and vmstorage time to stop cleanly on an unplanned reboot; images
+    # unused for a week are garbage-collected (Spegel keeps unpacked layers).
     yamlencode({
       apiVersion = "v1alpha1"
       kind       = "KubeletConfig"
       clusterDNS = ["10.96.0.10"]
+      config = {
+        shutdownGracePeriod             = "90s"
+        shutdownGracePeriodCriticalPods = "60s"
+        imageMaximumGCAge               = "168h"
+      }
     }),
     # CoreDNS is TF-seeded (kubernetes/helm): Flux needs DNS before it can install
     # anything, and disabling Talos's copy keeps upgrade-k8s off the Corefile.
@@ -118,11 +130,36 @@ resource "talos_machine_configuration_apply" "controlplane" {
         "bind-address" = "0.0.0.0"
       }
     }),
+    # The default spread replaces the system defaults (hostname skew 3, zone
+    # skew 5), so pods without their own constraints still spread across the
+    # workers. ScheduleAnyway keeps them schedulable when a node is drained.
     yamlencode({
       apiVersion = "v1alpha1"
       kind       = "KubeSchedulerConfig"
       extraArgs = {
         "bind-address" = "0.0.0.0"
+      }
+      config = {
+        profiles = [
+          {
+            schedulerName = "default-scheduler"
+            pluginConfig = [
+              {
+                name = "PodTopologySpread"
+                args = {
+                  defaultingType = "List"
+                  defaultConstraints = [
+                    {
+                      maxSkew           = 1
+                      topologyKey       = "kubernetes.io/hostname"
+                      whenUnsatisfiable = "ScheduleAnyway"
+                    },
+                  ]
+                }
+              },
+            ]
+          },
+        ]
       }
     }),
     # kube-proxy (nftables mode) defaults nodePortAddresses to the node's

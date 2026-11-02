@@ -97,11 +97,17 @@ resource "talos_machine_configuration_apply" "worker" {
         validSubnets = [var.private_network_cidr]
       }
     }),
-    # Explicit because Talos's CoreDNS is disabled (see controlplane.tf).
+    # clusterDNS is explicit because Talos's CoreDNS is disabled; shutdown grace
+    # and image GC as on the CPs (see controlplane.tf).
     yamlencode({
       apiVersion = "v1alpha1"
       kind       = "KubeletConfig"
       clusterDNS = ["10.96.0.10"]
+      config = {
+        shutdownGracePeriod             = "90s"
+        shutdownGracePeriodCriticalPods = "60s"
+        imageMaximumGCAge               = "168h"
+      }
     }),
     # Workload isolation stays off and the generated weekly trim stays on; see
     # controlplane.tf.
