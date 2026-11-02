@@ -29,13 +29,13 @@ Control planes and workers use **different** Talos Factory schematics, on purpos
 
 ### Upgrades
 
-tuppr (`kubernetes/apps/base/tuppr`) upgrades Talos and Kubernetes from inside the cluster, one node at a time. The `TalosUpgrade` and the `KubernetesUpgrade` in `kubernetes/apps/base/tuppr-upgrades` hold the target versions. Production pins its own versions in `kubernetes/apps/production/system-upgrade/patches/`.
+tuppr (`kubernetes/apps/base/tuppr`) upgrades Talos and Kubernetes from inside the cluster, one node at a time. The `TalosUpgrade` and the `KubernetesUpgrade` in `kubernetes/apps/base/tuppr-upgrades` hold the target versions. Production pins its own versions in `kubernetes/apps/production/tuppr-system/patches/`.
 
 Before an upgrade, tuppr makes sure that the nodes, the Postgres clusters and Dragonfly are healthy. It also makes sure that the VictoriaMetrics, VictoriaLogs and VictoriaTraces clusters are healthy. A Talos upgrade does this again before each node. A Kubernetes upgrade does it only before it starts, so watch those workloads while it runs.
 
 The versions in `talos/<env>/topf.yaml` must match the versions that tuppr rolls out. If they differ, the next topf apply renders the old Kubernetes component images. For each environment, Renovate puts the Talos versions in one PR and the Kubernetes versions in another PR.
 
-tuppr connects to the Talos API with an `os:admin` talosconfig. Talos gives that talosconfig only to the `system-upgrade` namespace (`talos/patches/control-plane/05-talos-api-access.yaml`).
+tuppr connects to the Talos API with an `os:admin` talosconfig. Talos gives that talosconfig only to the `tuppr-system` namespace (`talos/patches/control-plane/05-talos-api-access.yaml`).
 
 ### Worker storage
 

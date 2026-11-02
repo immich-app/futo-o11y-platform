@@ -67,12 +67,11 @@ export TF_VAR_env=staging
    1. `//bootstrap:nodes` renders the machine configurations with topf. It applies them over the public IPs, because the nodes are in maintenance mode and NetBird does not run yet. It skips a node if the Talos API on its public IP does not answer. That means that the node is configured or down.
    2. `//bootstrap:etcd` bootstraps etcd on the first control plane. It connects to the private IP of that node, so your NetBird client must have the route to the vRack. The nodes join the mesh after they install. The host firewall then closes the public network interface, except port `30443` on the workers.
    3. `//bootstrap:kubeconfig --direct` writes the kubeconfig (see [Cluster access](#cluster-access)). It points the kubeconfig at the first control plane, because the mesh gateway does not exist yet.
-   4. `//bootstrap:ready` waits until every node is registered and `Ready`.
+   4. `//bootstrap:ready` waits until every node in `topf.yaml` is registered and `Ready`. If a node does not join within 20 minutes, the task stops and names it.
    5. `//bootstrap:resources` applies the namespaces, the `bootstrap-settings` ConfigMap and the bootstrap secrets. The secrets are the OVH DNS credentials for cert-manager, the NetBird routing-peer key and the 1Password Connect token for external-secrets.
    6. `//bootstrap:apps` installs CoreDNS, the Flux Operator and the FluxInstance with helmfile (`bootstrap/helmfile.yaml`). The chart versions and values come from the Flux apps, so Flux takes over the same releases.
-   7. `//bootstrap:kubeconfig` runs again and writes the kubeconfig with the mesh endpoint.
 
-Flux then reconciles from `kubernetes/clusters/<env>/apps.yaml`. From there, it applies the Kustomization of each app in dependency order.
+Flux then reconciles from `kubernetes/clusters/<env>/apps.yaml`. From there, it applies the Kustomization of each app in dependency order. When the mesh gateway is up, run `mise run //bootstrap:kubeconfig` to point the kubeconfig at the mesh endpoint.
 
 ## Cluster access
 
@@ -123,7 +122,7 @@ talosctl -n 10.150.200.10 health   # any CP private IP. The talosconfig also lis
 
 ## Apply guardrails
 
-- Run `mise run //talos:diff` before every apply. If the configuration of a node will change, the task exits with code 2. It prints each diff with the secrets redacted.
+- Run `mise run //talos:diff` before every apply. If the configuration of a node will change, the task exits with code 2. topf redacts the Talos secrets in each diff, and `op run` hides the NetBird key. During a key rotation, the old key can show in the diff.
 - `//talos:apply` changes one node at a time. topf shows the diff of each node and asks before it applies the change. It applies with `auto` and waits until the node is ready again before it continues.
 - Talos 1.14 applies most changes without a reboot, and it no longer reports whether a change needs one. If a change needs a reboot, the nodes reboot one at a time.
 - If a change needs a reboot, apply it to the elected NetBird routing peer last (`-- --nodes-filter`). A reboot of that peer drops the vRack route until NetBird elects another peer.

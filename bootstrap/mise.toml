@@ -4,7 +4,8 @@ _.path = ["{{config_root}}/../talos/bin"]
 
 # The stages of a fresh bring-up, in order; each is also a task of its own and
 # safe to run again. The longer stages are scripts in mise-tasks/. The kubeconfig
-# points at the first control plane until Flux brings up the mesh gateway.
+# stays on the first control plane: Flux brings up the mesh gateway later, and
+# `mise run //bootstrap:kubeconfig` then switches to the mesh endpoint.
 [tasks.cluster]
 description = "Bootstrap $ENVIRONMENT end to end: Talos configs, etcd, kubeconfig, Flux prerequisites, Flux"
 confirm = "Bootstrap o11y-{{ get_env(name='ENVIRONMENT', default='') }}?"
@@ -15,7 +16,6 @@ run = [
   "mise run //bootstrap:ready",
   "mise run //bootstrap:resources",
   "mise run //bootstrap:apps",
-  "mise run //bootstrap:kubeconfig",
 ]
 
 # The bootstrap-settings ConfigMap comes from the netbird/cluster output of the same name.
