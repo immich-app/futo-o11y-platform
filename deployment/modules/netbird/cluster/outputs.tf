@@ -6,6 +6,7 @@ output "ci_setup_key" {
 
 # The bootstrap-settings ConfigMap that //bootstrap:resources applies; Flux
 # substitutes its values into the manifests (kubernetes/clusters/<env>/apps.yaml).
+# An apply does not update the cluster: run //bootstrap:resources after a change.
 output "bootstrap_settings" {
   value = yamlencode({
     apiVersion = "v1"

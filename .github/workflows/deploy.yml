@@ -4,11 +4,9 @@ name: Infra (Terraform)
 # One deployment tree drives both environments (ENVIRONMENT selects state +
 # vault), so every change plans against both. Applies stay operator-run.
 #
-# The talos + kubernetes/helm modules refresh against control-plane private IPs,
-# so jobs join the NetBird mesh with a CI setup key read from the netbird/cluster
-# state (o11y-<env>-ci peer; policy grants apid 50000 + kube-apiserver 6443).
-# Known flake: if the elected vRack routing peer is the same CP the providers
-# target, the connection hairpins; re-run the job.
+# The modules with a onepassword provider reach the bootstrap 1Password Connect
+# over the NetBird mesh, so jobs join it with a CI setup key read from the
+# netbird/cluster state (o11y-<env>-ci peer).
 #
 # Prerequisites (out-of-band, once):
 #   - Per-env repo secrets OP_TF_O11Y_STAGING_ENV / OP_TF_O11Y_PROD_ENV: the

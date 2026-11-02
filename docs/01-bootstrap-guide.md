@@ -1,6 +1,6 @@
 # Bootstrap guide
 
-This guide builds an environment from nothing. Terragrunt builds the infrastructure, one module at a time. The `bootstrap/` tasks then configure Talos with topf and hand the cluster to Flux. Run every command through `mise`, so that everyone uses the same tool versions and the same 1Password credentials. The [README](../README.md) shows where each module and manifest lives, and where the state and the secrets come from.
+This guide builds an environment from nothing. Terragrunt builds the infrastructure, one module at a time. You then apply the Talos machine configurations that topf renders, and the `bootstrap/` tasks hand the cluster to Flux. Run every command through `mise`, so that everyone uses the same tool versions and the same 1Password credentials. The [README](../README.md) shows where each module and manifest lives, and where the state and the secrets come from.
 
 ## One-time preparation for each environment
 
@@ -58,19 +58,45 @@ export TF_VAR_env=staging
    mise run //deployment/modules/talos/cluster:apply
    ```
 
-5. Bootstrap the cluster. The task runs the stages below in order. Each stage is also a task of its own, and you can run each stage again without harm.
+5. Apply the machine configurations to the new nodes. A new node boots into maintenance mode, and it accepts an unauthenticated configuration only on its public IP, because NetBird does not run yet.
+
+   1. Render the machine configurations into a temporary directory. The files contain the private keys of the cluster.
+
+      ```bash
+      dir="$(mktemp -d)"
+      mise run //talos:render "$dir"
+      ```
+
+   2. Apply each configuration over the public IP of its node. The OVH module outputs the public IPs.
+
+      ```bash
+      mise run //deployment/modules/ovh/account:output -- -json \
+        | jq -r '[.controlplane_nodes.value, .worker_nodes.value][][] | "\(.name) \(.public_ip)"' \
+        | while read -r name ip; do
+            talosctl apply-config --insecure --nodes "$ip" --file "$dir/$name.yaml" </dev/null
+          done
+      ```
+
+   3. Delete the rendered files:
+
+      ```bash
+      rm -rf "$dir"
+      ```
+
+   Each node installs Talos, reboots and joins the NetBird mesh. The host firewall then closes the public network interface, except port `30443` on the workers. If `talosctl` reports `certificate required`, the node already has a configuration. If `talosctl` cannot connect, the node already has a configuration and its firewall drops the traffic, or the node is down. To change a configured node, use `mise run //talos:apply`.
+
+6. Bootstrap the cluster. The task runs the stages below in order. Each stage is also a task of its own, and you can run each stage again without harm.
 
    ```bash
    mise run //bootstrap:cluster
    ```
 
-   1. `//bootstrap:nodes` renders the machine configurations with topf. It applies them over the public IPs, because the nodes are in maintenance mode and NetBird does not run yet. It skips a node if the Talos API on its public IP does not answer. That means that the node is configured or down.
-   2. `//bootstrap:etcd` bootstraps etcd on the first control plane. It connects to the private IP of that node, so your NetBird client must have the route to the vRack. The nodes join the mesh after they install. The host firewall then closes the public network interface, except port `30443` on the workers.
-   3. `//bootstrap:kubeconfig --direct` writes the kubeconfig (see [Cluster access](#cluster-access)). It points the kubeconfig at the first control plane, because the mesh gateway does not exist yet.
-   4. `//bootstrap:ready` waits until every node in `topf.yaml` is registered and `Ready`. If a node does not join within 20 minutes, the task stops and names it.
-   5. `//bootstrap:resources` applies the namespaces, the `bootstrap-settings` ConfigMap and the bootstrap secrets. The secrets are the OVH DNS credentials for cert-manager, the NetBird routing-peer key and the 1Password Connect token for external-secrets.
-   6. `//bootstrap:crds` creates the missing CRDs of the charts in `bootstrap/crds.yaml`: the Prometheus Operator CRDs and the grafana-operator CRDs. Apps that only use these CRDs need no Flux `dependsOn` on these charts. Existing CRDs belong to Flux, so the task does not change them.
-   7. `//bootstrap:apps` installs CoreDNS, the Flux Operator and the FluxInstance with helmfile (`bootstrap/helmfile.yaml`). The chart versions and values come from the Flux apps, so Flux takes over the same releases.
+   1. `//bootstrap:etcd` bootstraps etcd on the first control plane. It connects to the private IP of that node, so your NetBird client must have the route to the vRack.
+   2. `//bootstrap:kubeconfig --direct` writes the kubeconfig (see [Cluster access](#cluster-access)). It points the kubeconfig at the first control plane, because the mesh gateway does not exist yet.
+   3. `//bootstrap:ready` waits until every node in `topf.yaml` is registered and `Ready`. If a node does not join within 20 minutes, the task stops and names it.
+   4. `//bootstrap:resources` applies the namespaces, the `bootstrap-settings` ConfigMap and the bootstrap secrets. The secrets are the OVH DNS credentials for cert-manager, the NetBird routing-peer key and the 1Password Connect token for external-secrets.
+   5. `//bootstrap:crds` creates the missing CRDs of the charts in `bootstrap/crds.yaml`: the Prometheus Operator CRDs and the grafana-operator CRDs. Apps that only use these CRDs need no Flux `dependsOn` on these charts. Existing CRDs belong to Flux, so the task does not change them.
+   6. `//bootstrap:apps` installs CoreDNS, the Flux Operator and the FluxInstance with helmfile (`bootstrap/helmfile.yaml`). The chart versions and values come from the Flux apps, so Flux takes over the same releases.
 
 Flux then reconciles from `kubernetes/clusters/<env>/apps.yaml`. From there, it applies the Kustomization of each app in dependency order. When the mesh gateway is up, run `mise run //bootstrap:kubeconfig` to point the kubeconfig at the mesh endpoint.
 

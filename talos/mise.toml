@@ -1,7 +1,3 @@
-[env]
-# topf runs the secretsProvider named in topf.yaml from PATH.
-_.path = ["{{config_root}}/bin"]
-
 # The tasks that render configs run topf under `op run`, which resolves the
 # references in .env (the NetBird setup key) and conceals the values in topf's
 # output. Args after `--` reach topf, e.g. `mise run //talos:diff -- --nodes-filter cp-gra`.
@@ -19,3 +15,16 @@ run = "op run {{vars.op_account}}--env-file=.env -- topf apply"
 description = "Render $ENVIRONMENT's machine configs, secrets included, into <output>"
 usage = 'arg "<output>" help="Directory for the rendered configs (use a temp dir)"'
 run = 'op run {{vars.op_account}}--env-file=.env -- topf render --output "$usage_output"'
+
+[tasks.talosconfig]
+description = "Write the talosconfig for $ENVIRONMENT to $TALOSCONFIG"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+: "${ENVIRONMENT:?set ENVIRONMENT=staging (or production) first}"
+
+umask 077
+mkdir -p "$(dirname "$TALOSCONFIG")"
+config="$(topf talosconfig)"
+printf '%s\n' "$config" >"$TALOSCONFIG"
+'''

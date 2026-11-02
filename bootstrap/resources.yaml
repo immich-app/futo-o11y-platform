@@ -1,35 +1,8 @@
 ---
-# Namespaces and secrets that Flux needs on its first reconcile, applied by
+# Secrets that Flux needs on its first reconcile, applied by
 # `mise run //bootstrap:resources`. op inject fills the op:// references from
 # 1Password, and ENVIRONMENT_SHORT comes from the root mise env.
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: cert-manager
-  annotations:
-    kustomize.toolkit.fluxcd.io/prune: disabled
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: external-secrets
-  annotations:
-    kustomize.toolkit.fluxcd.io/prune: disabled
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: flux-system
-  annotations:
-    kustomize.toolkit.fluxcd.io/prune: disabled
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: netbird
-  annotations:
-    kustomize.toolkit.fluxcd.io/prune: disabled
----
+
 # OVH DNS-01 credentials for cert-manager-webhook-ovh.
 apiVersion: v1
 kind: Secret
