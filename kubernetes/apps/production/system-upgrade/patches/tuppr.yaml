@@ -1,0 +1,21 @@
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: tuppr
+  namespace: flux-system
+spec:
+  patches:
+    - patch: |-
+        apiVersion: source.toolkit.fluxcd.io/v1
+        kind: OCIRepository
+        metadata:
+          name: tuppr
+        spec:
+          ref:
+            # renovate: datasource=docker depName=ghcr.io/home-operations/charts/tuppr
+            tag: 0.5.11
+            digest: sha256:3c81b5bfaf051ff7aca6d9c8307d9653e267c27bec713722a7f4478c5403ecf1
+      target:
+        kind: OCIRepository
+        name: tuppr

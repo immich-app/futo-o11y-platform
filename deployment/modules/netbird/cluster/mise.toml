@@ -13,7 +13,6 @@ extends = "tg:destroy"
 wait_for = [
   "//deployment/modules/netbox/cluster:destroy",
   "//deployment/modules/talos/cluster:destroy",
-  "//deployment/modules/kubernetes/helm:destroy",
 ]
 
 [tasks.output]

@@ -1,6 +1,7 @@
 ---
-# Stable endpoint for the routers' NetBird DNS resolver; the TF-seeded CoreDNS forwards
-# futo.network here. The IP is TF-published via bootstrap-settings.
+# Stable endpoint for the routers' NetBird DNS resolver; CoreDNS forwards
+# futo.network here. The IP is set in bootstrap/mise.toml and published via
+# bootstrap-settings.
 apiVersion: v1
 kind: Service
 metadata:

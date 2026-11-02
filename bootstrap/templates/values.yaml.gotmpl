@@ -1,0 +1,17 @@
+{{- /*
+  The HelmRelease values with Flux's postBuild substitution done here: ${VAR}
+  comes from the env's cluster-settings, else from the environment
+  (BOOTSTRAP_*, exported by bootstrap/mise.toml).
+*/ -}}
+{{- $spec := (readFile (printf "../../kubernetes/apps/base/%s/app/helmrelease.yaml" .Release.Name) | fromYaml).spec -}}
+{{- $values := dig "values" dict $spec | toYaml -}}
+{{- $settings := (readFile (printf "../../kubernetes/clusters/%s/cluster-settings.yaml" .Environment.Name) | fromYaml).data -}}
+{{- range regexFindAll "\\$\\{[A-Z0-9_]+\\}" $values -1 | uniq -}}
+{{- $name := trimSuffix "}" (trimPrefix "${" .) -}}
+{{- if hasKey $settings $name -}}
+{{- $values = replace . (index $settings $name | toString) $values -}}
+{{- else -}}
+{{- $values = replace . (requiredEnv $name) $values -}}
+{{- end -}}
+{{- end -}}
+{{ $values }}

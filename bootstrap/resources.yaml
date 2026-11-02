@@ -1,0 +1,77 @@
+---
+# Namespaces and inputs Flux needs on its first reconcile, applied by
+# `mise run //bootstrap:resources`. The task fills the shell-style variables
+# from the netbird/cluster Terraform outputs (flux envsubst --strict) and the
+# op:// references from 1Password (op inject). Re-run it after the
+# netbird/cluster outputs change.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cert-manager
+  annotations:
+    kustomize.toolkit.fluxcd.io/prune: disabled
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: external-secrets
+  annotations:
+    kustomize.toolkit.fluxcd.io/prune: disabled
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: flux-system
+  annotations:
+    kustomize.toolkit.fluxcd.io/prune: disabled
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: netbird
+  annotations:
+    kustomize.toolkit.fluxcd.io/prune: disabled
+---
+# OVH DNS-01 credentials for cert-manager-webhook-ovh.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ovh-credentials
+  namespace: cert-manager
+stringData:
+  applicationKey: "{{ op://o11y_tf/OVH_APPLICATION_KEY/password }}"
+  applicationSecret: "{{ op://o11y_tf/OVH_APPLICATION_SECRET/password }}"
+  applicationConsumerKey: "{{ op://o11y_tf/OVH_CONSUMER_KEY/password }}"
+---
+# 1Password Connect token for the ClusterSecretStore.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: onepassword-connect-environment
+  namespace: external-secrets
+stringData:
+  token: "{{ op://o11y_tf_${ENVIRONMENT_SHORT}/1PASS_CONNECT_O11Y_READ/password }}"
+---
+# Enrolment key for the netbird-router pods.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: netbird-setup-key
+  namespace: netbird
+stringData:
+  setupKey: "${NETBIRD_ROUTING_PEER_SETUP_KEY}"
+---
+# Terraform-owned values for Flux's postBuild substitution
+# (kubernetes/clusters/<env>/apps.yaml).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bootstrap-settings
+  namespace: flux-system
+data:
+  BOOTSTRAP_MESH_DOMAIN: "${BOOTSTRAP_MESH_DOMAIN}"
+  BOOTSTRAP_NETBIRD_GATEWAY_VIP: "${BOOTSTRAP_NETBIRD_GATEWAY_VIP}"
+  BOOTSTRAP_NETBIRD_SERVICE_CIDR: "${BOOTSTRAP_NETBIRD_SERVICE_CIDR}"
+  BOOTSTRAP_NETBIRD_EGRESS_CIDR: "${BOOTSTRAP_NETBIRD_EGRESS_CIDR}"
+  BOOTSTRAP_NETBIRD_EGRESS_GW: "${BOOTSTRAP_NETBIRD_EGRESS_GW}"
+  BOOTSTRAP_NETBIRD_DNS_IP: "${BOOTSTRAP_NETBIRD_DNS_IP}"

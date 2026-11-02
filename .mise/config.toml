@@ -2,7 +2,7 @@ min_version = "2026.9.16"
 monorepo_root = true
 
 [monorepo]
-config_roots = ["deployment", "deployment/modules/*/*"]
+config_roots = ["bootstrap", "deployment", "deployment/modules/*/*", "talos"]
 
 [tools]
 actionlint = "1.7.12"
@@ -15,6 +15,10 @@ kubectl = "1.37.2"
 flux2 = "2.10.0"
 sd = "1.1.0"
 talosctl = "1.14.5"
+"aqua:postfinance/topf" = "0.6.2"
+vals = "0.50.0"
+helm = "4.3.1"
+helmfile = "1.8.2"
 jq = "1.8.2"
 yq = "4.54.1"
 kustomize = "5.8.3"
@@ -81,11 +85,11 @@ description = "Read outputs from this module"
 # Paths are explicit because oxfmt honours only .gitignore and .prettierignore,
 # not the global excludes that hide .private/.
 [tasks.fmt]
-run = "oxfmt deployment docs kubernetes o11y .github README.md renovate.json"
+run = "oxfmt bootstrap deployment docs kubernetes o11y talos .github README.md renovate.json"
 description = "Format markdown, YAML and JSON in place (what the lefthook pre-commit does per staged file)"
 
 [tasks."fmt:check"]
-run = "oxfmt --check deployment docs kubernetes o11y .github README.md renovate.json"
+run = "oxfmt --check bootstrap deployment docs kubernetes o11y talos .github README.md renovate.json"
 description = "Verify markdown, YAML and JSON are formatted"
 
 [tasks."o11y:vendor"]

@@ -26,9 +26,16 @@ deployment/modules/
 ├── grafana/cluster/          # Grafana service account for the Rootly integration
 ├── rootly/cluster/           # Rootly service, heartbeats, alert sources, Zulip workflows, status page
 ├── netbox/cluster/           # IPAM registration of the ranges the other modules allocate
-├── talos/cluster/            # machine secrets, CP + worker configs, bootstrap, ingress firewall
-├── kubernetes/helm/          # CoreDNS, Flux Operator + Instance, bootstrap-settings, env secrets
+├── talos/cluster/            # Talos secrets bundle (state only), read by topf
 └── victoria-metrics/cluster/ # vmauth mesh + public URL items in the shared 1Password vault
+
+talos/
+├── <env>/topf.yaml           # nodes, versions and network values per environment
+├── patches/                  # machine-config patches: all/, control-plane/, worker/
+├── schematics/               # Talos Factory schematics (control plane, worker)
+└── bin/talos-secrets         # topf secrets provider: reads the bundle from Terraform state
+
+bootstrap/                    # bring-up stages (mise tasks), resources.yaml, helmfile for CoreDNS + Flux
 
 kubernetes/
 ├── apps/

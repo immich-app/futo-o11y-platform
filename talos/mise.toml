@@ -1,0 +1,75 @@
+[env]
+# topf runs the secretsProvider named in topf.yaml from PATH.
+_.path = ["{{config_root}}/bin"]
+TOPFCONFIG = "{{config_root}}/{{ get_env(name='ENVIRONMENT', default='') }}/topf.yaml"
+
+# Args after `--` reach topf, e.g. `mise run //talos:diff -- --nodes-filter cp-gra`.
+[tasks.diff]
+description = "Show the machine-config changes topf would apply to $ENVIRONMENT (exits 2 when there are changes)"
+run = """
+: "${ENVIRONMENT:?set ENVIRONMENT=staging (or production) first}"
+NETBIRD_SETUP_KEY="$(mise run //deployment/modules/netbird/cluster:output -- -raw talos_setup_key)"
+export NETBIRD_SETUP_KEY="${NETBIRD_SETUP_KEY:?empty talos_setup_key output}"
+topf apply --dry-run
+"""
+
+[tasks.apply]
+description = "Apply the machine configs to $ENVIRONMENT, one node at a time, confirming each diff"
+run = """
+: "${ENVIRONMENT:?set ENVIRONMENT=staging (or production) first}"
+NETBIRD_SETUP_KEY="$(mise run //deployment/modules/netbird/cluster:output -- -raw talos_setup_key)"
+export NETBIRD_SETUP_KEY="${NETBIRD_SETUP_KEY:?empty talos_setup_key output}"
+topf apply
+"""
+
+# The rendered files hold the cluster's private keys, so the output dir is
+# required (topf's default ./output is inside the repo); use a temp dir.
+[tasks.render]
+description = "Render $ENVIRONMENT's machine configs, secrets included, into <output>"
+usage = 'arg "<output>" help="Directory for the rendered configs (use a temp dir)"'
+run = """
+: "${ENVIRONMENT:?set ENVIRONMENT=staging (or production) first}"
+NETBIRD_SETUP_KEY="$(mise run //deployment/modules/netbird/cluster:output -- -raw talos_setup_key)"
+export NETBIRD_SETUP_KEY="${NETBIRD_SETUP_KEY:?empty talos_setup_key output}"
+topf render --output "${usage_output:?}"
+"""
+
+# The default context is the HA mesh endpoint kube.<zone>; <cluster>-direct is the
+# first control plane's private IP, for bootstrap and DR before the mesh gateway
+# exists. Both are apiserver cert SANs. topf signs a fresh admin cert (12h).
+[tasks.kubeconfig]
+description = "Write a 12h admin kubeconfig for $ENVIRONMENT to .private/<env>/kubeconfig"
+run = """
+: "${ENVIRONMENT:?set ENVIRONMENT=staging (or production) first}" "${MISE_MONOREPO_ROOT:?}"
+mkdir -p "$MISE_MONOREPO_ROOT/.private/$ENVIRONMENT"
+umask 077
+kubeconfig="$(topf kubeconfig)"
+export CLUSTER="o11y-$ENVIRONMENT"
+export MESH="https://kube.$(yq '.data.meshDnsZone' "$TOPFCONFIG"):6443"
+export DIRECT="https://$(yq '[.nodes[] | select(.role == "control-plane")][0].ip' "$TOPFCONFIG"):6443"
+printf '%s\n' "$kubeconfig" | yq '
+  .clusters[0].cluster as $c | .users[0].user as $u | {
+    "apiVersion": "v1",
+    "kind": "Config",
+    "current-context": strenv(CLUSTER),
+    "clusters": [
+      {"name": strenv(CLUSTER), "cluster": ($c | .server = strenv(MESH))},
+      {"name": strenv(CLUSTER) + "-direct", "cluster": ($c | .server = strenv(DIRECT))}
+    ],
+    "users": [{"name": "admin@" + strenv(CLUSTER), "user": $u}],
+    "contexts": [
+      {"name": strenv(CLUSTER), "context": {"cluster": strenv(CLUSTER), "user": "admin@" + strenv(CLUSTER)}},
+      {"name": strenv(CLUSTER) + "-direct", "context": {"cluster": strenv(CLUSTER) + "-direct", "user": "admin@" + strenv(CLUSTER)}}
+    ]
+  }' > "$MISE_MONOREPO_ROOT/.private/$ENVIRONMENT/kubeconfig"
+"""
+
+[tasks.talosconfig]
+description = "Write the talosconfig for $ENVIRONMENT to .private/<env>/talosconfig"
+run = """
+: "${ENVIRONMENT:?set ENVIRONMENT=staging (or production) first}" "${MISE_MONOREPO_ROOT:?}"
+mkdir -p "$MISE_MONOREPO_ROOT/.private/$ENVIRONMENT"
+umask 077
+talosconfig="$(topf talosconfig)"
+printf '%s\n' "$talosconfig" > "$MISE_MONOREPO_ROOT/.private/$ENVIRONMENT/talosconfig"
+"""

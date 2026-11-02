@@ -1,0 +1,7 @@
+---
+# Bare-metal workers: netbird only. qemu-guest-agent on bare metal blocks on a
+# virtio port that never appears and reboot-loops the node.
+customization:
+  systemExtensions:
+    officialExtensions:
+      - siderolabs/netbird

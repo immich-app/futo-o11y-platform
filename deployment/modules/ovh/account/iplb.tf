@@ -6,7 +6,7 @@
 # is vrack:false (vRack needs lb2/dedicated at ~10x the cost — see the ADR). The
 # public-IP path is sound — each worker replies from its OWN public IP, so OVH
 # per-NIC anti-spoofing doesn't drop it. 30443 is firewalled to the IPLB NAT
-# range 10.108.0.0/14 (talos/cluster/workers.tf), so the LB is the only ingress.
+# range 10.108.0.0/14 (talos/patches/worker/05-firewall.yaml), so the LB is the only ingress.
 #
 # Multi-zone: var.loadbalancer_zones drives one anycast LB IP announced from each
 # zone, with a farm + frontend per zone (each farm reaches all workers). Staging

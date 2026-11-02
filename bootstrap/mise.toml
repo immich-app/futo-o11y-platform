@@ -1,0 +1,131 @@
+[env]
+TOPFCONFIG = "{{config_root}}/../talos/{{ get_env(name='ENVIRONMENT', default='') }}/topf.yaml"
+KUBECONFIG = "{{config_root}}/../.private/{{ get_env(name='ENVIRONMENT', default='') }}/kubeconfig"
+TALOSCONFIG = "{{config_root}}/../.private/{{ get_env(name='ENVIRONMENT', default='') }}/talosconfig"
+# The netbird-dns Service IP (kubernetes/apps/base/netbird-router/app/service-dns.yaml),
+# which CoreDNS forwards futo.network to.
+BOOTSTRAP_NETBIRD_DNS_IP = "10.96.0.53"
+
+# Stages of a fresh bring-up, in order. Each stage is safe to re-run on its own.
+[tasks.cluster]
+description = "Bootstrap $ENVIRONMENT end to end: Talos configs, etcd, kubeconfig, Flux prerequisites, Flux"
+confirm = "Bootstrap o11y-{{ get_env(name='ENVIRONMENT', default='') }}?"
+run = [
+  { task = "nodes" },
+  { task = "etcd" },
+  { task = "//talos:kubeconfig" },
+  { task = "ready" },
+  { task = "resources" },
+  { task = "apps" },
+]
+
+# Fresh nodes boot into maintenance mode and answer only on their public IPs
+# until the NetBird extension runs. A configured node's firewall drops public
+# apid traffic, so a short TCP probe tells the two apart before talosctl can
+# hang; configured nodes are then confirmed on their private IP with the
+# cluster's talosconfig. Use //talos:apply to change configured nodes.
+[tasks.nodes]
+description = "Apply the machine configs to $ENVIRONMENT's maintenance-mode nodes over their public IPs"
+shell = "bash -c"
+run = """
+set -euo pipefail
+: "${ENVIRONMENT:?set ENVIRONMENT=staging (or production) first}"
+dir="$(mktemp -d)"
+trap 'rm -rf "$dir"' EXIT
+mise run //talos:render "$dir"
+mise run //talos:talosconfig
+ovh="$(mise run //deployment/modules/ovh/account:output -- -json)"
+apid_open() {
+  [[ "$(curl -sk -o /dev/null -w '%{time_connect}' --connect-timeout 5 --max-time 10 "https://$1:50000" || true)" != 0.000000 ]]
+}
+for host in $(yq '.nodes[].host' "$TOPFCONFIG"); do
+  public="$(jq -er --arg host "$host" '[.controlplane_nodes.value, .worker_nodes.value][][] | select(.name == $host) | .public_ip' <<<"$ovh")"
+  private="$(HOST="$host" yq '.nodes[] | select(.host == strenv(HOST)) | .ip' "$TOPFCONFIG")"
+  if apid_open "$public"; then
+    if out="$(talosctl apply-config --insecure --nodes "$public" --file "$dir/$host.yaml" 2>&1)"; then
+      echo "$host: config applied over $public"
+    elif [[ "$out" == *"certificate required"* ]]; then
+      echo "$host: already configured, skipped"
+    else
+      echo "$host: $out" >&2
+      exit 1
+    fi
+  elif apid_open "$private" && talosctl --nodes "$private" --endpoints "$private" version >/dev/null 2>&1; then
+    echo "$host: already configured, skipped"
+  else
+    echo "$host: apid answers neither in maintenance mode on $public nor with the cluster talosconfig on $private" >&2
+    exit 1
+  fi
+done
+"""
+
+# Reaches the first control plane on its private IP, so the operator's NetBird
+# route to the vRack must work (the nodes joined the mesh after install).
+[tasks.etcd]
+description = "Bootstrap etcd on $ENVIRONMENT's first control plane (waits until it is up)"
+shell = "bash -c"
+run = """
+set -euo pipefail
+: "${ENVIRONMENT:?set ENVIRONMENT=staging (or production) first}"
+mise run //talos:talosconfig
+cp="$(yq '[.nodes[] | select(.role == "control-plane")][0].ip' "$TOPFCONFIG")"
+until out="$(talosctl --nodes "$cp" --endpoints "$cp" bootstrap 2>&1)"; [[ "$out" == *AlreadyExists* ]]; do
+  echo "etcd bootstrap on ${cp}: ${out:-requested}; checking again in 5s"
+  sleep 5
+done
+echo "etcd is bootstrapped on $cp"
+"""
+
+[tasks.ready]
+description = "Wait until every apiserver answers and every $ENVIRONMENT node is Ready"
+shell = "bash -c"
+run = """
+set -euo pipefail
+: "${ENVIRONMENT:?set ENVIRONMENT=staging (or production) first}"
+for ip in $(yq '.nodes[] | select(.role == "control-plane") | .ip' "$TOPFCONFIG"); do
+  until [[ "$(curl -ks -o /dev/null -w '%{http_code}' --connect-timeout 2 "https://$ip:6443/readyz")" == 200 ]]; do
+    echo "waiting for kube-apiserver on $ip"
+    sleep 5
+  done
+done
+want="$(yq '.nodes | length' "$TOPFCONFIG")"
+until [[ "$(kubectl --context "o11y-$ENVIRONMENT-direct" get nodes --no-headers 2>/dev/null | wc -l)" -ge "$want" ]]; do
+  echo "waiting for $want nodes to register"
+  sleep 5
+done
+kubectl --context "o11y-$ENVIRONMENT-direct" wait nodes --all --for=condition=Ready --timeout=15m
+"""
+
+[tasks.resources]
+description = "Apply the namespaces, secrets and bootstrap-settings ConfigMap Flux needs to $ENVIRONMENT"
+shell = "bash -c"
+run = """
+set -euo pipefail
+: "${ENVIRONMENT:?set ENVIRONMENT=staging (or production) first}"
+netbird="$(mise run //deployment/modules/netbird/cluster:output -- -json)"
+NETBIRD_ROUTING_PEER_SETUP_KEY="$(jq -er .k8s_routing_peer_setup_key.value <<<"$netbird")"
+BOOTSTRAP_MESH_DOMAIN="$(jq -er .mesh_dns_zone.value <<<"$netbird")"
+BOOTSTRAP_NETBIRD_GATEWAY_VIP="$(jq -er .gateway_vip.value <<<"$netbird")"
+BOOTSTRAP_NETBIRD_SERVICE_CIDR="$(jq -er .service_cidr.value <<<"$netbird")"
+BOOTSTRAP_NETBIRD_EGRESS_CIDR="$(jq -er .egress_cidr.value <<<"$netbird")"
+# The first host address, as Terraform's cidrhost(egress_cidr, 1) set it.
+BOOTSTRAP_NETBIRD_EGRESS_GW="$(jq -er '
+  .egress_cidr.value | split("/")[0] | split(".") | map(tonumber)
+  | (.[0] * 16777216 + .[1] * 65536 + .[2] * 256 + .[3] + 1) as $n
+  | [($n / 16777216 | floor), ($n / 65536 | floor) % 256, ($n / 256 | floor) % 256, $n % 256]
+  | map(tostring) | join(".")' <<<"$netbird")"
+export NETBIRD_ROUTING_PEER_SETUP_KEY BOOTSTRAP_MESH_DOMAIN BOOTSTRAP_NETBIRD_GATEWAY_VIP \
+  BOOTSTRAP_NETBIRD_SERVICE_CIDR BOOTSTRAP_NETBIRD_EGRESS_CIDR BOOTSTRAP_NETBIRD_EGRESS_GW
+# CI authenticates with a service-account token, which op rejects alongside --account.
+op_account=()
+[[ -n "${OP_SERVICE_ACCOUNT_TOKEN:-}" ]] || op_account=(--account team-futo.1password.com)
+manifests="$(flux envsubst --strict < resources.yaml | op inject "${op_account[@]}")"
+kubectl --context "o11y-$ENVIRONMENT-direct" apply --server-side --force-conflicts -f - <<<"$manifests"
+"""
+
+[tasks.apps]
+description = "Install CoreDNS, the Flux Operator and the FluxInstance on $ENVIRONMENT (helmfile sync)"
+run = """
+: "${ENVIRONMENT:?set ENVIRONMENT=staging (or production) first}"
+helmfile --file helmfile.yaml --environment "$ENVIRONMENT" --kube-context "o11y-$ENVIRONMENT-direct" sync --hide-notes
+"""

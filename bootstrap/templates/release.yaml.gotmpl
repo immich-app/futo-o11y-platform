@@ -1,0 +1,14 @@
+{{- /* Chart source from the app's OCIRepository; production takes the tag from its overlay pin. */ -}}
+{{- $oci := readFile (printf "../kubernetes/apps/base/%s/app/ocirepository.yaml" .Release.Name) | fromYaml -}}
+{{- $ref := $oci.spec.ref -}}
+{{- $pin := printf "../kubernetes/apps/%s/%s/patches/%s.yaml" .Environment.Name .Release.Namespace .Release.Name -}}
+{{- if isFile $pin -}}
+{{- range (readFile $pin | fromYaml).spec.patches -}}
+{{- $patch := .patch | fromYaml -}}
+{{- if eq $patch.kind "OCIRepository" -}}
+{{- $ref = $patch.spec.ref -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+chart: {{ $oci.spec.url }}
+version: {{ $ref.tag }}

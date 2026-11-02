@@ -1,0 +1,34 @@
+---
+# Production upgrades trail staging: Renovate opens these bumps as separate,
+# approval-gated PRs together with talos/production/topf.yaml.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: tuppr-upgrades
+  namespace: flux-system
+spec:
+  patches:
+    - patch: |-
+        apiVersion: tuppr.home-operations.com/v1alpha1
+        kind: TalosUpgrade
+        metadata:
+          name: talos
+        spec:
+          talos:
+            # renovate: datasource=github-releases depName=siderolabs/talos
+            version: v1.14.5
+      target:
+        kind: TalosUpgrade
+        name: talos
+    - patch: |-
+        apiVersion: tuppr.home-operations.com/v1alpha1
+        kind: KubernetesUpgrade
+        metadata:
+          name: kubernetes
+        spec:
+          kubernetes:
+            # renovate: datasource=docker depName=ghcr.io/siderolabs/kubelet
+            version: v1.37.2
+      target:
+        kind: KubernetesUpgrade
+        name: kubernetes

@@ -18,7 +18,7 @@ spec:
         image:
           registry: quay.io/
         # Must match the Talos UserVolumeConfig `hostpath` mount in
-        # deployment/modules/talos/cluster/workers.tf; drift puts PVs on
+        # talos/patches/worker/04-volumes.yaml.tpl; drift puts PVs on
         # EPHEMERAL where they compete with the container image cache.
         basePath: &hostPath /var/mnt/hostpath
       hostpathClass:

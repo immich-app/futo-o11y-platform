@@ -31,6 +31,35 @@ url = "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_
 url_api = "https://api.github.com/repos/rhysd/actionlint/releases/assets/384924880"
 provenance = "github-attestations"
 
+[[tools."aqua:postfinance/topf"]]
+version = "0.6.2"
+backend = "aqua:postfinance/topf"
+specifiers = ["0.6.2"]
+
+[tools."aqua:postfinance/topf"."platforms.linux-arm64"]
+checksum = "sha256:8f528bd90fc3d173a0a10609dbc1a5001ae002f44fd75c214b5e760aff3f0514"
+checksum_source = "mise-versions"
+url = "https://github.com/postfinance/topf/releases/download/v0.6.2/topf_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/postfinance/topf/releases/assets/668624296"
+
+[tools."aqua:postfinance/topf"."platforms.linux-x64"]
+checksum = "sha256:793dc87c97a6545fd73db82c3558306644d9e6914010f2636d1470cf55272405"
+checksum_source = "mise-versions"
+url = "https://github.com/postfinance/topf/releases/download/v0.6.2/topf_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/postfinance/topf/releases/assets/668624308"
+
+[tools."aqua:postfinance/topf"."platforms.macos-arm64"]
+checksum = "sha256:c263c13976eb88b37a2ae3a95b7b76493abf1630b819509b20d6b481acd9f8b7"
+checksum_source = "mise-versions"
+url = "https://github.com/postfinance/topf/releases/download/v0.6.2/topf_darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/postfinance/topf/releases/assets/668624305"
+
+[tools."aqua:postfinance/topf"."platforms.macos-x64"]
+checksum = "sha256:19370b0e94518d54d42d988be7831fd6f5d10067e3484042a742abe4402a88a9"
+checksum_source = "mise-versions"
+url = "https://github.com/postfinance/topf/releases/download/v0.6.2/topf_darwin_amd64.tar.gz"
+url_api = "https://api.github.com/repos/postfinance/topf/releases/assets/668624311"
+
 [[tools.cosign]]
 version = "3.1.4"
 backend = "aqua:sigstore/cosign"
@@ -113,6 +142,56 @@ url_api = "https://api.github.com/repos/home-operations/flate/releases/assets/54
 checksum = "sha256:4b1dcefb4613b4c02f3374c8fc8d4082d42d893f4303daa16e24e37d58bccb78"
 url = "https://github.com/home-operations/flate/releases/download/v0.6.5/flate_0.6.5_darwin_amd64.tar.gz"
 url_api = "https://api.github.com/repos/home-operations/flate/releases/assets/541337300"
+
+[[tools.helm]]
+version = "4.3.1"
+backend = "aqua:helm/helm"
+specifiers = ["4.3.1"]
+
+[tools.helm."platforms.linux-arm64"]
+checksum = "sha256:8cf8f66ecbc252ac8f7f06cca68aba88508ddfde3a6a34feb1678ad1694b4f88"
+url = "https://get.helm.sh/helm-v4.3.1-linux-arm64.tar.gz"
+
+[tools.helm."platforms.linux-x64"]
+checksum = "sha256:0403a88ae20913d11b10a2467b50087721fea7581736da6b9d3992f5357fe54b"
+url = "https://get.helm.sh/helm-v4.3.1-linux-amd64.tar.gz"
+
+[tools.helm."platforms.macos-arm64"]
+checksum = "sha256:6b4e61c8cd27d99e5a801e63ff25dd5c70b36875c2cd659d3e9ce6b76fc23198"
+url = "https://get.helm.sh/helm-v4.3.1-darwin-arm64.tar.gz"
+
+[tools.helm."platforms.macos-x64"]
+checksum = "sha256:34bec4eba761ba5c16d1965ee6b8f5b0abe5993974a802274e2a4f0418893d89"
+url = "https://get.helm.sh/helm-v4.3.1-darwin-amd64.tar.gz"
+
+[[tools.helmfile]]
+version = "1.8.2"
+backend = "packslip:github.com/helmfile/helmfile"
+specifiers = ["1.8.2"]
+
+[tools.helmfile."platforms.linux-arm64"]
+checksum = "sha256:9163f0d7ad088d243d7305ba09c3465aac02dfebd658d46c62dbdaa11c224b16"
+url = "https://github.com/helmfile/helmfile/releases/download/v1.8.2/helmfile_1.8.2_linux_arm64.tar.gz"
+signer = "sigstore-oidc:https://github.com/helmfile/helmfile/.github/workflows/releaser.yaml"
+repository_ids = { repository = "474521466" }
+
+[tools.helmfile."platforms.linux-x64"]
+checksum = "sha256:f179485c5bb9f8e20fbd8ea16d8807915988aba4d60131ee864fb3232452716e"
+url = "https://github.com/helmfile/helmfile/releases/download/v1.8.2/helmfile_1.8.2_linux_amd64.tar.gz"
+signer = "sigstore-oidc:https://github.com/helmfile/helmfile/.github/workflows/releaser.yaml"
+repository_ids = { repository = "474521466" }
+
+[tools.helmfile."platforms.macos-arm64"]
+checksum = "sha256:0e788f4aa7b4eea1ec0d1e278e0e66e845d5733be5f4e6cb7f832c779e656c72"
+url = "https://github.com/helmfile/helmfile/releases/download/v1.8.2/helmfile_1.8.2_darwin_arm64.tar.gz"
+signer = "sigstore-oidc:https://github.com/helmfile/helmfile/.github/workflows/releaser.yaml"
+repository_ids = { repository = "474521466" }
+
+[tools.helmfile."platforms.macos-x64"]
+checksum = "sha256:e99b669bb02729d5c4b0f5de9d830298d336d5968dcac76c7c01635f67095574"
+url = "https://github.com/helmfile/helmfile/releases/download/v1.8.2/helmfile_1.8.2_darwin_amd64.tar.gz"
+signer = "sigstore-oidc:https://github.com/helmfile/helmfile/.github/workflows/releaser.yaml"
+repository_ids = { repository = "474521466" }
 
 [[tools.jq]]
 version = "1.8.2"
@@ -372,6 +451,35 @@ checksum = "sha256:29806d1708f5c54e54bc6adfcacfb710d4bb1f6f180efd751692e6fad5985
 checksum_source = "mise-versions"
 url = "https://github.com/gruntwork-io/terragrunt/releases/download/v1.2.1/terragrunt_darwin_amd64.tar.gz"
 url_api = "https://api.github.com/repos/gruntwork-io/terragrunt/releases/assets/670000649"
+
+[[tools.vals]]
+version = "0.50.0"
+backend = "aqua:helmfile/vals"
+specifiers = ["0.50.0"]
+
+[tools.vals."platforms.linux-arm64"]
+checksum = "sha256:1e7c4d2b187391c7ef33be69c548cc6624152e75816c9d458e52a462e409542f"
+checksum_source = "mise-versions"
+url = "https://github.com/helmfile/vals/releases/download/v0.50.0/vals_0.50.0_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/helmfile/vals/releases/assets/662121358"
+
+[tools.vals."platforms.linux-x64"]
+checksum = "sha256:4cb1664b1e0aa49481cb05fabe2c52d4944dcaab31c4805924b668ae9f54c379"
+checksum_source = "mise-versions"
+url = "https://github.com/helmfile/vals/releases/download/v0.50.0/vals_0.50.0_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/helmfile/vals/releases/assets/662121543"
+
+[tools.vals."platforms.macos-arm64"]
+checksum = "sha256:8f960625cc7f96d7055d02882d5d3b22c5ba31b8e2b31dcd948eb79eb4e105c5"
+checksum_source = "mise-versions"
+url = "https://github.com/helmfile/vals/releases/download/v0.50.0/vals_0.50.0_darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/helmfile/vals/releases/assets/662121360"
+
+[tools.vals."platforms.macos-x64"]
+checksum = "sha256:3c465db2be2c3800d1c6656316b29a4ccbbbb440f340972761cafae4e1fb746d"
+checksum_source = "mise-versions"
+url = "https://github.com/helmfile/vals/releases/download/v0.50.0/vals_0.50.0_darwin_amd64.tar.gz"
+url_api = "https://api.github.com/repos/helmfile/vals/releases/assets/662121355"
 
 [[tools.yq]]
 version = "4.54.1"

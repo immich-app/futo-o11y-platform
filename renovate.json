@@ -26,12 +26,26 @@
       ],
       "datasourceTemplate": "{{#if datasource}}{{{datasource}}}{{else}}github-releases{{/if}}",
       "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}"
+    },
+    {
+      "customType": "regex",
+      "description": "Talos and Kubernetes versions: talos/<env>/topf.yaml, the tuppr upgrade CRs and the OVH image variable",
+      "managerFilePatterns": [
+        "/(^|/)talos/[^/]+/topf\\.yaml$/",
+        "/(^|/)kubernetes/apps/.+\\.ya?ml$/",
+        "/(^|/)deployment/modules/.+\\.tf$/"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s*\\n\\s*(?:version|talosVersion|kubernetesVersion|default)\\s*[:=]\\s*\"?v?(?<currentValue>\\d[^\"\\s]*)\"?"
+      ],
+      "extractVersionTemplate": "^v?(?<version>.+)$",
+      "versioningTemplate": "semver"
     }
   ],
   "packageRules": [
     {
-      "description": "Split base Kubernetes updates into their own PRs",
-      "matchFileNames": ["kubernetes/apps/base/**"],
+      "description": "Split base Kubernetes updates (and the staging Talos config, which tracks base) into their own PRs",
+      "matchFileNames": ["kubernetes/apps/base/**", "talos/staging/**"],
       "additionalBranchPrefix": "base-",
       "semanticCommitScope": "base"
     },
@@ -49,7 +63,7 @@
     },
     {
       "description": "Split production Kubernetes updates into their own PRs and gate behind manual approval in the dashboard",
-      "matchFileNames": ["kubernetes/apps/production/**"],
+      "matchFileNames": ["kubernetes/apps/production/**", "talos/production/**"],
       "additionalBranchPrefix": "production-",
       "semanticCommitScope": "production",
       "dependencyDashboardApproval": true
@@ -75,6 +89,31 @@
       "matchManagers": ["mise"],
       "matchDepNames": ["!opentofu", "!terragrunt"],
       "groupName": "mise tools"
+    },
+    {
+      "description": "One Talos upgrade per environment: topf's talosVersion and the tuppr TalosUpgrade move together, with talosctl in staging's PR and the OVH image in production's",
+      "matchDepNames": ["siderolabs/talos", "talosctl"],
+      "groupName": "talos"
+    },
+    {
+      "description": "One Kubernetes upgrade per environment: topf's kubernetesVersion and the tuppr KubernetesUpgrade move together, with kubectl in staging's PR",
+      "matchDepNames": ["ghcr.io/siderolabs/kubelet", "kubectl"],
+      "groupName": "kubernetes"
+    },
+    {
+      "description": "talosctl and kubectl ride with staging (base), which upgrades first",
+      "matchFileNames": [".mise/config.toml"],
+      "matchDepNames": ["talosctl", "kubectl"],
+      "additionalBranchPrefix": "base-",
+      "semanticCommitScope": "base"
+    },
+    {
+      "description": "The OVH image version provisions nodes in both environments, so it moves with production and a new node never runs ahead of it",
+      "matchFileNames": ["deployment/**"],
+      "matchDepNames": ["siderolabs/talos"],
+      "additionalBranchPrefix": "production-",
+      "semanticCommitScope": "production",
+      "dependencyDashboardApproval": true
     }
   ]
 }

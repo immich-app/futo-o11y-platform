@@ -41,7 +41,10 @@ variable "vrack_name" {
 }
 
 variable "talos_version" {
-  type    = string
+  type = string
+  # Image for newly provisioned nodes in both environments. Renovate bumps it
+  # with production, and tuppr then upgrades a new staging node to staging's version.
+  # renovate: datasource=github-releases depName=siderolabs/talos
   default = "v1.14.5"
 }
 

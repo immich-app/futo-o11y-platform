@@ -1,62 +1,44 @@
-# Exactly what downstream providers (kubernetes/helm) need to reach the cluster.
-output "cluster" {
-  sensitive = true
-  value = {
-    operator_endpoint  = local.operator_endpoint
-    client_certificate = talos_cluster_kubeconfig.this.kubernetes_client_configuration.client_certificate
-    client_key         = talos_cluster_kubeconfig.this.kubernetes_client_configuration.client_key
-    ca_certificate     = talos_cluster_kubeconfig.this.kubernetes_client_configuration.ca_certificate
-  }
-}
-
-output "talos_client_configuration" {
-  sensitive = true
-  value     = data.talos_client_configuration.this.talos_config
-}
-
-# TF-authored kubeconfig with two contexts: the HA mesh endpoint (default) and a
-# direct-CP break-glass for bootstrap/DR before the gateway exists
-# (kubectl --context <cluster>-direct). Both endpoints are apiserver cert SANs.
-output "kubeconfig" {
+# The bundle in the secrets.yaml layout `talosctl gen secrets` writes, which
+# topf's secrets provider (talos/bin/talos-secrets) hands over verbatim.
+output "talos_secrets" {
   sensitive = true
   value = yamlencode({
-    apiVersion        = "v1"
-    kind              = "Config"
-    "current-context" = local.cluster_name
-    clusters = [
+    cluster = {
+      id     = talos_machine_secrets.this.machine_secrets.cluster.id
+      secret = talos_machine_secrets.this.machine_secrets.cluster.secret
+    }
+    secrets = merge(
       {
-        name = local.cluster_name
-        cluster = {
-          server                       = "https://kube.${var.mesh_dns_zone}:6443"
-          "certificate-authority-data" = talos_cluster_kubeconfig.this.kubernetes_client_configuration.ca_certificate
-        }
+        bootstraptoken            = talos_machine_secrets.this.machine_secrets.secrets.bootstrap_token
+        secretboxencryptionsecret = talos_machine_secrets.this.machine_secrets.secrets.secretbox_encryption_secret
       },
-      {
-        name = "${local.cluster_name}-direct"
-        cluster = {
-          server                       = local.operator_endpoint
-          "certificate-authority-data" = talos_cluster_kubeconfig.this.kubernetes_client_configuration.ca_certificate
-        }
+      talos_machine_secrets.this.machine_secrets.secrets.aescbc_encryption_secret == null ? {} : {
+        aescbcencryptionsecret = talos_machine_secrets.this.machine_secrets.secrets.aescbc_encryption_secret
       },
-    ]
-    users = [
-      {
-        name = "admin@${local.cluster_name}"
-        user = {
-          "client-certificate-data" = talos_cluster_kubeconfig.this.kubernetes_client_configuration.client_certificate
-          "client-key-data"         = talos_cluster_kubeconfig.this.kubernetes_client_configuration.client_key
-        }
-      },
-    ]
-    contexts = [
-      {
-        name    = local.cluster_name
-        context = { cluster = local.cluster_name, user = "admin@${local.cluster_name}" }
-      },
-      {
-        name    = "${local.cluster_name}-direct"
-        context = { cluster = "${local.cluster_name}-direct", user = "admin@${local.cluster_name}" }
-      },
-    ]
+    )
+    trustdinfo = {
+      token = talos_machine_secrets.this.machine_secrets.trustdinfo.token
+    }
+    certs = {
+      etcd = {
+        crt = talos_machine_secrets.this.machine_secrets.certs.etcd.cert
+        key = talos_machine_secrets.this.machine_secrets.certs.etcd.key
+      }
+      k8s = {
+        crt = talos_machine_secrets.this.machine_secrets.certs.k8s.cert
+        key = talos_machine_secrets.this.machine_secrets.certs.k8s.key
+      }
+      k8saggregator = {
+        crt = talos_machine_secrets.this.machine_secrets.certs.k8s_aggregator.cert
+        key = talos_machine_secrets.this.machine_secrets.certs.k8s_aggregator.key
+      }
+      k8sserviceaccount = {
+        key = talos_machine_secrets.this.machine_secrets.certs.k8s_serviceaccount.key
+      }
+      os = {
+        crt = talos_machine_secrets.this.machine_secrets.certs.os.cert
+        key = talos_machine_secrets.this.machine_secrets.certs.os.key
+      }
+    }
   })
 }

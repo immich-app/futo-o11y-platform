@@ -1,0 +1,62 @@
+---
+# Machine configs for o11y-staging; see docs/01-bootstrap-guide.md.
+clusterName: o11y-staging
+# The control-plane VIP. It does not ARP across DCs, so operators reach the
+# apiservers through kube.<meshDnsZone> or a control-plane IP instead.
+clusterEndpoint: https://10.150.200.5:6443
+# renovate: datasource=docker depName=ghcr.io/siderolabs/kubelet
+kubernetesVersion: 1.37.2
+# renovate: datasource=github-releases depName=siderolabs/talos
+talosVersion: 1.14.5
+platform: metal
+schematicId: "@../schematics/worker.yaml"
+patchesDir: ../patches
+# Resolved on PATH (talos/bin, added by talos/mise.toml).
+secretsProvider: talos-secrets
+data:
+  privateNetwork: 10.150.200.0/24
+  privateGateway: 10.150.200.1
+  controlplaneVip: 10.150.200.5
+  controlplaneIps:
+    - 10.150.200.11
+    - 10.150.200.12
+    - 10.150.200.10
+  meshDnsZone: staging.o11y.futo.network
+  # CEL selector for the worker spare-disk UserVolume (local-hostpath).
+  workerDataDiskMatch: 'disk.model == "WDC CL SN720 SDAQNTW-512G-2000" && !system_disk'
+nodes:
+  - host: o11y-staging-cp-gra
+    ip: 10.150.200.11
+    role: control-plane
+    platform: openstack
+    schematicId: "@../schematics/controlplane.yaml"
+  - host: o11y-staging-cp-par
+    ip: 10.150.200.12
+    role: control-plane
+    platform: openstack
+    schematicId: "@../schematics/controlplane.yaml"
+  - host: o11y-staging-cp-rbx
+    ip: 10.150.200.10
+    role: control-plane
+    platform: openstack
+    schematicId: "@../schematics/controlplane.yaml"
+  # OVH ships different NIC names even within one plan code, so each worker
+  # names its public (DHCP) and private vRack (static) NIC.
+  - host: o11y-staging-worker-gra
+    ip: 10.150.200.21
+    role: worker
+    data:
+      publicNic: eno1np0
+      privateNic: eno2np1
+  - host: o11y-staging-worker-rbx
+    ip: 10.150.200.20
+    role: worker
+    data:
+      publicNic: eno1np0
+      privateNic: eno2np1
+  - host: o11y-staging-worker-sbg
+    ip: 10.150.200.22
+    role: worker
+    data:
+      publicNic: eno1np0
+      privateNic: eno2np1
