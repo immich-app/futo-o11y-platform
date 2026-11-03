@@ -1,6 +1,5 @@
 # NIC names differ across OVH workers (even within a plan code), so each node
-# names them in topf.yaml. Port 0 = public (DHCP), port 1 = private vRack
-# (static).
+# names them in topf.yaml.
 machine:
   network:
     interfaces:

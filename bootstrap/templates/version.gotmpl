@@ -1,4 +1,3 @@
-{{- /* The app's OCIRepository tag; production takes it from its overlay pin. */ -}}
 {{- $oci := readFile (printf "../kubernetes/apps/base/%s/app/ocirepository.yaml" .Release.Name) | fromYaml -}}
 {{- $ref := $oci.spec.ref -}}
 {{- $pin := printf "../kubernetes/apps/%s/%s/patches/%s.yaml" .Environment.Name .Release.Namespace .Release.Name -}}

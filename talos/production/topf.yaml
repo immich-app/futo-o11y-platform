@@ -1,5 +1,4 @@
 ---
-# Machine configs for o11y-production; see docs/01-bootstrap-guide.md.
 clusterName: o11y-production
 # The control-plane VIP. It does not ARP across DCs, so operators reach the
 # apiservers through kube.<meshDnsZone> or a control-plane IP instead.
@@ -21,10 +20,9 @@ data:
     - 10.150.100.12
     - 10.150.100.10
   meshDnsZone: o11y.futo.network
-  # Worker spare-disk UserVolumes and the CEL selector for their disk. All
-  # volumes share the model + !system_disk match, so Talos spreads them across
-  # the two non-system disks. OVH's BYOI install picks the system disk per node,
-  # so anything position- or serial-specific would need upkeep by hand.
+  # All volumes share the model + !system_disk match, so Talos spreads them
+  # across the two non-system disks. OVH's BYOI install picks the system disk
+  # per node, so anything position- or serial-specific would need upkeep by hand.
   workerDataVolumes:
     - local-hostpath
     - local-hostpath-2

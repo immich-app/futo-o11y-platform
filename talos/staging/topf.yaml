@@ -1,5 +1,4 @@
 ---
-# Machine configs for o11y-staging; see docs/01-bootstrap-guide.md.
 clusterName: o11y-staging
 # The control-plane VIP. It does not ARP across DCs, so operators reach the
 # apiservers through kube.<meshDnsZone> or a control-plane IP instead.
@@ -21,7 +20,6 @@ data:
     - 10.150.200.12
     - 10.150.200.10
   meshDnsZone: staging.o11y.futo.network
-  # Worker spare-disk UserVolumes and the CEL selector for their disk.
   workerDataVolumes:
     - local-hostpath
   workerDataDiskMatch: 'disk.model == "WDC CL SN720 SDAQNTW-512G-2000" && !system_disk'

@@ -28,11 +28,10 @@ cosign = "3.1.4"
 
 [env]
 TF_VAR_dist_dir = "{{config_root}}/dist"
-# The topf config for $ENVIRONMENT, read by the talos/ and bootstrap/ tasks.
 TOPFCONFIG = "{{config_root}}/talos/{{ get_env(name='ENVIRONMENT', default='') }}/topf.yaml"
 # topf runs the secretsProvider named in topf.yaml from PATH.
 _.path = ["{{config_root}}/talos/bin"]
-# Written by //bootstrap:kubeconfig and //talos:talosconfig; kubectl, helmfile and talosctl read them.
+# Written by //bootstrap:kubeconfig and //talos:talosconfig.
 KUBECONFIG = "{{config_root}}/.private/{{ get_env(name='ENVIRONMENT', default='') }}/kubeconfig"
 TALOSCONFIG = "{{config_root}}/.private/{{ get_env(name='ENVIRONMENT', default='') }}/talosconfig"
 

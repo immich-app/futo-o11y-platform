@@ -3,7 +3,6 @@
 # `mise run //bootstrap:resources`. op inject fills the op:// references from
 # 1Password, and ENVIRONMENT_SHORT comes from the root mise env.
 
-# OVH DNS-01 credentials for cert-manager-webhook-ovh.
 apiVersion: v1
 kind: Secret
 metadata:
@@ -14,7 +13,6 @@ stringData:
   applicationSecret: "{{ op://o11y_tf/OVH_APPLICATION_SECRET/password }}"
   applicationConsumerKey: "{{ op://o11y_tf/OVH_CONSUMER_KEY/password }}"
 ---
-# 1Password Connect token for the ClusterSecretStore.
 apiVersion: v1
 kind: Secret
 metadata:
@@ -23,7 +21,6 @@ metadata:
 stringData:
   token: "{{ op://o11y_tf_$ENVIRONMENT_SHORT/1PASS_CONNECT_O11Y_READ/password }}"
 ---
-# Enrolment key for the netbird-router pods.
 apiVersion: v1
 kind: Secret
 metadata:

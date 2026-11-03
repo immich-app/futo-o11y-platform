@@ -5,7 +5,7 @@ apiVersion: v1alpha1
 kind: KubeCoreDNSConfig
 enabled: false
 ---
-# Metrics on all interfaces; see 01-network.yaml.tpl.
+# Why 0.0.0.0: see the metrics note in 01-network.yaml.tpl.
 apiVersion: v1alpha1
 kind: KubeControllerManagerConfig
 extraArgs:

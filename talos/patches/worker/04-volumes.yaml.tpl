@@ -18,7 +18,6 @@ provisioning:
   grow: true
 {{- range .Data.workerDataVolumes }}
 ---
-# Spare-disk volume; the list and the CEL selector are in topf.yaml.
 apiVersion: v1alpha1
 kind: UserVolumeConfig
 name: {{ . }}

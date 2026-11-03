@@ -1,6 +1,4 @@
 ---
-# Worker services; the shared rules are in all/06-firewall.yaml.tpl.
-#
 # Envoy data-plane NodePort, reached by the OVH IPLB on the worker's PUBLIC IP
 # (the lb1 order is vrackEligibility=false, so the LB cannot ride the vRack;
 # see ovh/account/iplb.tf). Restricted to the IPLB's NAT/source range (OVH

@@ -1,6 +1,5 @@
-# The tasks that render configs run topf under `op run`, which resolves the
-# references in .env (the NetBird setup key) and conceals the values in topf's
-# output. Args after `--` reach topf, e.g. `mise run //talos:diff -- --nodes-filter cp-gra`.
+# `op run` conceals the NetBird key in topf's output. Args after `--` reach
+# topf, e.g. `mise run //talos:diff -- --nodes-filter cp-gra`.
 [tasks.diff]
 description = "Show the machine-config changes topf would apply to $ENVIRONMENT (exits 2 when there are changes)"
 run = "op run {{vars.op_account}}--env-file=.env -- topf apply --dry-run"

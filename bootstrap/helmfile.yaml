@@ -1,7 +1,7 @@
 ---
 # yaml-language-server: $schema=https://json.schemastore.org/helmfile
-# Installs what Flux needs before it can reconcile: CoreDNS, the Flux Operator
-# and the FluxInstance. Run through `mise run //bootstrap:apps`.
+# Flux needs these before it can reconcile. Run through
+# `mise run //bootstrap:apps`.
 bases:
   - defaults.yaml
 ---

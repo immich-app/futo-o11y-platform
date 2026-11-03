@@ -1,7 +1,7 @@
 {{- /*
-  The HelmRelease values through Flux's own postBuild substitution (flux
-  envsubst --strict), fed the env's cluster-settings. Production HelmRelease
-  value patches are not applied; only the chart version pin is (version.gotmpl).
+  flux envsubst --strict substitutes cluster-settings the way Flux's postBuild
+  does. Production HelmRelease value patches are not applied; only the chart
+  version pin is (version.gotmpl).
 */ -}}
 {{- $spec := (readFile (printf "../../kubernetes/apps/base/%s/app/helmrelease.yaml" .Release.Name) | fromYaml).spec -}}
 {{- $settings := (readFile (printf "../../kubernetes/clusters/%s/cluster-settings.yaml" .Environment.Name) | fromYaml).data -}}

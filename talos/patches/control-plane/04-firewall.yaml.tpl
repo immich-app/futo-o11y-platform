@@ -1,4 +1,3 @@
-# Control-plane services; the shared rules are in all/06-firewall.yaml.tpl.
 apiVersion: v1alpha1
 kind: NetworkRuleConfig
 name: trustd

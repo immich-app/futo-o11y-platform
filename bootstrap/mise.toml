@@ -37,9 +37,8 @@ description = "Write a 12h admin kubeconfig for $ENVIRONMENT to $KUBECONFIG"
 usage = 'flag "--direct" help="Use the first control plane instead of the mesh endpoint"'
 run = '''
 #!/usr/bin/env bash
-# One context, o11y-<env>, on the HA mesh endpoint kube.<zone>. --direct points it
-# at the first control plane, for bootstrap and DR before the mesh gateway exists;
-# every control-plane IP is an apiserver cert SAN. topf signs a fresh admin cert.
+# --direct is for bootstrap and DR, before the mesh gateway exists. TLS works on
+# both endpoints: every control-plane IP is an apiserver cert SAN.
 set -euo pipefail
 : "${ENVIRONMENT:?set ENVIRONMENT=staging (or production) first}"
 
@@ -99,7 +98,6 @@ run = [
 description = "Create the CRDs that other apps consume on $ENVIRONMENT, before Flux starts"
 run = '''
 #!/usr/bin/env bash
-# Renders the charts in crds.yaml and creates only the CRDs that are missing.
 # Flux installs the charts later and takes over these CRDs. Existing CRDs
 # belong to Flux, so a rerun, even from an older checkout, never changes them.
 set -euo pipefail
