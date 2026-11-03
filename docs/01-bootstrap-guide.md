@@ -73,9 +73,12 @@ export TF_VAR_env=staging
       mise run //deployment/modules/ovh/account:output -- -json \
         | jq -r '[.controlplane_nodes.value, .worker_nodes.value][][] | "\(.name) \(.public_ip)"' \
         | while read -r name ip; do
-            talosctl apply-config --insecure --nodes "$ip" --file "$dir/$name.yaml" </dev/null
+            talosctl apply-config --insecure --nodes "$ip" --file "$dir/$name.yaml" </dev/null \
+              || echo "FAILED: $name ($ip)" >&2
           done
       ```
+
+      The loop continues after a failed node and prints `FAILED:` with the name of the node. Read the `talosctl` error above that line.
 
    3. Delete the rendered files:
 
