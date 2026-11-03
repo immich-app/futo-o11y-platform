@@ -79,12 +79,20 @@
     {
       "description": "One Talos upgrade per environment: topf's talosVersion and the tuppr TalosUpgrade move together, with talosctl in staging's PR and the OVH image in production's",
       "matchDepNames": ["siderolabs/talos", "talosctl"],
-      "groupName": "talos"
+      "groupName": "talos",
+      "separateMinorPatch": true
     },
     {
       "description": "One Kubernetes upgrade per environment: topf's kubernetesVersion and the tuppr KubernetesUpgrade move together, with kubectl in staging's PR",
       "matchDepNames": ["ghcr.io/siderolabs/kubelet", "kubectl"],
-      "groupName": "kubernetes"
+      "groupName": "kubernetes",
+      "separateMinorPatch": true
+    },
+    {
+      "description": "topf and tuppr take the kubelet tag as a plain Kubernetes version, so a digest pin would break both",
+      "matchDepNames": ["ghcr.io/siderolabs/kubelet"],
+      "matchUpdateTypes": ["pinDigest"],
+      "enabled": false
     },
     {
       "description": "talosctl and kubectl ride with staging (base), which upgrades first",
