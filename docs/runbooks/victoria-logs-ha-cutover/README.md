@@ -1,6 +1,6 @@
 # Runbook: VictoriaLogs VLDistributed cutover
 
-Replaces the single sharded VictoriaLogs cluster with a two-zone `VLDistributed`, declared in the `vldistributed` block of the `victoria-metrics-k8s-stack` HelmRelease and reconciled by the VictoriaMetrics operator. Background: [#129](https://github.com/immich-app/yucca-o11y/issues/129). Architecture: [application architecture guide, VictoriaLogs](../../04-application-architecture-guide.md#victorialogs).
+Replaces the single sharded VictoriaLogs cluster with a two-zone `VLDistributed`, declared in the `vldistributed` block of the `victoria-metrics-k8s-stack` HelmRelease and reconciled by the VictoriaMetrics operator. Background: [#129](https://github.com/immich-app/futo-o11y-platform/issues/129). Architecture: [application architecture guide, VictoriaLogs](../../04-application-architecture-guide.md#victorialogs).
 
 Staging is rehearsed live with Flux suspended and the branch applied from its own render; production is cut over by merging. Commands are fish, run from the repo root on the branch with the right kube context selected. Anything addressed as `*.svc.cluster.local` has to run from inside the cluster; everything below uses the mesh hostnames instead.
 
