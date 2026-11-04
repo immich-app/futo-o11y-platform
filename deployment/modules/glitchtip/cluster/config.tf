@@ -4,7 +4,7 @@ terraform {
   required_providers {
     ovh = {
       source  = "ovh/ovh"
-      version = "2.22.0"
+      version = "2.24.0"
     }
     onepassword = {
       source  = "1Password/onepassword"
