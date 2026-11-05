@@ -35,6 +35,9 @@ permissions:
 
 env:
   TG_NON_INTERACTIVE: "true"
+  # mise run installs every missing tool from .mise/config.toml by default, which
+  # would undo the short install list below.
+  MISE_TASK_RUN_AUTO_INSTALL: "false"
 
 jobs:
   plan:
@@ -62,7 +65,7 @@ jobs:
       - name: Setup Mise
         uses: jdx/mise-action@6be3c7ed4c21d4f76b208d351d95aac273ebb76d # v5.2.4
         with:
-          install_args: --locked
+          install_args: --locked opentofu terragrunt
 
       - name: Init
         run: mise run //deployment:init
