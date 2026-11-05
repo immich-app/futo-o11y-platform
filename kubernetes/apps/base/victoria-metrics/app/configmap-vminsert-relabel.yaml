@@ -94,11 +94,11 @@ data:
       target_label: vm_project_id
       replacement: "1"
     - source_labels: [project, cluster]
-      regex: bootstrap;palpatine
+      regex: bootstrap;(palpatine|vader|maul)
       target_label: vm_account_id
       replacement: "8"
     - source_labels: [project, cluster]
-      regex: bootstrap;palpatine
+      regex: bootstrap;(palpatine|vader|maul)
       target_label: vm_project_id
       replacement: "1"
     - source_labels: [project, cluster]
