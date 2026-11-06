@@ -38,14 +38,14 @@ kind: OCIRepository
 metadata: { name: yucca-o11y, namespace: flux-system }
 spec:
   interval: 1m
-  url: oci://ghcr.io/immich-app/yucca/o11y-manifests
+  url: oci://ghcr.io/immich-app/futo-applications-platform/o11y-manifests
   ref:
     tag: main # tracks every merge; no digest, or auto-updates stop
   verify: # gate on the CI cosign signature
     provider: cosign
     matchOIDCIdentity:
       - issuer: "^https://token\\.actions\\.githubusercontent\\.com$"
-        subject: "^https://github\\.com/immich-app/yucca/\\.github/workflows/o11y\\.yml@refs/(heads/main|tags/v[^@]+)$"
+        subject: "^https://github\\.com/immich-app/futo-applications-platform/\\.github/workflows/o11y\\.yml@refs/(heads/main|tags/v[^@]+)$"
 ---
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
