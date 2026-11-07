@@ -1,0 +1,8 @@
+---
+# The v1.14 contract enables workload isolation (sandboxd) by default. Turning
+# it on restarts containerd, the kubelet and every pod, so it is not part of
+# the contract change. The generated FilesystemTrimConfig (weekly trim of
+# every eligible volume) is kept.
+apiVersion: v1alpha1
+kind: SecurityProfileConfig
+workloadIsolation: false

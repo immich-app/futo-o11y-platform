@@ -1,0 +1,10 @@
+{{- /*
+  flux envsubst --strict substitutes cluster-settings the way Flux's postBuild
+  does. Production HelmRelease value patches are not applied; only the chart
+  version pin is (version.gotmpl).
+*/ -}}
+{{- $spec := (readFile (printf "../../kubernetes/apps/base/%s/app/helmrelease.yaml" .Release.Name) | fromYaml).spec -}}
+{{- $settings := (readFile (printf "../../kubernetes/clusters/%s/cluster-settings.yaml" .Environment.Name) | fromYaml).data -}}
+{{- $env := list -}}
+{{- range $name, $value := $settings }}{{ $env = append $env (printf "%s=%v" $name $value) }}{{ end -}}
+{{ exec "env" (concat $env (list "flux" "envsubst" "--strict")) (dig "values" dict $spec | toYaml) }}

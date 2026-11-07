@@ -1,0 +1,65 @@
+---
+clusterName: o11y-production
+# The control-plane VIP. It does not ARP across DCs, so operators reach the
+# apiservers through kube.<meshDnsZone> or a control-plane IP instead.
+clusterEndpoint: https://10.150.100.5:6443
+# renovate: datasource=docker depName=ghcr.io/siderolabs/kubelet
+kubernetesVersion: v1.37.2
+# renovate: datasource=github-releases depName=siderolabs/talos
+talosVersion: v1.14.5
+platform: metal
+schematicId: "@../schematics/worker.yaml"
+patchesDir: ../patches
+# Resolved on PATH (talos/bin, added by .mise/config.toml).
+secretsProvider: talos-secrets
+data:
+  privateNetwork: 10.150.100.0/24
+  privateGateway: 10.150.100.1
+  controlplaneIps:
+    - 10.150.100.11
+    - 10.150.100.12
+    - 10.150.100.10
+  meshDnsZone: o11y.futo.network
+  # All volumes share the model + !system_disk match, so Talos spreads them
+  # across the two non-system disks. OVH's BYOI install picks the system disk
+  # per node, so anything position- or serial-specific would need upkeep by hand.
+  workerDataVolumes:
+    - local-hostpath
+    - local-hostpath-2
+  workerDataDiskMatch: 'disk.model == "SAMSUNG MZQL21T9HCJR-00A07" && !system_disk'
+nodes:
+  - host: o11y-production-cp-gra
+    ip: 10.150.100.11
+    role: control-plane
+    platform: openstack
+    schematicId: "@../schematics/controlplane.yaml"
+  - host: o11y-production-cp-par
+    ip: 10.150.100.12
+    role: control-plane
+    platform: openstack
+    schematicId: "@../schematics/controlplane.yaml"
+  - host: o11y-production-cp-rbx
+    ip: 10.150.100.10
+    role: control-plane
+    platform: openstack
+    schematicId: "@../schematics/controlplane.yaml"
+  # OVH ships different NIC names even within one plan code, so each worker
+  # names its public (DHCP) and private vRack (static) NIC.
+  - host: o11y-production-worker-gra
+    ip: 10.150.100.21
+    role: worker
+    data:
+      publicNic: eno1np0
+      privateNic: eno2np1
+  - host: o11y-production-worker-rbx
+    ip: 10.150.100.20
+    role: worker
+    data:
+      publicNic: enp4s0f0
+      privateNic: enp4s0f1
+  - host: o11y-production-worker-sbg
+    ip: 10.150.100.22
+    role: worker
+    data:
+      publicNic: enp4s0f0np0
+      privateNic: enp4s0f1np1

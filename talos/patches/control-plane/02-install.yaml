@@ -1,0 +1,9 @@
+---
+# Only read for a fresh install: an installed node records the install as done
+# and never re-runs the installer. topf sets the installer image from
+# platform, schematicId and talosVersion in topf.yaml.
+apiVersion: v1alpha1
+kind: UnattendedInstallConfig
+provisioning:
+  diskSelector:
+    match: 'disk.dev_path == "/dev/vda"'

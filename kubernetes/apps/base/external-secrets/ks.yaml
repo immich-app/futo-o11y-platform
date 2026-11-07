@@ -7,7 +7,6 @@ metadata:
   namespace: flux-system
 spec:
   dependsOn:
-    - name: prometheus-operator-crds
     # The controller pod's netbird-egress annotation needs the NAD to exist to schedule.
     - name: multus-networks
   healthChecks:

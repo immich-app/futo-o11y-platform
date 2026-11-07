@@ -1,31 +1,31 @@
-# Plaintext setup key fed to the Talos netbird extension (NB_SETUP_KEY) by the
-# talos/cluster module, which consumes this via a terragrunt dependency.
-output "talos_setup_key" {
-  sensitive = true
-  value     = netbird_setup_key.talos.key
-}
-
-# Routing-peer setup key; consumed by kubernetes/helm -> netbird-setup-key Secret.
-output "k8s_routing_peer_setup_key" {
-  sensitive = true
-  value     = netbird_setup_key.k8s_routing_peer.key
-}
-
 # CI runner setup key; the infra workflow reads it from state to join the mesh.
 output "ci_setup_key" {
   sensitive = true
   value     = netbird_setup_key.ci.key
 }
 
-# Consumed by kubernetes/helm -> bootstrap-settings ConfigMap (Flux substitution).
-output "mesh_dns_zone" {
-  value = local.mesh_dns_zone
+# The bootstrap-settings ConfigMap that //bootstrap:resources applies; Flux
+# substitutes its values into the manifests (kubernetes/clusters/<env>/apps.yaml).
+# An apply does not update the cluster: run //bootstrap:resources after a change.
+output "bootstrap_settings" {
+  value = yamlencode({
+    apiVersion = "v1"
+    kind       = "ConfigMap"
+    metadata = {
+      name      = "bootstrap-settings"
+      namespace = "flux-system"
+    }
+    data = {
+      BOOTSTRAP_MESH_DOMAIN          = local.mesh_dns_zone
+      BOOTSTRAP_NETBIRD_GATEWAY_VIP  = local.netbird_gateway_vip
+      BOOTSTRAP_NETBIRD_SERVICE_CIDR = local.netbird_service_cidr
+      BOOTSTRAP_NETBIRD_EGRESS_CIDR  = local.netbird_egress_cidr
+      BOOTSTRAP_NETBIRD_EGRESS_GW    = cidrhost(local.netbird_egress_cidr, 1)
+    }
+  })
 }
 
-output "gateway_vip" {
-  value = local.netbird_gateway_vip
-}
-
+# Registered in IPAM by netbox/cluster.
 output "service_cidr" {
   value = local.netbird_service_cidr
 }

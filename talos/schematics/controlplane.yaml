@@ -1,0 +1,8 @@
+---
+# qemu-guest-agent answers OVH's Public Cloud (KVM) hypervisor; netbird is the
+# node management mesh.
+customization:
+  systemExtensions:
+    officialExtensions:
+      - siderolabs/netbird
+      - siderolabs/qemu-guest-agent

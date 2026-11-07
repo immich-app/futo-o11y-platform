@@ -4,11 +4,9 @@ name: Infra (Terraform)
 # One deployment tree drives both environments (ENVIRONMENT selects state +
 # vault), so every change plans against both. Applies stay operator-run.
 #
-# The talos + kubernetes/helm modules refresh against control-plane private IPs,
-# so jobs join the NetBird mesh with a CI setup key read from the netbird/cluster
-# state (o11y-<env>-ci peer; policy grants apid 50000 + kube-apiserver 6443).
-# Known flake: if the elected vRack routing peer is the same CP the providers
-# target, the connection hairpins; re-run the job.
+# The modules with a onepassword provider reach the bootstrap 1Password Connect
+# over the NetBird mesh, so jobs join it with a CI setup key read from the
+# netbird/cluster state (o11y-<env>-ci peer).
 #
 # Prerequisites (out-of-band, once):
 #   - Per-env repo secrets OP_TF_O11Y_STAGING_ENV / OP_TF_O11Y_PROD_ENV: the
@@ -37,6 +35,9 @@ permissions:
 
 env:
   TG_NON_INTERACTIVE: "true"
+  # mise run installs every missing tool from .mise/config.toml by default, which
+  # would undo the short install list below.
+  MISE_TASK_RUN_AUTO_INSTALL: "false"
 
 jobs:
   plan:
@@ -64,7 +65,7 @@ jobs:
       - name: Setup Mise
         uses: jdx/mise-action@6be3c7ed4c21d4f76b208d351d95aac273ebb76d # v5.2.4
         with:
-          install_args: --locked
+          install_args: --locked opentofu terragrunt
 
       - name: Init
         run: mise run //deployment:init

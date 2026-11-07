@@ -1,0 +1,10 @@
+---
+# Only read for a fresh install: an installed node records the install as done
+# and never re-runs the installer. OVH's BYOI provisioning picks the disk on
+# production; /dev/nvme0n1 is the real install target on staging (uniform
+# hardware). topf sets the installer image from topf.yaml.
+apiVersion: v1alpha1
+kind: UnattendedInstallConfig
+provisioning:
+  diskSelector:
+    match: 'disk.dev_path == "/dev/nvme0n1"'
