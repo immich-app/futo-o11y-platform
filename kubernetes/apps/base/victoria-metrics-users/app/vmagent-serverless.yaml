@@ -1,0 +1,83 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/operator.victoriametrics.com/vmagent_v1beta1.json
+#
+# The serverless ingest path (docs/05, "Shippers that send one sample per
+# event"). A Worker or function cannot keep a counter between requests, so it
+# sends one sample per event. The store keeps one sample per series per 20s
+# (dedup.minScrapeInterval), so pushed straight to /insert/0/ those events
+# collapse: 50 requests in 20s are stored as one. This vmagent receives them
+# on /serverless/insert/ (both gateways) and writes each series' sum per
+# minute to vminsert instead.
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMAgent
+metadata:
+  name: serverless
+spec:
+  # Scrapes nothing: no scrape config is generated.
+  ingestOnlyMode: true
+  selectAllByDefault: false
+  replicaCount: 2
+  podDisruptionBudget:
+    minAvailable: 1
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/name: vmagent
+          app.kubernetes.io/instance: serverless
+  # A persistent queue, so a vminsert outage replays on recovery (docs/05,
+  # prerequisites).
+  statefulMode: true
+  statefulStorage:
+    volumeClaimTemplate:
+      spec:
+        storageClassName: openebs-system-disk
+        resources:
+          requests:
+            storage: 2Gi
+  remoteWrite:
+    - url: http://vminsert-victoria-metrics.o11y.svc.cluster.local:8480/insert/multitenant/prometheus/api/v1/write
+  extraEnvs:
+    - name: POD_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.name
+    - name: POD_UID
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.uid
+  remoteWriteSettings:
+    # Each replica aggregates only the requests the gateway sent it, so two
+    # replicas write the same series with partial sums. Without a label of
+    # their own the store's dedup would keep one of them; with it, queries sum
+    # across `aggregator`. The pod's UID is in it too: a pod stopped early
+    # stamps its last sums with its first flush time, so two replacements of
+    # one ordinal within a minute would otherwise write the same series at the
+    # same time. vmagent fills %{...} from the env above; it is not Flux's ${}
+    # substitution.
+    label:
+      aggregator: "%{POD_NAME}-%{POD_UID}"
+  streamAggrConfig:
+    rules:
+      # Every sample is one event's value: 1 for a request, its rows for a
+      # query, 1 in its vmrange bucket for a duration (docs/05). Each minute
+      # writes the sum of what arrived in it, <name>:1m_sum_samples. Sums per
+      # minute rather than running totals: a restarted process starts its
+      # totals from zero, and a total that climbs back past the stored one
+      # would hide the reset and the events before it; a sum only ever loses
+      # the minute in progress. A quiet series is kept for 5 minutes, writing
+      # zeros: with the default (one interval) a series whose one sample came
+      # just after a flush could be dropped as stale at the next.
+      - match: '{__name__=~".+"}'
+        interval: 1m
+        staleness_interval: 5m
+        flush_on_shutdown: true
+        outputs: [sum_samples]
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 512Mi
