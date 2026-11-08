@@ -157,7 +157,39 @@ Prometheus users get the same effect by setting `cluster` as a target label in `
 
 ### Shippers that push instead of scrape
 
-The fleet-wide `o11y cluster stopped reporting` alert fires about 20 minutes after a tenant that ingested within the last 7 days stops writing (a 15-minute window, then `for: 5m`). A pusher such as a serverless worker often ships in bursts, which that window would misread as an outage, so bursty tenants are left out of the rule (fmeet's and geoshenanigans' today) and can go dark without anyone noticing. Such a shipper should emit one steady heartbeat metric and own an `absent_over_time` alert on it in its project folder, with a window matched to its push cadence.
+The fleet-wide `o11y cluster stopped reporting` alert fires about 20 minutes after a tenant that ingested within the last 7 days stops writing (a 15-minute window, then `for: 5m`). A pusher such as a serverless worker often ships in bursts, which that window would misread as an outage, so bursty tenants are left out of the rule (fmeet's and geoshenanigans' geocoder today) and can go dark without anyone noticing. Such a shipper should emit one steady heartbeat metric and own an `absent_over_time` alert on it in its project folder, with a window matched to its push cadence. A shipper on the serverless path below writes every minute while it has traffic, so it stays in the rule.
+
+### Shippers that send one sample per event
+
+A serverless worker (a Cloudflare Worker, a Lambda) cannot keep a counter between requests: every invocation starts fresh, many run at once, and none outlives its request. What it can send is one sample per event: 1 for a request, or the event's own value, such as a row count. Sent to `/insert/0/`, those samples collapse: the store keeps one sample per series per 20s (see [Sample cadence](#sample-cadence)), so 50 requests with the same labels in 20 seconds are stored as one.
+
+Such shippers push to the serverless path instead, on the same gateways, with the same auth as the other paths (none on the mesh, the shared token on the internet):
+
+|        | staging                                                       | production                                            |
+| ------ | ------------------------------------------------------------- | ----------------------------------------------------- |
+| Mesh   | `https://vmauth.staging.o11y.futo.network/serverless/insert/` | `https://vmauth.o11y.futo.network/serverless/insert/` |
+| Public | `https://vmauth.staging.futostatus.com/serverless/insert/`    | `https://vmauth.futostatus.com/serverless/insert/`    |
+
+Three endpoints are routed, each to the matching `vmagent-serverless` (`kubernetes/apps/base/victoria-metrics-users/app/vmagent-serverless.yaml`) endpoint with `/serverless/insert` stripped: `.../serverless/insert/influx/write` for InfluxDB line protocol, `.../serverless/insert/api/v1/import/prometheus` for Prometheus text and `.../serverless/insert/api/v1/write` for remote write. Every minute the aggregator writes each series' sum of the samples that arrived in that minute as `<name>:1m_sum_samples`: the number of events for a series of 1s, the total for a series of values. It keeps every input label and adds `aggregator`, the pod that summed them (its name and UID). Each of the two replicas sums only the requests the gateway sent it, so a query must always add up over `aggregator`. Read the sums with `sum_over_time()`, which adds up the minutes in its window:
+
+```promql
+sum by (status) (sum_over_time(tiles_response_count:1m_sum_samples[5m]))
+```
+
+For a distribution, such as request durations, the shipper also sends a 1 per event in a `<name>_bucket` series labelled with the event's `vmrange` bucket, a VictoriaMetrics histogram bucket: `"<lower>...<upper>"`, lower exclusive and upper inclusive, 18 to a decade (`10^(k/18)...10^((k+1)/18)`, written as VictoriaMetrics writes them, `2.783e+01...3.162e+01`). The bucket sums then give quantiles:
+
+```promql
+histogram_quantile(0.99, sum by (vmrange) (sum_over_time(tiles_handle_request_duration_bucket:1m_sum_samples[5m])))
+```
+
+What a shipper on this path must do:
+
+- **Stamp the five identity labels on every sample** and add its rule pair to the [tenant registry](#tenants), as for `/insert/0/`: the shared token trusts the labels the same way.
+- **Send no timestamps.** The aggregator files a sample under the minute it arrives in.
+- **Keep label values bounded.** Every label combination is a series written every minute while it has events and for 5 minutes after (as zeros), and a distribution once per bucket. Per-request values (client IPs, origins, user agents, error messages) belong in logs, not labels, and a label taken from a request (a path segment, a query parameter) needs its values limited to the ones the shipper serves.
+- **Send gauges and heartbeats to `/insert/0/`**, at most one sample per series per 20s: this path would add up two readings of a gauge.
+
+The aggregator keeps only the minute in progress in memory, so a replica that stops abruptly loses that minute's events, and one that stops within its first two minutes loses everything it received: its first flush comes at the end of the first whole minute after it started. A clean shutdown writes the minute in progress out first. Nothing is lost silently beyond that: there are no running totals whose reset a restart could hide.
 
 ## Sample cadence
 
@@ -204,6 +236,7 @@ IDs are unique within a store, and an environment pair (a prod cluster and its s
 | version        | 7         | version              | dev, prod     | both       | `7:1`  |
 | bootstrap      | 8         | palpatine            | prod          | production | `8:1`  |
 | geoshenanigans | 6         | geocoder             | prod          | production | `6:2`  |
+| geoshenanigans | 6         | tiles                | dev, prod     | both       | `6:3`  |
 
 Onboarding a cluster onto its own tenant is a central-side change only: add its rule pair, for example
 
@@ -290,5 +323,6 @@ For maintainers, the ingestion config lives in `kubernetes/apps/base/victoria-me
 
 - `vmuser-remote-clusters.yaml` - the `VMUser` behind the public gateway. It holds the shared token (via ExternalSecret) and the allowed path set: metrics, logs and traces insert **and** select (remote clusters can read back, not only write).
 - `vmauth-mesh-unauth.yaml` - the unauthenticated `mesh-unauth` `VMAuth` on the mesh gateway, with the same path set exposed through `unauthorizedUserAccessSpec`.
+- `vmagent-serverless.yaml` - the aggregating `vmagent` behind both gateways' three `/serverless/insert/` endpoints: two stateful replicas with a disk queue, scraping nothing, writing each series' sum per minute to `vminsert`.
 
 The public gateway itself is the `vmauth` defined in the VictoriaMetrics release (`kubernetes/apps/base/victoria-metrics/app/helmrelease.yaml`), reached at `vmauth.<CLUSTER_APP_DOMAIN>`.
