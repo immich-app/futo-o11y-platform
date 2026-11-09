@@ -27,14 +27,26 @@ dashboards:
       variables:
         cluster:
           query: label_values(vm_app_version, cluster)
-    cilium-metrics: &kube-node-cluster
+    cilium-metrics:
       variables:
         cluster:
           query: label_values(kube_node_info, cluster)
-    cilium-operator: *kube-node-cluster
-    hubble-metrics-and-monitoring: *kube-node-cluster
-    flux-cluster-stats: *kube-node-cluster
-    flux-control-plane: *kube-node-cluster
+    cilium-operator:
+      variables:
+        cluster:
+          query: label_values(kube_node_info, cluster)
+    hubble-metrics-and-monitoring:
+      variables:
+        cluster:
+          query: label_values(kube_node_info, cluster)
+    flux-cluster-stats:
+      variables:
+        cluster:
+          query: label_values(kube_node_info, cluster)
+    flux-control-plane:
+      variables:
+        cluster:
+          query: label_values(kube_node_info, cluster)
     # CloudNativePG's own `cluster` variable selects the Postgres cluster, whose
     # label we relabel to `pg_cluster` at scrape time.
     cloudnativepg:
