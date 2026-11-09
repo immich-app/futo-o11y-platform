@@ -6,12 +6,12 @@
 description = "Bootstrap $ENVIRONMENT after the nodes are configured: etcd, kubeconfig, Flux prerequisites, Flux"
 confirm = "Bootstrap o11y-{{ get_env(name='ENVIRONMENT', default='') }}?"
 run = [
-  "mise run //bootstrap:etcd",
-  "mise run //bootstrap:kubeconfig --direct",
-  "mise run //bootstrap:ready",
-  "mise run //bootstrap:resources",
-  "mise run //bootstrap:crds",
-  "mise run //bootstrap:apps",
+  { task = "etcd" },
+  { task = "kubeconfig", args = ["--direct"] },
+  { task = "ready" },
+  { task = "resources" },
+  { task = "crds" },
+  { task = "apps" },
 ]
 
 [tasks.etcd]
