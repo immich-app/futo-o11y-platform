@@ -107,8 +107,7 @@ The legacy tier holds the logs from before the two zones existed. It keeps them 
 When the legacy tier is empty, remove it. If the tier is empty, this query returns no rows:
 
 ```fish
-kubectl -n o11y run -it --rm vlq --image=curlimages/curl --restart=Never -- \
-  curl -s http://victoria-logs-vlselect.o11y.svc.cluster.local:9471/select/logsql/query --data-urlencode 'query=* | stats count()' --data-urlencode 'limit=1'
+kubectl get --raw '/api/v1/namespaces/o11y/services/victoria-logs-vlselect:9471/proxy/select/logsql/query?query=*%20%7C%20limit%201'
 ```
 
 Remove these in one PR:

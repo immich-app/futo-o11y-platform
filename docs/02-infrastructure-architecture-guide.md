@@ -56,7 +56,7 @@ NetBird connects operators, other FUTO clusters and the bootstrap cluster to thi
   - `yucca → resource` covers the routed subnet.
   - `yucca → talos` covers the nodes as peers. This policy keeps the elected router reachable at its own IP. It also makes every node reachable at its NetBird peer IP. This works even with the cluster down.
 
-  `talosctl` and the Terraform providers use this path.
+  `talosctl` uses this path.
 
 - Workload ingress (mesh gateway): `netbird-router` pods in the cluster are the routing peers for a pinned Envoy gateway VIP. The VIP is a ClusterIP from a dedicated secondary ServiceCIDR, and NetBird advertises it as a `/32` resource. The DNAT of kube-proxy runs in the network namespace (netns) of the host. So only routing at pod level can advertise a ClusterIP, and that is why these pods exist. For mesh peers, a NetBird DNS zone resolves `*.<mesh-domain>` to the VIP. The `yucca` group can reach `:443` (mesh-facing HTTPRoutes) and `:6443`. The second port serves the HA kube-apiserver endpoint `kube.<mesh-domain>`, which `kubectl` uses by default. This endpoint load-balances across every apiserver and never loops through a routing peer.
 - Pod egress (Multus): Normally, pods cannot originate mesh traffic. NetBird masquerades only traffic from ranges that a peer advertises, and the flannel pod CIDR is not one of them. A pod that needs the mesh opts in through a Multus `NetworkAttachmentDefinition`. The pod then gets a second interface in an egress range that the nodes advertise. The route on that interface covers only the opc VIP. The NetBird client of the node carries that traffic out. All other traffic stays on flannel. Today, two workloads use this path:

@@ -157,7 +157,7 @@ CRs for another project that are written in this repo read their data from anoth
 
 ## Shared dashboards
 
-Cluster-generic boards (Kubernetes views and system, node exporter, vmagent, Cilium, Flux, Envoy Gateway, CloudNativePG) are in the `Shared` folder once, not in each tenant bundle. The VictoriaMetrics sync-job in generate mode renders them from their upstream sources. Each board filters on a multi-select `$cluster` variable and is pinned to the `VictoriaMetrics Fleet` datasource, so one copy serves every cluster. To add a board, see [`o11y/README.md`](../o11y/README.md). A tenant bundle must not ship its own copy of a board that is in `Shared`.
+Cluster-generic boards are in the `Shared` folder once, not in each tenant bundle. The VictoriaMetrics sync-job in generate mode renders them from their upstream sources. Each board filters on a multi-select `$cluster` variable and is pinned to the `VictoriaMetrics Fleet` datasource, so one copy serves every cluster. For the list of boards and how to add one, see [`o11y/README.md`](../o11y/README.md). A tenant bundle must not ship its own copy of a board that is in `Shared`.
 
 ## Alerting
 
@@ -207,9 +207,9 @@ By design, the rule reads nothing from the silent cluster. The multitenant path 
 
 Notifications group by `project`, `grafana_folder`, `alertname` and `cluster`. So if the same rule fires in two clusters, two grouped notifications arrive, not one blended message. `o11y-cluster-silent` carries no `cluster` label, so grouping also uses `accountID` and `projectID`. Only that rule sets these two labels, and each silent tenant arrives as its own notification.
 
-Datasources and tenants: two Prometheus-type datasources are in front of the same store. `VictoriaMetrics` (uid `VictoriaMetrics`, the default) carries this cluster's own tenant in its URL. It goes through the `self-select` vmauth, which routes only that path. So anything that does not pick a datasource explicitly sees only o11y's series. `VictoriaMetrics Fleet` (uid `VictoriaMetricsFleet`) reads the multitenant endpoint across all tenants. This includes tenant 0, where unmigrated remotes still land.
+Datasources and tenants: two Prometheus-type datasources are in front of the same store. `VictoriaMetrics` (uid `VictoriaMetrics`, the default) carries this cluster's own tenant in its URL. It goes through the `self-select` vmauth, which routes only that path. So anything that does not pick a datasource explicitly sees only o11y's series. `VictoriaMetrics Fleet` (uid `VictoriaMetricsFleet`) reads the multitenant endpoint across all tenants. This includes tenant 0, where clusters without a registry rule land.
 
-Fleet is the explicit opt-in for cross-cluster dashboards and rules (`alerts-fleet.yaml`). The datasource URL carries the tenancy, never the dashboard JSON or the rule queries. Both continue to filter and group on the `cluster` label, which stays the same after the tenant split.
+Fleet is the explicit opt-in for cross-cluster dashboards and rules (`alerts-fleet.yaml`). The datasource URL carries the tenancy, never the dashboard JSON or the rule queries. Both filter and group on the `cluster` label, which the series keep in every tenant.
 
 Thus the default datasource is correct only for o11y's own rules and boards. The series of every other project are in its own tenant (or tenant 0), and only `VictoriaMetrics Fleet` can see them. So a remote project uses Fleet everywhere. Here, a remote project is every bundle, and also another project's CRs that are written in this repo. A rule cannot use a `$datasource` variable, so every alert query node sets `datasourceUid: VictoriaMetricsFleet`. Dashboards use a `$datasource` variable with the regex `/^VictoriaMetrics Fleet$/`.
 

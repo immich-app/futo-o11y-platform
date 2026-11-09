@@ -167,21 +167,20 @@ Do not run this procedure on production unless you must rebuild it. It deletes a
 
 Run the commands from the root of the repository, with `ENVIRONMENT` set to the environment:
 
-1. Reset every node while the current talosconfig still works, because the old bundle signs it. Reset the workers first, then the control planes. Wipe only the volumes below, by label. Without `--system-labels-to-wipe`, a reset wipes the whole system disk, and the node then cannot boot Talos.
-   - For each worker, wipe the system volumes and the user volumes. On production, also add `--system-labels-to-wipe u-local-hostpath-2`:
+1. Reset every node while the current talosconfig still works, because the old bundle signs it. The commands below reset the workers first, then the control planes. They wipe only the system volumes, and on the workers also the user volumes that `talos/$ENVIRONMENT/topf.yaml` lists. Without `--system-labels-to-wipe`, a reset wipes the whole system disk, and the node then cannot boot Talos.
 
-     ```bash
-     talosctl --endpoints <private-ip> --nodes <private-ip> reset --graceful=false --reboot \
-       --system-labels-to-wipe STATE --system-labels-to-wipe EPHEMERAL \
-       --system-labels-to-wipe u-hostpath --system-labels-to-wipe u-local-hostpath
-     ```
-
-   - For each control plane, wipe the system volumes:
-
-     ```bash
-     talosctl --endpoints <private-ip> --nodes <private-ip> reset --graceful=false --reboot \
+   ```bash
+   topf="talos/$ENVIRONMENT/topf.yaml"
+   for ip in $(yq -r '.nodes[] | select(.role == "worker") | .ip' "$topf"); do
+     talosctl --endpoints "$ip" --nodes "$ip" reset --graceful=false --reboot \
+       --system-labels-to-wipe STATE --system-labels-to-wipe EPHEMERAL --system-labels-to-wipe u-hostpath \
+       $(yq -r '.data.workerDataVolumes[] | "--system-labels-to-wipe u-" + .' "$topf")
+   done
+   for ip in $(yq -r '.nodes[] | select(.role == "control-plane") | .ip' "$topf"); do
+     talosctl --endpoints "$ip" --nodes "$ip" reset --graceful=false --reboot \
        --system-labels-to-wipe STATE --system-labels-to-wipe EPHEMERAL
-     ```
+   done
+   ```
 
    The installed Talos stays. Each node reboots into maintenance mode, because its configuration is gone.
 
@@ -193,12 +192,10 @@ Run the commands from the root of the repository, with `ENVIRONMENT` set to the 
    mise run //deployment/modules/talos/cluster:apply
    ```
 
-3. Configure the nodes and bootstrap the cluster: run steps 5 and 6 of [Apply order](#apply-order).
-4. Write new access files with `mise run //talos:talosconfig` and `mise run //bootstrap:kubeconfig`. The old files carry signatures from the old bundle.
-5. When Grafana is up, apply the Grafana module with `mise run //deployment/modules/grafana/cluster:apply`. The Rootly service-account token was in the old Grafana database. The module writes a new token to `ROOTLY_GRAFANA_SERVICE_ACCOUNT_TOKEN` in `o11y_tf_<env>`.
-6. In Rootly, paste the new token into Integrations > Grafana. Rootly has no API for this integration, so Terraform cannot update it.
-7. When GlitchTip is up, repeat the sign-in setup in [GlitchTip](04-application-architecture-guide.md#glitchtip). GlitchTip keeps its Zitadel provider in its database, which the rebuild deletes.
-8. In the NetBird dashboard, delete the old peers of the nodes. The Talos setup key is not ephemeral, so each node joins as a new peer, and its old peer stays.
+3. Configure the nodes and bootstrap the cluster: run steps 5 and 6 of [Apply order](#apply-order). The bootstrap writes a new talosconfig and kubeconfig from the new bundle.
+4. When Grafana is up, apply the Grafana module with `mise run //deployment/modules/grafana/cluster:apply`. Then install the new token in Rootly, as [Alerting](06-dashboards-and-alerts-guide.md#alerting) describes. The old token was in the old Grafana database.
+5. When GlitchTip is up, repeat the sign-in setup in [GlitchTip](04-application-architecture-guide.md#glitchtip). GlitchTip keeps its Zitadel provider in its database, which the rebuild deletes.
+6. In the NetBird dashboard, delete the old peers of the nodes. The Talos setup key is not ephemeral, so each node joins as a new peer, and its old peer stays.
 
 ## Tooling
 

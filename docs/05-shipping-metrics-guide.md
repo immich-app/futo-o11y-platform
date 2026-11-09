@@ -251,7 +251,7 @@ Then `vminsert` assigns the tenant from the `project` and `cluster` labels. It u
 
 IDs are unique within a store. An environment pair is a prod cluster and its staging twin, each of which ships to its own store. Both clusters of a pair share the same tenant, so tenant-scoped configuration carries across environments unchanged. A cluster with no twin takes the next free number in its project. `accountID` 0 and `projectID` 0 are never assigned. Any cluster without a rule pair lands in `0:0`, whatever its project.
 
-Rules are keyed on `project;cluster` for both labels, never on the project alone. So each cluster migrates independently, and a new cluster in a known project cannot move by accident. The table below records the assignments. The rule pair in the ConfigMap, and nothing else, puts a cluster live on its tenant. So add the table row and the rule in the same change.
+Rules are keyed on `project;cluster` for both labels, never on the project alone. So each cluster gets its own rule, and a new cluster in a known project stays in tenant 0 until it has one. The table below records the assignments. The rule pair in the ConfigMap, and nothing else, puts a cluster live on its tenant. So add the table row and the rule in the same change.
 
 | Project        | accountID | Cluster              | Env           | Store      | Tenant |
 | -------------- | --------- | -------------------- | ------------- | ---------- | ------ |
@@ -287,7 +287,7 @@ Onboarding a cluster onto its own tenant needs a change on the central side only
 
 The o11y rules also match samples with `project=o11y` and no `cluster` label. The `vmalert` of the o11y cluster writes such samples. The IDs of the o11y cluster come from `CLUSTER_VMETRICS_ACCOUNT_ID` and `CLUSTER_VMETRICS_PROJECT_ID` in `kubernetes/clusters/<env>/cluster-settings.yaml`. These values also drive the tenant-scoped reads of the o11y cluster: the default Grafana datasource, `vmalert` and the MCP server.
 
-Fleet-wide reads use the `/select/multitenant/prometheus` endpoint. It spans every tenant, tenant 0 included. So cross-cluster dashboards and alerts keep working while clusters migrate. Logs stay in a single tenant, and only labels tell them apart.
+Fleet-wide reads use the `/select/multitenant/prometheus` endpoint. It spans every tenant, tenant 0 included. So cross-cluster dashboards and alerts also see the clusters in tenant 0. Logs stay in a single tenant, and only labels tell them apart.
 
 ## Make sure that data arrives
 
