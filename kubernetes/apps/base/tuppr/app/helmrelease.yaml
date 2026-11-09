@@ -1,0 +1,21 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/helm.toolkit.fluxcd.io/helmrelease_v2.json
+# The chart's talos.dev ServiceAccount (talosServiceAccount.create, on by
+# default) makes Talos issue the os:admin talosconfig the controller mounts.
+# Talos allows that only for this namespace
+# (talos/patches/control-plane/05-talos-api-access.yaml).
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: tuppr
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: tuppr
+  interval: 1h
+  values:
+    # One leader; the second replica keeps the admission webhook answering.
+    replicaCount: 2
+    monitoring:
+      serviceMonitor:
+        enabled: true

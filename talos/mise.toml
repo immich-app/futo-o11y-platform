@@ -1,0 +1,29 @@
+# `op run` conceals the NetBird key in topf's output. Args after `--` reach
+# topf, e.g. `mise run //talos:diff -- --nodes-filter cp-gra`.
+[tasks.diff]
+description = "Show the machine-config changes topf would apply to $ENVIRONMENT (exits 2 when there are changes)"
+run = "op run {{vars.op_account}}--env-file=.env -- topf apply --dry-run"
+
+[tasks.apply]
+description = "Apply the machine configs to $ENVIRONMENT, one node at a time, confirming each diff"
+run = "op run {{vars.op_account}}--env-file=.env -- topf apply"
+
+# The rendered files hold the cluster's private keys, so the output dir is
+# required (topf's default ./output is inside the repo); use a temp dir.
+[tasks.render]
+description = "Render $ENVIRONMENT's machine configs, secrets included, into <output>"
+usage = 'arg "<output>" help="Directory for the rendered configs (use a temp dir)"'
+run = 'op run {{vars.op_account}}--env-file=.env -- topf render --output "$usage_output"'
+
+[tasks.talosconfig]
+description = "Write the talosconfig for $ENVIRONMENT to $TALOSCONFIG"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+: "${ENVIRONMENT:?set ENVIRONMENT=staging (or production) first}"
+
+umask 077
+mkdir -p "$(dirname "$TALOSCONFIG")"
+config="$(topf talosconfig)"
+printf '%s\n' "$config" >"$TALOSCONFIG"
+'''

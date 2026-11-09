@@ -20,16 +20,6 @@ output "worker_nodes" {
   }
 }
 
-# bare_metal for workers, public_cloud for CPs — sharing breaks upgrade on
-# the other. Openstack URL is hand-built because the talos provider's
-# data source returns null for platform = "openstack".
-output "talos_installer_images" {
-  value = {
-    bare_metal   = data.talos_image_factory_urls.metal.urls.installer
-    public_cloud = "factory.talos.dev/openstack-installer/${var.talos_schematic_id}:${var.talos_version}"
-  }
-}
-
 output "private_network_cidr" {
   value = var.private_network_cidr
 }

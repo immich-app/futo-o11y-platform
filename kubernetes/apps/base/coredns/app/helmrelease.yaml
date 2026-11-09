@@ -1,0 +1,93 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/helm.toolkit.fluxcd.io/helmrelease_v2.json
+# Flux needs cluster DNS for external fetches and for controller-to-controller
+# artifact URLs, so bootstrap/ installs this release before Flux exists; Flux
+# then takes it over unchanged. Talos's CoreDNS is disabled
+# (talos/patches/control-plane/03-kubernetes.yaml.tpl).
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: coredns
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: coredns
+  interval: 1h
+  values:
+    fullnameOverride: coredns
+    image:
+      repository: mirror.gcr.io/coredns/coredns
+    replicaCount: 2
+    k8sAppLabelOverride: kube-dns
+    priorityClassName: system-cluster-critical
+    # Selectors pinned to the Talos originals: Deployment selectors are
+    # immutable, and an identical Service selector made the adoption from
+    # Talos a plain rolling update (no empty endpoints).
+    deployment:
+      selector:
+        matchLabels:
+          k8s-app: kube-dns
+    # The kubelet's clusterDNS (talos/patches/all/04-kubelet.yaml.tpl).
+    service:
+      name: kube-dns
+      clusterIP: 10.96.0.10
+      selector:
+        k8s-app: kube-dns
+    tolerations:
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  k8s-app: kube-dns
+    servers:
+      - zones:
+          - zone: .
+        port: 53
+        plugins:
+          - name: errors
+          - name: health
+            configBlock: |-
+              lameduck 5s
+          - name: ready
+          - name: log
+            parameters: .
+            configBlock: |-
+              class error
+          - name: prometheus
+            parameters: 0.0.0.0:9153
+          - name: kubernetes
+            parameters: cluster.local in-addr.arpa ip6.arpa
+            configBlock: |-
+              pods insecure
+              fallthrough in-addr.arpa ip6.arpa
+              ttl 30
+          - name: forward
+            parameters: . /etc/resolv.conf
+            configBlock: |-
+              max_concurrent 1000
+          - name: cache
+            parameters: 30
+            configBlock: |-
+              disable success cluster.local
+              disable denial cluster.local
+          - name: loop
+          - name: reload
+          - name: loadbalance
+      # Mesh names resolve through the netbird-router DNS Service
+      # (kubernetes/apps/base/netbird-router/app/service-dns.yaml).
+      - zones:
+          - zone: futo.network
+        port: 53
+        plugins:
+          - name: errors
+          - name: cache
+            parameters: 30
+          - name: forward
+            parameters: . 10.96.0.53

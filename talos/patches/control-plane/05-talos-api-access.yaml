@@ -1,0 +1,11 @@
+---
+# tuppr (kubernetes/apps/base/tuppr) upgrades Talos and Kubernetes through the
+# Talos API. Its talos.dev ServiceAccount gets an os:admin talosconfig only in
+# this namespace. Talos accepts this document on control planes only; their
+# apid proxies the upgrade calls to the workers.
+apiVersion: v1alpha1
+kind: KubeTalosAPIAccessConfig
+allowedRoles:
+  - os:admin
+allowedKubernetesNamespaces:
+  - tuppr-system

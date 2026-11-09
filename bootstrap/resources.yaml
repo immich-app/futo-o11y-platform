@@ -1,0 +1,30 @@
+---
+# Secrets that Flux needs on its first reconcile, applied by
+# `mise run //bootstrap:resources`. op inject fills the op:// references from
+# 1Password, and ENVIRONMENT_SHORT comes from the root mise env.
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ovh-credentials
+  namespace: cert-manager
+stringData:
+  applicationKey: "{{ op://o11y_tf/OVH_APPLICATION_KEY/password }}"
+  applicationSecret: "{{ op://o11y_tf/OVH_APPLICATION_SECRET/password }}"
+  applicationConsumerKey: "{{ op://o11y_tf/OVH_CONSUMER_KEY/password }}"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: onepassword-connect-environment
+  namespace: external-secrets
+stringData:
+  token: "{{ op://o11y_tf_$ENVIRONMENT_SHORT/1PASS_CONNECT_O11Y_READ/password }}"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: netbird-setup-key
+  namespace: netbird
+stringData:
+  setupKey: "{{ op://o11y_tf_$ENVIRONMENT_SHORT/NETBIRD_K8S_ROUTING_PEER_SETUP_KEY/password }}"

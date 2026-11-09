@@ -8,7 +8,6 @@ metadata:
 spec:
   dependsOn:
     - name: envoy-proxy
-    - name: prometheus-operator-crds
   healthChecks:
     - apiVersion: helm.toolkit.fluxcd.io/v2
       kind: HelmRelease

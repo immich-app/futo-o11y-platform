@@ -1,13 +1,13 @@
 ---
-# Stable endpoint for the routers' NetBird DNS resolver; the TF-seeded CoreDNS forwards
-# futo.network here. The IP is TF-published via bootstrap-settings.
+# Stable endpoint for the routers' NetBird DNS resolver; CoreDNS forwards
+# futo.network to this IP (kubernetes/apps/base/coredns/app/helmrelease.yaml).
 apiVersion: v1
 kind: Service
 metadata:
   name: netbird-dns
 spec:
   type: ClusterIP
-  clusterIP: ${BOOTSTRAP_NETBIRD_DNS_IP}
+  clusterIP: 10.96.0.53
   selector:
     app.kubernetes.io/name: netbird-router
   ports:
