@@ -14,6 +14,7 @@ resources:
   - ../../base/victoria-metrics-mcp
   - ../../base/victoria-logs
   - ../../base/victoria-logs-collector
+  - ../../base/talos-logs
   - ../../base/victoria-logs-mcp
   - ../../base/victoria-traces
   - ../../base/glitchtip-postgres
@@ -31,3 +32,4 @@ patches:
   - path: patches/victoria-metrics.yaml
   - path: patches/victoria-logs.yaml
   - path: patches/victoria-logs-collector.yaml
+  - path: patches/talos-logs.yaml

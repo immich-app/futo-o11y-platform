@@ -1,0 +1,18 @@
+# Talos's own logs go to the talos-logs relay (kubernetes/apps/base/talos-logs)
+# on loopback, which posts them to VictoriaLogs:
+# - the service logs (machined, kubelet, etcd, containerd, apid...)
+# - the kernel ring buffer (OOM kills, link and disk errors)
+# Neither reaches the pod log collector. Talos can only send them as JSON
+# lines over TCP or UDP, which VictoriaLogs can't read directly. Both inputs
+# replay their buffers back to boot once the relay accepts, so nothing logged
+# before the relay starts is lost. Both apply without a reboot.
+machine:
+  logging:
+    destinations:
+      - endpoint: tcp://127.0.0.1:6050/
+        format: json_lines
+---
+apiVersion: v1alpha1
+kind: KmsgLogConfig
+name: talos-logs
+url: tcp://127.0.0.1:6051/

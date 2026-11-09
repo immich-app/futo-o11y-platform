@@ -66,8 +66,9 @@ ingress:
   - subnet: {{ .Data.privateNetwork }}
 ---
 # Node-level metrics: kube-proxy :10249 (bound to 0.0.0.0 by the cluster-wide
-# KubeProxyConfig in control-plane/) and the node-exporter DaemonSet :9100.
-# Both are plain HTTP without auth. Pod CIDR for the VMAgent self-scrape.
+# KubeProxyConfig in control-plane/), the node-exporter DaemonSet :9100 and
+# the talos-logs relay :9598 (hostNetwork). All plain HTTP without auth. Pod
+# CIDR for the VMAgent self-scrape.
 apiVersion: v1alpha1
 kind: NetworkRuleConfig
 name: metrics-node
@@ -75,6 +76,7 @@ portSelector:
   ports:
     - 10249
     - 9100
+    - 9598
   protocol: tcp
 ingress:
   - subnet: {{ .Data.privateNetwork }}

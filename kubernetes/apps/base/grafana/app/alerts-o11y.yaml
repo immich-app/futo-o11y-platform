@@ -232,6 +232,68 @@ spec:
                 reducer:
                   type: last
                   params: []
+    # The talos-logs relay (kubernetes/apps/base/talos-logs): rejected
+    # requests to VictoriaLogs, lines dropped because its disk buffer filled,
+    # or a backlog of unsent lines. The backlog arm is the one that catches an
+    # unreachable endpoint: Vector retries connection errors and 5xx forever
+    # without counting them in vector_component_errors_total, and the 256MiB
+    # buffer takes days to fill. A healthy relay holds about 0 events and a
+    # boot replay drains in seconds. A dead relay is o11y-target-down's.
+    - uid: o11y-talos-logs-shipping-errors
+      title: o11y node logs not shipping
+      condition: B
+      for: 15m
+      labels:
+        project: o11y
+        severity: warning
+      annotations:
+        summary: The talos-logs relay {{ $labels.pod }} on {{ $labels.cluster }} has had requests rejected, dropped lines, or a backlog of unsent lines for 15m (worst signal {{ $values.A.Value }}), so that node's Talos service and kernel logs are not reaching VictoriaLogs; check `kubectl -n o11y logs {{ $labels.pod }}`, where connection errors mean vmauth-victoria-logs or cluster DNS is unreachable.
+      execErrState: Error
+      noDataState: OK
+      data:
+        - refId: A
+          datasourceUid: VictoriaMetrics
+          queryType: ""
+          relativeTimeRange:
+            from: 600
+            to: 0
+          model:
+            refId: A
+            datasource:
+              type: prometheus
+              uid: VictoriaMetrics
+            expr: max by (cluster, pod) (increase(vector_component_errors_total{cluster="${CLUSTER_NAME}", component_id="victorialogs"}[15m]) or increase(vector_buffer_discarded_events_total{cluster="${CLUSTER_NAME}", component_id="victorialogs"}[15m]) or (last_over_time(vector_buffer_size_events{cluster="${CLUSTER_NAME}", component_id="victorialogs"}[5m]) > 1000)) > 0
+            instant: true
+            range: false
+            intervalMs: 1000
+            maxDataPoints: 43200
+        - refId: B
+          datasourceUid: __expr__
+          queryType: ""
+          relativeTimeRange:
+            from: 600
+            to: 0
+          model:
+            refId: B
+            type: threshold
+            datasource:
+              type: __expr__
+              uid: __expr__
+            expression: A
+            intervalMs: 1000
+            maxDataPoints: 43200
+            conditions:
+              - type: query
+                evaluator:
+                  type: gt
+                  params: [0]
+                operator:
+                  type: and
+                query:
+                  params: [A]
+                reducer:
+                  type: last
+                  params: []
     # Upstream's recommended rule for VictoriaTraces. Grouped by reason, not job:
     # both zones drop the same span, so per-job instances would double every
     # alert. reason="debug" is a drop the shipper asked for.
