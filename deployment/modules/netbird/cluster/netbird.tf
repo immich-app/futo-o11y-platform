@@ -241,8 +241,8 @@ resource "netbird_network_resource" "k8s_egress" {
 }
 
 # CI peers (GitHub Actions runners): the infra workflow joins the mesh to reach the
-# talos + kube APIs for plan/apply. The key is read from this module's state by the
-# workflow; it never lands in 1Password. Ephemeral: runners are transient.
+# bootstrap 1Password Connect for its plans. The key is read from this module's state
+# by the workflow; it never lands in 1Password. Ephemeral: runners are transient.
 resource "netbird_group" "ci" {
   name = "o11y-${var.env}-ci"
 }
@@ -254,41 +254,6 @@ resource "netbird_setup_key" "ci" {
   auto_groups    = [netbird_group.ci.id]
   expiry_seconds = 0
   usage_limit    = 0
-}
-
-resource "netbird_policy" "ci_to_o11y_resource" {
-  name    = "o11y-${var.env}-ci-to-resource"
-  enabled = true
-
-  rule {
-    name          = "ci-to-o11y-resource"
-    action        = "accept"
-    protocol      = "tcp"
-    enabled       = true
-    bidirectional = false
-    sources       = [netbird_group.ci.id]
-    destinations  = [netbird_group.o11y_resource.id]
-    ports         = ["50000", "6443"]
-  }
-}
-
-# Same INPUT-path gap as yucca_to_talos above: the resource policy only programs
-# forwarding, so CI hitting the elected router's own vRack IP (operator_endpoint
-# is a fixed CP) would still drop without this peer-level accept.
-resource "netbird_policy" "ci_to_talos" {
-  name    = "o11y-${var.env}-ci-to-talos"
-  enabled = true
-
-  rule {
-    name          = "ci-to-talos"
-    action        = "accept"
-    protocol      = "tcp"
-    enabled       = true
-    bidirectional = false
-    sources       = [netbird_group.ci.id]
-    destinations  = [netbird_group.talos.id]
-    ports         = ["50000", "6443"]
-  }
 }
 
 # Bootstrap-owned group holding the opc resource (live account name — verify if it changes).
