@@ -3,7 +3,8 @@ output "status_page_cname_records" {
 }
 
 output "heartbeat_ping_url" {
-  value = rootly_heartbeat.grafana_alerting.ping_url
+  value     = rootly_heartbeat.grafana_alerting.ping_url
+  sensitive = true
 }
 
 output "heartbeat_secret" {
