@@ -66,6 +66,11 @@ spec:
       - receiver: rootly-geoshenanigans
         object_matchers:
           - ["project", "=", "geoshenanigans"]
+      # FAP ships its rules in the yucca bundle's folder, so its project
+      # route has to win over the grafana_folder=yucca fallback below.
+      - receiver: rootly-fap
+        object_matchers:
+          - ["project", "=", "fap"]
       - receiver: rootly-o11y
         object_matchers:
           - ["grafana_folder", "=", "o11y"]
