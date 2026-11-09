@@ -43,7 +43,7 @@ ENVIRONMENT_SHORT = "{% set e = get_env(name='ENVIRONMENT', default='development
 # Shared Grafana dashboards: fetched from upstream and patched for the fleet
 # (cluster variable + filters, Fleet datasource, shared folder) by the
 # VictoriaMetrics sync-job in generate mode; the output is committed.
-sync_job = "docker run --rm -e OUTPUT=- -e CONFIG=/config/sync-job.yaml -e NAMESPACE=o11y -e RELEASE=shared -e OWNER_REFERENCES=false -v {{config_root}}/o11y:/config:ro ghcr.io/victoriametrics/sync-job:v0.0.17"
+sync_job = "docker run --rm -e OUTPUT=- -e CONFIG=/config/sync-job.yaml -e NAMESPACE=o11y -e RELEASE=shared -e OWNER_REFERENCES=false -v {{config_root}}/o11y:/config:ro ghcr.io/victoriametrics/sync-job:v0.0.18"
 # Pin every datasource-type template variable to the Fleet datasource: the
 # sync-job leaves them free, and Grafana would otherwise open a shared board
 # on the default (tenant-scoped) datasource and show only this cluster.
@@ -102,25 +102,7 @@ depends = ["//deployment:fmt:check"]
 run = "oxfmt --check bootstrap deployment docs kubernetes o11y talos .github README.md renovate.json"
 description = "Verify markdown, YAML, JSON, Terraform and Terragrunt files are formatted"
 
-[tasks."o11y:vendor"]
-description = "Fetch upstream boards that need a rewrite before the sync-job sees them (CloudNativePG: its `cluster` means the Postgres cluster, kept as `pg_cluster`; etcd: its `cluster` variable holds job names, kept as `job`)"
-run = """
-mkdir -p {{config_root}}/o11y/vendor
-curl -fsSL https://raw.githubusercontent.com/cloudnative-pg/grafana-dashboards/cluster-v0.0.5/charts/cluster/grafana-dashboard.json \\
-  | sd '\\$cluster\\b' '$$pg_cluster' \\
-  | sd '\\bcluster(\\s*(?:=~|!~|!=|=)\\s*)' 'pg_cluster$1' \\
-  | sd '([(,]\\s*)cluster(\\s*[,)])' '${1}pg_cluster$2' \\
-  | sd '"name":\\s*"cluster"' '"name": "pg_cluster"' \\
-  | sd -s '\\\\bcluster\\\\b=' '\\\\bpg_cluster\\\\b=' \\
-  > {{config_root}}/o11y/vendor/cloudnativepg.json
-curl -fsSL https://raw.githubusercontent.com/monitoring-mixins/website/master/assets/etcd/dashboards/etcd.json \\
-  | sd '\\$cluster\\b' '$$job' \\
-  | sd '"name":\\s*"cluster"' '"name": "job"' \\
-  > {{config_root}}/o11y/vendor/etcd.json
-"""
-
 [tasks."o11y:render"]
-depends = ["o11y:vendor"]
 run = "{{vars.sync_job}} | {{vars.pin_fleet}} | {{vars.sort_docs}} > {{config_root}}/o11y/manifests/dashboards.yaml"
 description = "Render o11y/manifests/dashboards.yaml (git-ignored) from the upstream sources in o11y/sync-job.yaml"
 
