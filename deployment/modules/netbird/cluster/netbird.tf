@@ -240,9 +240,8 @@ resource "netbird_network_resource" "k8s_egress" {
   enabled    = true
 }
 
-# CI peers (GitHub Actions runners): the infra workflow joins the mesh to reach the
-# bootstrap 1Password Connect for its plans. The key is read from this module's state
-# by the workflow; it never lands in 1Password. Ephemeral: runners are transient.
+# CI peers (GitHub Actions runners). The workflow reads the key from this module's
+# state; it never lands in 1Password. Ephemeral: runners are transient.
 resource "netbird_group" "ci" {
   name = "o11y-${var.env}-ci"
 }
@@ -278,7 +277,7 @@ resource "netbird_policy" "talos_to_bootstrap_opc" {
   }
 }
 
-# CI runners plan/apply the rootly module, whose onepassword provider talks to opc.
+# CI plans the modules whose onepassword provider talks to opc.
 resource "netbird_policy" "ci_to_bootstrap_opc" {
   name    = "o11y-${var.env}-ci-to-bootstrap-opc"
   enabled = true
