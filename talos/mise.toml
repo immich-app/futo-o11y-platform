@@ -1,12 +1,15 @@
 # `op run` conceals the NetBird key in topf's output. Args after `--` reach
 # topf, e.g. `mise run //talos:diff -- --nodes-filter cp-gra`.
+# topf writes a diff to stdout one byte at a time and its prompts and errors to
+# stderr. `op run` relays the two streams separately, so a prompt overtook the
+# diff it asks about; joining stderr to stdout inside `op run` keeps them in order.
 [tasks.diff]
 description = "Show the machine-config changes topf would apply to $ENVIRONMENT (exits 2 when there are changes)"
-run = "op run {{vars.op_account}}--env-file=.env -- topf apply --dry-run"
+run = '''op run {{vars.op_account}}--env-file=.env -- sh -c 'exec topf apply --dry-run "$@" 2>&1' topf'''
 
 [tasks.apply]
 description = "Apply the machine configs to $ENVIRONMENT, one node at a time, confirming each diff"
-run = "op run {{vars.op_account}}--env-file=.env -- topf apply"
+run = '''op run {{vars.op_account}}--env-file=.env -- sh -c 'exec topf apply "$@" 2>&1' topf'''
 
 # The rendered files hold the cluster's private keys, so the output dir is
 # required (topf's default ./output is inside the repo); use a temp dir.

@@ -17,16 +17,16 @@ spec:
       localpv:
         image:
           registry: quay.io/
-        # Must match the Talos UserVolumeConfig `hostpath` mount in
-        # talos/patches/worker/04-volumes.yaml.tpl; drift puts PVs on
-        # EPHEMERAL where they compete with the container image cache.
-        basePath: &hostPath /var/mnt/hostpath
+        # This and hostpathClass.basePath below must match the Talos
+        # UserVolumeConfig `hostpath` mount in talos/patches/worker/04-volumes.yaml.tpl;
+        # drift puts PVs on EPHEMERAL where they compete with the container image cache.
+        basePath: /var/mnt/hostpath
       hostpathClass:
         enabled: true
         name: openebs-system-disk
         reclaimPolicy: Delete
         isDefaultClass: true
-        basePath: *hostPath
+        basePath: /var/mnt/hostpath
       helperPod:
         image:
           registry: quay.io/

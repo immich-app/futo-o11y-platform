@@ -1,4 +1,3 @@
-variable "stage" {}
 variable "env" {}
 
 variable "ovh_application_key" {

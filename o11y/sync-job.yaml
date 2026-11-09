@@ -20,23 +20,46 @@ dashboards:
       kustomize.toolkit.fluxcd.io/substitute: disabled
   dashboards:
     node-exporter-full:
-      clusterMetric: node_uname_info
+      variables:
+        cluster:
+          query: label_values(node_uname_info, cluster)
     victoriametrics-vmagent:
-      clusterMetric: vm_app_version
+      variables:
+        cluster:
+          query: label_values(vm_app_version, cluster)
     cilium-metrics:
-      clusterMetric: kube_node_info
+      variables:
+        cluster:
+          query: label_values(kube_node_info, cluster)
     cilium-operator:
-      clusterMetric: kube_node_info
+      variables:
+        cluster:
+          query: label_values(kube_node_info, cluster)
     hubble-metrics-and-monitoring:
-      clusterMetric: kube_node_info
+      variables:
+        cluster:
+          query: label_values(kube_node_info, cluster)
     flux-cluster-stats:
-      clusterMetric: kube_node_info
+      variables:
+        cluster:
+          query: label_values(kube_node_info, cluster)
     flux-control-plane:
-      clusterMetric: kube_node_info
+      variables:
+        cluster:
+          query: label_values(kube_node_info, cluster)
+    # CloudNativePG's own `cluster` variable selects the Postgres cluster, whose
+    # label we relabel to `pg_cluster` at scrape time.
     cloudnativepg:
-      clusterMetric: cnpg_collector_up
+      variables:
+        cluster:
+          query: label_values(cnpg_collector_up{namespace=~"$namespace"}, pg_cluster)
+          regex: ""
+        k8s_cluster:
+          query: label_values(cnpg_collector_up, cluster)
     etcd:
-      clusterMetric: etcd_server_has_leader
+      variables:
+        k8s_cluster:
+          query: label_values(etcd_server_has_leader, cluster)
     prometheus:
       enabled: false
     prometheus-remote-write:
@@ -74,8 +97,8 @@ dashboards:
     - url: https://raw.githubusercontent.com/fluxcd/flux2-monitoring-example/7ab65dc8b90f/monitoring/configs/dashboards/cluster.json
     - url: https://raw.githubusercontent.com/fluxcd/flux2-monitoring-example/7ab65dc8b90f/monitoring/configs/dashboards/control-plane.json
     - url: https://raw.githubusercontent.com/prometheus-operator/kube-prometheus/main/manifests/grafana-dashboardDefinitions.yaml
-    - url: /config/vendor/etcd.json
-    - url: /config/vendor/cloudnativepg.json
+    - url: https://raw.githubusercontent.com/monitoring-mixins/website/master/assets/etcd/dashboards/etcd.json
+    - url: https://raw.githubusercontent.com/cloudnative-pg/grafana-dashboards/cluster-v0.0.5/charts/cluster/grafana-dashboard.json
     - url: https://grafana.com/api/dashboards/24459/revisions/3/download
     - url: https://grafana.com/api/dashboards/24457/revisions/4/download
     - url: https://grafana.com/api/dashboards/24458/revisions/3/download
