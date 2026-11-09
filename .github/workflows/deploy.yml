@@ -1,8 +1,9 @@
 name: Infra (Terraform)
 
-# Plans every Terragrunt module on PRs and on manual dispatch (drift check).
-# One deployment tree drives both environments (ENVIRONMENT selects state +
-# vault), so every change plans against both. Applies stay operator-run.
+# On PRs, plans the Terragrunt modules the PR changes and the modules that
+# depend on them; manual dispatch (drift check) plans every module. One
+# deployment tree drives both environments (ENVIRONMENT selects state + vault),
+# so every change plans against both. Applies stay operator-run.
 #
 # The modules with a onepassword provider reach the bootstrap 1Password Connect
 # over the NetBird mesh, so jobs join it with a CI setup key read from the
@@ -21,7 +22,7 @@ on:
     branches: [main]
     paths:
       - "deployment/**"
-      - ".mise/config.toml"
+      - ".mise/**"
       - ".github/actions/netbird-connect/**"
       - ".github/workflows/deploy.yml"
   workflow_dispatch:
@@ -58,6 +59,8 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # The plan filter diffs against the base commit, which a shallow clone lacks.
+          fetch-depth: 0
 
       - name: Install 1Password CLI
         uses: 1password/install-cli-action@1a3160d5e9de1ae0803eaa08a88746f5ae3daa50 # v4.1.0
@@ -85,5 +88,11 @@ jobs:
           setup-key: ${{ steps.nb.outputs.setup-key }}
           hostname: gha-plan-${{ matrix.environment }}-${{ github.run_id }}
 
+      # A PR plans the modules it changes plus their dependents; root.hcl marks
+      # the files every module depends on, so changing one plans them all. A
+      # module the PR deletes is skipped (no --filter-allow-destroy), so destroy
+      # it by hand before deleting it.
       - name: Plan
+        env:
+          TG_FILTER: ${{ github.event_name == 'pull_request' && format('...[{0}...HEAD]', github.event.pull_request.base.sha) || '' }}
         run: mise run //deployment:plan
