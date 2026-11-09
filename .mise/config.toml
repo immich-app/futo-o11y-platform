@@ -1,4 +1,4 @@
-min_version = "2026.9.16"
+min_version = "2026.11.3"
 monorepo_root = true
 
 [monorepo]
@@ -123,7 +123,6 @@ run = "{{vars.sync_job}} | {{vars.pin_fleet}} | {{vars.sort_docs}} > {{config_ro
 description = "Render o11y/manifests/dashboards.yaml (git-ignored) from the upstream sources in o11y/sync-job.yaml"
 
 [settings]
-experimental = true
 idiomatic_version_file_enable_tools = []
 
 [hooks]
