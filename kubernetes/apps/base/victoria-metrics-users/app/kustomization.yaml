@@ -9,3 +9,4 @@ resources:
   - ./vmauth-self-select.yaml
   - ./httproute-vlogs-mesh.yaml
   - ./vmalert-version.yaml
+  - ./vmagent-serverless.yaml
