@@ -6,37 +6,3 @@ resource "talos_machine_secrets" "this" {
     prevent_destroy = true
   }
 }
-
-# topf applies the machine configs and bootstrap/ bootstraps etcd. Destroying a
-# config apply resets its node (on_destroy reset = true), so these only leave state.
-removed {
-  from = talos_machine_configuration_apply.controlplane
-
-  lifecycle {
-    destroy = false
-  }
-}
-
-removed {
-  from = talos_machine_configuration_apply.worker
-
-  lifecycle {
-    destroy = false
-  }
-}
-
-removed {
-  from = talos_machine_bootstrap.this
-
-  lifecycle {
-    destroy = false
-  }
-}
-
-removed {
-  from = talos_cluster_kubeconfig.this
-
-  lifecycle {
-    destroy = false
-  }
-}
