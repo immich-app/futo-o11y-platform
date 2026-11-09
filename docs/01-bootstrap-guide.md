@@ -188,10 +188,9 @@ Run the commands from the root of the repository, with `ENVIRONMENT` set to the 
 
    The installed Talos stays. Each node reboots into maintenance mode, because its configuration is gone.
 
-2. Back up the old bundle, then replace it. The Talos machine secrets carry `prevent_destroy`, so you remove them from the state and apply the module to create a new bundle:
+2. Replace the old bundle. The Talos machine secrets carry `prevent_destroy`, so you remove them from the state and apply the module to create a new bundle. Step 1 reset every node, so the old bundle no longer opens anything, and you do not need a copy of it.
 
    ```bash
-   mise -C deployment/modules/talos/cluster run //:tg -- run -- state pull > ".private/$ENVIRONMENT/talos-cluster.tfstate.json"
    mise -C deployment/modules/talos/cluster run //:tg -- run -- state rm talos_machine_secrets.this
    mise run //deployment/modules/talos/cluster:apply
    ```

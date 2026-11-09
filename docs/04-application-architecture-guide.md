@@ -114,8 +114,10 @@ VictoriaLogs has tenants too: an `(AccountID, ProjectID)` pair, like VictoriaMet
 When the legacy tier is empty, remove it. If the tier is empty, this query returns no rows:
 
 ```fish
-kubectl get --raw '/api/v1/namespaces/o11y/services/victoria-logs-vlselect:9471/proxy/select/logsql/query?query=*%20%7C%20limit%201'
+kubectl get --raw '/api/v1/namespaces/o11y/services/victoria-logs-vlselect:9471/proxy/select/logsql/query?query=*%20%7C%20limit%201&allow_partial_response=0'
 ```
+
+The query does not accept a partial response, because the legacy `vlselect` allows one by default. If the query returns an error, a shard is down. Fix the shard before you continue, because the error does not show that the tier is empty.
 
 > [!WARNING]
 > Before you remove the legacy datasource, search the dashboard JSON for `VictoriaLogsLegacy`. If a dashboard uses this uid, it breaks without the datasource.
