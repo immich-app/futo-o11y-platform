@@ -44,7 +44,6 @@ mise.local.toml
 
 # Rendered by `mise run //:o11y:render`; CI renders and publishes, nothing generated is committed
 o11y/manifests/dashboards.yaml
-o11y/vendor/
 
 # topf's default render dir; rendered machine configs contain the cluster's private keys
 talos/output/

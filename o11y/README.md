@@ -1,21 +1,55 @@
 # Shared Grafana dashboards
 
-Cluster-generic dashboards every tenant used to ship in its own bundle, provided once in the `Shared` Grafana folder on both environments. Each board reads the `VictoriaMetrics Fleet` datasource and filters on a multi-select `$cluster` variable, so one copy serves every cluster in the fleet.
+This directory builds the cluster-generic dashboards. Each environment provides them once, in the `Shared` Grafana folder, so the tenant bundles do not ship them. Each dashboard reads the `VictoriaMetrics Fleet` datasource and filters on a multi-select `$cluster` variable. So one copy serves every cluster in the fleet.
 
 ## How it is built
 
-`sync-job.yaml` is a config for the [VictoriaMetrics sync-job](https://github.com/VictoriaMetrics/helm-charts/tree/master/hack/sync-job), the same tool the VictoriaMetrics chart runs in-cluster. Run in generate mode it fetches each upstream dashboard listed under `sources`, renames the cluster label, adds a `cluster=~"$cluster"` filter to selectors and `by (cluster)` to aggregations, builds the `$cluster` variable from the dashboard's `clusterMetric`, points fixed datasource references at `VictoriaMetricsFleet`, and emits `GrafanaDashboard` CRs into `manifests/dashboards.yaml`. A `yq` step then pins every datasource-type variable to the Fleet datasource, which the sync-job leaves free. Nothing generated is committed: `manifests/dashboards.yaml` and `vendor/` are git-ignored. `.github/workflows/o11y.yml` runs the same mise tasks in CI: pull requests render and `kustomize build` the bundle, and every push to `main` that touches `o11y/` renders again and publishes `manifests/` as the signed OCI artifact `ghcr.io/immich-app/futo-o11y-platform/o11y-manifests:main` (`flux push artifact` plus keyless cosign), the same shape and naming the tenant bundles use. Upstream changes reach the clusters on the next publish, so re-run the workflow by hand to pick them up without a config change. The central cluster consumes it through `kubernetes/apps/base/tenants/shared/bundle.yaml`, alongside the `Shared` folder in `manifests/folder.yaml`.
+`sync-job.yaml` is the configuration for the [VictoriaMetrics sync-job](https://github.com/VictoriaMetrics/helm-charts/tree/master/hack/sync-job). The VictoriaMetrics chart runs the same tool in the cluster. In generate mode, the sync-job does these steps for each upstream dashboard listed under `sources`:
+
+1. It fetches the dashboard.
+2. It renames the cluster label.
+3. It adds a `cluster=~"$cluster"` filter to selectors and `by (cluster)` to aggregations.
+4. It uses the variable whose `label_values()` query reads the `cluster` label as the cluster picker. If the dashboard has no such variable, it adds one from the `variables` override of the dashboard.
+5. It points fixed datasource references at `VictoriaMetricsFleet`.
+6. It writes `GrafanaDashboard` CRs into `manifests/dashboards.yaml`.
+
+Then a `yq` step pins every datasource-type variable to the Fleet datasource. The sync-job does not pin these variables. No generated file goes into git: `manifests/dashboards.yaml` is git-ignored.
+
+In CI, `.github/workflows/o11y.yml` runs the same mise tasks. For a pull request, CI renders the bundle and runs `kustomize build` on it. For each push to `main` that changes `o11y/`, CI renders the bundle again. CI then publishes `manifests/` as the signed OCI artifact `ghcr.io/immich-app/futo-o11y-platform/o11y-manifests:main` (`flux push artifact` plus keyless cosign). The tenant bundles use the same shape and naming. Upstream changes reach the clusters on the next publish. To get them without a configuration change, run the workflow again by hand. The central cluster consumes the artifact and the `Shared` folder in `manifests/folder.yaml` through `kubernetes/apps/base/tenants/shared/bundle.yaml`.
 
 ```fish
 mise run //:o11y:render   # render manifests/dashboards.yaml locally for review (git-ignored)
 ```
 
-Both tasks first run `o11y:vendor`, which fetches boards that need a rewrite the sync-job cannot express and writes them to `vendor/` as local sources. Two boards need it. CloudNativePG uses `cluster` to mean the Postgres cluster, while the fleet keeps that name under `pg_cluster` and reserves `cluster` for the Kubernetes cluster, so the vendor step renames the label and variable before the sync-job adds the fleet's `$cluster`. The etcd mixin names its variable `cluster` but fills it from the `job` label and filters on `job="$cluster"`; left alone, the sync-job takes that variable for the fleet's and rewrites the filter to `cluster=~"$cluster"`, so the picker offers job names and every panel is empty. The vendor step renames that variable to `job`. A cluster's CNPG series must carry `pg_cluster` for the board to list its databases; the shipping guide's identity-label section shows the relabel rule, which o11y, azad and harbor apply.
+Two upstream dashboards use a variable named `cluster` for something other than the Kubernetes cluster. In `sync-job.yaml`, each one has a `variables` override that adds a `k8s_cluster` variable as the cluster picker:
 
-The set is everything at least two clusters run: the dotdc Kubernetes views and system boards, the kube-prometheus mixin boards (kubelet, scheduler, controller manager, proxy, API server, compute resources, networking, persistent volumes, node exporter USE method), Node Exporter Full, etcd, vmagent, Cilium and Hubble, Flux, Envoy Gateway and CloudNativePG. Windows, AIX, macOS, Prometheus, Alertmanager and Grafana-overview boards from the mixin bundle are disabled. Documents are sorted by name so an unchanged upstream renders byte-identical: the artifact's content layer keeps its digest across publishes, and only the manifest's revision and timestamp annotations change, so Flux's re-apply after a publish with no upstream change is a no-op.
+- CloudNativePG uses `cluster` for the Postgres cluster. The fleet keeps that name in the `pg_cluster` label and uses `cluster` only for the Kubernetes cluster. The override makes the `cluster` variable list the `pg_cluster` values.
+- The etcd mixin fills its `cluster` variable from the `job` label and filters on `job="$cluster"`. With the `k8s_cluster` picker, that job variable keeps working.
 
-Upstream sources are pinned where the upstream moves (Cilium by release tag, Flux by commit) and tracked at `master` where the VictoriaMetrics chart does the same.
+For the CloudNativePG dashboard to list the databases of a cluster, the CNPG series of that cluster must carry `pg_cluster`. The [labels section of the shipping guide](../docs/05-shipping-metrics-guide.md#labels) shows the relabel rule. o11y, azad and harbor apply this rule.
+
+The set contains a dashboard for everything that at least two clusters run:
+
+- The dotdc Kubernetes views and system dashboards.
+- The kube-prometheus mixin dashboards (kubelet, scheduler, controller manager, proxy, API server, compute resources, networking, persistent volumes, node exporter USE method).
+- Node Exporter Full.
+- etcd.
+- vmagent.
+- Cilium and Hubble.
+- Flux.
+- Envoy Gateway.
+- CloudNativePG.
+
+The configuration disables the Windows, AIX, macOS, Prometheus, Alertmanager and Grafana-overview dashboards from the mixin bundle. The render sorts the documents by name, so an unchanged upstream renders byte-identical output. The content layer of the artifact then keeps its digest across publishes. Only the revision and timestamp annotations of the manifest change. So after a publish with no upstream change, the Flux re-apply changes nothing.
+
+The configuration pins the upstream sources that move: Cilium by release tag and Flux by commit. Where the VictoriaMetrics chart tracks a source at `master`, the configuration does the same.
 
 ## Adding a dashboard
 
-Add its URL under `sources`, and if the upstream board has no `cluster` variable, set `clusterMetric` for it under `dashboards` keyed by the slug of its title (`Kubernetes / Views / Pods` becomes `kubernetes-views-pods`). Run the render task and review the output locally, then commit the config change; CI renders and publishes. Keep the board out of the VictoriaMetrics chart's own `defaultDashboards.sources` if it is one the chart also imports, so the two do not fight over the same Grafana uid.
+1. Add the URL of the dashboard under `sources`.
+2. If the upstream dashboard has no variable that lists the `cluster` label, add a `variables` override for it under `dashboards`. Set `cluster.query` to a `label_values()` query, for example `label_values(kube_node_info, cluster)`. The key is the slug of the dashboard title: `Kubernetes / Views / Pods` becomes `kubernetes-views-pods`.
+3. Run the render task.
+4. Review the output locally.
+5. Commit the configuration change. CI then renders and publishes the bundle.
+
+If the VictoriaMetrics chart also imports the dashboard, keep the dashboard out of `defaultDashboards.sources` of the chart. Otherwise the two compete for the same Grafana uid.
