@@ -1,20 +1,19 @@
 # FUTO O11y Platform
 
-The centralized observability platform for FUTO services. A single Talos Kubernetes cluster per environment, stretched across multiple OVH datacentres and managed by Flux. It hosts the metrics, dashboards, and alerting stack, and is the **central metrics store** that other FUTO clusters remote-write into.
+This repository holds the central observability platform for FUTO services. Each environment has one Talos Kubernetes cluster. The cluster spans multiple OVH data centers, and Flux manages it. The cluster hosts the metrics, dashboards and alerting stack. It is also the central metrics store: other FUTO clusters remote-write their metrics into it.
 
-Built for geographic resilience with single-cluster operational simplicity: three control planes in low-latency DCs hold one etcd quorum, three bare-metal workers carry the observability workload, and everything talks over a private OVH vRack.
+The design gives geographic resilience, but you operate only one cluster. Three control planes in low-latency data centers hold one etcd quorum. Three bare-metal workers run the observability workload. All nodes communicate over a private OVH vRack.
 
-**Status:** both environments are built and running — `o11y-staging` and `o11y-production`.
+Status: both environments, `o11y-staging` and `o11y-production`, are built and running.
 
 ## Documentation
 
-| Guide                                                                              | Covers                                                                                                |
-| ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| [01 — Bootstrap](./docs/01-bootstrap-guide.md)                                     | Standing up an environment: one-time prep, Terragrunt apply order, operator access, common operations |
-| [02 — Infrastructure architecture](./docs/02-infrastructure-architecture-guide.md) | OVH compute, hardware specs, vRack networking, IPLB ingress, cost                                     |
-| [03 — Cluster architecture](./docs/03-cluster-architecture-guide.md)               | Talos, Kubernetes, host firewall, and Flux GitOps                                                     |
-| [04 — Application architecture](./docs/04-application-architecture-guide.md)       | Envoy ingress, VictoriaMetrics central store, Grafana, CloudNativePG, supporting operators            |
-| [Runbook: tenant cutover](./docs/runbooks/vm-tenant-migration/README.md)           | Moving a store's metrics from tenant 0 onto per-cluster tenants, staging first                        |
+| Guide                                                                             | Covers                                                                                                |
+| --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| [01: Bootstrap](./docs/01-bootstrap-guide.md)                                     | Standing up an environment: one-time prep, Terragrunt apply order, operator access, common operations |
+| [02: Infrastructure architecture](./docs/02-infrastructure-architecture-guide.md) | OVH compute, hardware specs, vRack networking, IPLB ingress, cost                                     |
+| [03: Cluster architecture](./docs/03-cluster-architecture-guide.md)               | Talos, Kubernetes, host firewall, and Flux GitOps                                                     |
+| [04: Application architecture](./docs/04-application-architecture-guide.md)       | Envoy ingress, VictoriaMetrics central store, Grafana, CloudNativePG, supporting operators            |
 
 ## Repository layout
 
@@ -49,4 +48,4 @@ kubernetes/
         └── cluster-settings.yaml # per-env CLUSTER_* ConfigMap (BOOTSTRAP_* comes from Terraform)
 ```
 
-State lives in S3 under `yucca/o11y/v3/<module>/<env>`. Each environment keeps its own Terragrunt working directory, so switching `ENVIRONMENT` needs no re-init. Secrets and OVH/NetBird tokens come from 1Password via `op run` and `deployment/.env`.
+The Terraform state is in S3 under `yucca/o11y/v3/<module>/<env>`. Each environment has its own Terragrunt working directory. When you change `ENVIRONMENT`, you do not have to run init again. The secrets and the OVH and NetBird tokens come from 1Password through `op run` and `deployment/.env`.

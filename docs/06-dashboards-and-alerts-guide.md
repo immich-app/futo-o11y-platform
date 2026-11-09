@@ -1,10 +1,10 @@
 # Grafana dashboards and alerts
 
-o11y's Grafana renders the dashboards and alert rules that each project ships to it. Nothing is clicked in the UI and left to rot: every dashboard and alert is a `grafana-operator` CR, delivered one of two ways, and grouped into a per-project folder.
+o11y's Grafana shows the dashboards and alert rules that each project ships to it. Nobody makes a dashboard or an alert by hand in the UI and leaves it there to decay. Each dashboard and each alert is a `grafana-operator` custom resource (CR). It arrives through one of two delivery models, and it goes into a folder for its project.
 
 ## Folders are the project boundary
 
-Each project gets a Grafana **folder** named for it, and both its dashboards and its alert rule groups file under that folder:
+Each project gets a Grafana folder with the name of the project. The dashboards and the alert rule groups of the project go into that folder:
 
 | Folder           | Owner                                                                                                                                                                                           | Delivered by                                                                                                     |
 | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
@@ -17,20 +17,20 @@ Each project gets a Grafana **folder** named for it, and both its dashboards and
 | `bootstrap`      | the bootstrap DOKS cluster (palpatine)                                                                                                                                                          | bootstrap's key-signed GitLab OCI bundle (Model A, anonymous-pull registry: infra/bootstrap is a public project) |
 | `geoshenanigans` | the geoshenanigans geocoder nightly build and its watchdog (GitHub Actions jobs pushing straight to the public gateway), and the tiles.immich.cloud worker (Cloudflare, on the serverless path) | immich-app/geoshenanigans's signed OCI bundle (Model A)                                                          |
 
-Add a project, add a folder. That folder is the unit you scope dashboards, alerts, and (eventually) permissions to.
+When you add a project, add a folder for it. You scope dashboards, alerts, and (later) permissions to that folder.
 
 ## Tags cut across folders
 
-A folder files a dashboard under exactly one project; a **tag** is the orthogonal axis - signal type (`metrics`, `logs`), layer (`infra`, `k8s`, `app`) - that Grafana's dashboard browser filters on across every folder at once. Grafana stores tags inside the dashboard JSON model and `grafana-operator` exposes no field to inject them, so tags can only be set where the JSON is authored:
+A folder puts a dashboard under exactly one project. A tag is a second, independent axis: the signal type (`metrics`, `logs`) or the layer (`infra`, `k8s`, `app`). The Grafana dashboard browser filters on tags across all folders at once. Grafana stores tags inside the dashboard JSON model, and `grafana-operator` exposes no field to inject them. Thus you can set tags only where the JSON is written:
 
-- **Bundle (Model A) and first-party (Model B) dashboards you write:** set `tags` in the dashboard JSON before shipping. Folder is your project; tags are the signal/layer cross-cut.
-- **Dashboards pulled from grafana.com or a raw URL** (`spec.grafanaCom` / `spec.url`, e.g. the grafana-operator dashboard): they carry whatever tags upstream set. o11y cannot add or normalize them without vendoring the JSON inline, which forfeits the live reference and `resyncPeriod` auto-updates - so leave them as-is.
+- Bundle (Model A) and first-party (Model B) dashboards that you write: set `tags` in the dashboard JSON before you ship it. The folder is your project, and the tags give the signal and the layer across folders.
+- Dashboards pulled from grafana.com or a raw URL (`spec.grafanaCom` / `spec.url`, for example the grafana-operator dashboard): these dashboards carry the tags that upstream set. Unless o11y vendors (copies) the JSON inline, it cannot add or normalize these tags. A vendored copy loses the live reference and the `resyncPeriod` auto-updates. Thus, leave these tags as they are.
 
 ## Model A: a project ships a signed OCI manifest bundle
 
-This is how yucca ships (immich-app/yucca#315, see that repo's `o11y/README.md`). The project's CI renders each dashboard into a self-contained `GrafanaDashboard` CR (JSON embedded as `spec.gzipJson`) plus any `GrafanaAlertRuleGroup` CRs and a `GrafanaFolder`, pushes them as **one signed OCI artifact** (`flux push artifact` + cosign keyless), and o11y consumes the whole thing with a single Flux `OCIRepository` + `Kustomization`. New dashboards/alerts flow automatically on the next artifact.
+yucca ships this way (immich-app/yucca#315, see `o11y/README.md` in that repo). The project's CI renders each dashboard into a self-contained `GrafanaDashboard` CR, with the JSON embedded as `spec.gzipJson`. The CI also renders any `GrafanaAlertRuleGroup` CRs and a `GrafanaFolder`. It pushes all of them as one signed OCI artifact (`flux push artifact` + cosign keyless). o11y consumes the whole artifact with a single Flux `OCIRepository` + `Kustomization`. New dashboards and alerts arrive automatically with the next artifact.
 
-o11y's consumer side lives once in `kubernetes/apps/base/tenants/yucca/bundle.yaml`, one file per tenant listed by `base/tenants/kustomization.yaml`, which each env's `o11y` overlay pulls in. A bundle applies with kustomize-controller's own cluster-wide rights (no `serviceAccountName`), and the signature check pins it to its repo's workflow; this is accepted while each bundle repo's writers are also futo-o11y-platform's:
+The o11y consumer side is defined once, in `kubernetes/apps/base/tenants/yucca/bundle.yaml`. Each tenant has one such file, and `base/tenants/kustomization.yaml` lists these files. The `o11y` overlay of each env pulls in that list. kustomize-controller applies a bundle with its own cluster-wide rights (no `serviceAccountName`). The signature check pins the bundle to the workflow of its repo. o11y accepts this setup while every writer of a bundle repo is also a writer of futo-o11y-platform:
 
 ```yaml
 apiVersion: source.toolkit.fluxcd.io/v1
@@ -59,103 +59,130 @@ spec:
   dependsOn: [{ name: grafana-operator }]
 ```
 
-The bundle's CRs carry sane defaults (`instanceSelector: {dashboards: grafana}`, `folderRef: <project>`, `resyncPeriod`), so o11y applies them as-is. The GHCR package must be public (or set `secretRef` on the OCIRepository), and source-controller needs sigstore egress for `verify`.
+The CRs in the bundle carry reasonable defaults (`instanceSelector: {dashboards: grafana}`, `folderRef: <project>`, `resyncPeriod`), so o11y applies them as they are. The GHCR package must be public, or the OCIRepository must set `secretRef`. Also, source-controller needs egress to sigstore for `verify`.
 
 ### Model A from a private registry
 
-yucca's bundle is a public GHCR package, so its `OCIRepository` needs no
-credential. A private project publishing to its own forge — fmeet ships to
-`gitlab.futo.org:5050`, where its private GitLab project lives — has a private
-registry, and there is no way around it: GitLab's
-`container_registry_access_level` takes only `disabled` / `private` / `enabled`,
-where `enabled` still means "everyone **with access**". Of all the project
-feature access levels, only `pages_access_level` accepts `public`, so a private
-project cannot expose a publicly-pullable registry. An anonymous pull scope is
-refused at `/jwt/auth` outright. A public project's registry is the opposite
-case, covered at the end of this section.
+The yucca bundle is a public GHCR package, so its `OCIRepository` needs no
+credential. A private project that publishes to its own forge has a private
+registry, and there is no way around this. For example, fmeet ships to
+`gitlab.futo.org:5050`, where its private GitLab project is.
 
-Two additions, then:
+GitLab's `container_registry_access_level` takes only `disabled` / `private` /
+`enabled`, and `enabled` still means "everyone with access". Of all the access
+levels for project features, only `pages_access_level` accepts `public`. Thus a
+private project cannot expose a publicly pullable registry. `/jwt/auth` refuses
+an anonymous pull scope outright. The registry of a public project is the
+opposite case, and the end of this section covers it.
 
-- **A read-only pull credential.** A GitLab _project deploy token_ scoped to
-  `read_registry` is the least it can be — pull on that one project's registry,
-  nothing else, revocable without touching an account. Its username and password
-  go into 1Password as **two separate manual secrets**, each holding its value in
-  the item's `password` field — the manual-secrets module only creates
-  password-category items, so a two-part credential is split rather than packed
-  into extra fields on one item.
-- **An ExternalSecret rendering it as a `dockerconfigjson`**, in `flux-system`,
-  because that is where the `OCIRepository` lives and a `secretRef` resolves in
-  its own namespace. It pulls the two items by name and templates the docker
-  config around them. See the `ExternalSecret` in `base/tenants/fmeet/bundle.yaml`.
+Such a project thus needs two additions:
 
-Both items go in the global `o11y_tf` vault, read through the `onepassword`
-store. Not `shared_tf` — that is for credentials more than one project
-consumes, and this cluster is the only thing that pulls the bundle; and not a
-per-environment o11y vault, because there is one fmeet project registry and so
-one token, the same in every environment. They are declared in core-infra-tf's
-`o11y-manual-secrets` module and filled in by hand in `o11y_tf_manual`.
+- A read-only pull credential: a GitLab _project deploy token_ scoped to
+  `read_registry` gives the least access possible. It can pull only from the
+  registry of that one project, and you can revoke it without changes to an
+  account. Its username and password go into 1Password as two separate manual
+  secrets. Each secret holds its value in the `password` field of its item. The
+  manual-secrets module creates only items of the password category. Thus the
+  two parts of the credential go into two items, not into extra fields on one
+  item.
+- An ExternalSecret that renders the credential as a `dockerconfigjson`: it is
+  in `flux-system`, because the `OCIRepository` is in that namespace and a
+  `secretRef` resolves in its own namespace. It reads the two items by name and
+  builds the docker configuration around them from a template. See the
+  `ExternalSecret` in `base/tenants/fmeet/bundle.yaml`.
 
-That `onepassword` ClusterSecretStore is added here: the cluster reached
-`shared_tf` and the per-environment o11y vaults, but nothing had yet needed the
-global o11y one, whose other items are all consumed by terragrunt rather than
-from inside the cluster.
+Both items go in the global `o11y_tf` vault, and the cluster reads them through
+the `onepassword` store. They do not go in `shared_tf`, because that vault is
+for credentials that more than one project consumes. This cluster is the only
+thing that pulls the bundle.
 
-The one detail that bites: the key under `auths` must match the
-`OCIRepository`'s pull host **exactly**, port and all
-(`gitlab.futo.org:5050`, not `gitlab.futo.org`). A mismatch surfaces as an
-authentication failure rather than as anything pointing at the cause.
+They also do not go in a per-environment o11y vault. There is one fmeet project
+registry, so there is one token, and it is the same in every environment. The
+`o11y-manual-secrets` module in core-infra-tf declares them, and an operator
+fills them in by hand in `o11y_tf_manual`.
 
-An anonymously pullable registry sidesteps all of this, so the
-`OCIRepository` needs no `secretRef`. harbor-o11y does this: its bundle lives
-at `registry.futo.org/harbor/o11y-manifests`, where `harbor/` allows
-anonymous reads. So does bootstrap on `gitlab.futo.org` itself:
-`infra/bootstrap` is a public project, so `/jwt/auth` grants an anonymous pull on
-`gitlab.futo.org:5050/infra/bootstrap/o11y-manifests` and no deploy token is
-needed.
+This repo adds that `onepassword` ClusterSecretStore. Before it, the cluster
+reached `shared_tf` and the per-environment o11y vaults, but nothing needed the
+global o11y vault. Only terragrunt consumes the other items in that vault.
+Nothing inside the cluster consumes them.
 
-`verify:` is also omitted for such a bundle unless the publisher signs with a
-key pair, as harbor-o11y and bootstrap do. harbor-o11y's CI signs the digest
-with a key its infrastructure terraform mints, the public half is committed in
-that repo as `cosign.pub`, and `base/tenants/harbor` carries it as the
-`harbor-o11y-cosign` Secret referenced from `verify.secretRef`. bootstrap's
-key pair is generated by hand (private half in its `futo_bootstrap_tf` vault,
-public half in its `o11y/cosign.pub`), and `base/tenants/bootstrap` carries it
-as `bootstrap-o11y-cosign`. Keyless cosign mints its certificate from public
-Fulcio against the CI's OIDC identity, and Fulcio accepts `gitlab.com` but not
-a self-hosted forge — so the keyless block above cannot simply be copied across.
+The key under `auths` must match the pull host of the `OCIRepository` exactly,
+including the port (`gitlab.futo.org:5050`, not `gitlab.futo.org`). A mismatch
+shows only as an authentication failure, and the failure does not point at the
+cause.
+
+An anonymously pullable registry avoids all of this, so the `OCIRepository`
+needs no `secretRef`. harbor-o11y uses this method. Its bundle is at
+`registry.futo.org/harbor/o11y-manifests`, where `harbor/` allows anonymous
+reads. bootstrap uses the same method on `gitlab.futo.org` itself.
+`infra/bootstrap` is a public project, so `/jwt/auth` grants an anonymous pull
+on `gitlab.futo.org:5050/infra/bootstrap/o11y-manifests`. No deploy token is
+necessary.
+
+Unless the publisher signs with a key pair, the `OCIRepository` of such a bundle
+also omits `verify:`. harbor-o11y and bootstrap sign with a key pair.
+The CI of harbor-o11y signs the digest with a key that its infrastructure
+terraform mints. That repo commits the public half as `cosign.pub`.
+`base/tenants/harbor` carries the public half as the `harbor-o11y-cosign`
+Secret, which `verify.secretRef` references.
+
+bootstrap's key pair is hand-generated. The private half is in its
+`futo_bootstrap_tf` vault, and the public half is in its `o11y/cosign.pub`.
+`base/tenants/bootstrap` carries it as `bootstrap-o11y-cosign`. Keyless cosign
+mints its certificate from public Fulcio against the OIDC identity of the CI.
+Fulcio accepts `gitlab.com` but not a self-hosted forge. Thus you cannot copy
+the keyless block above to a bundle on a self-hosted forge.
 
 ### Recording rules in a bundle
 
-A bundle may also ship `VMRule`s when its project records its own series, as immich-app/version does. o11y's `vmalert` reads only o11y's tenant and writes under o11y's identity labels, so it must not evaluate them. The setup has three parts:
+If a project records its own series, its bundle can also ship `VMRule`s. immich-app/version does this. o11y's `vmalert` reads only o11y's tenant and writes with o11y's identity labels. Thus it must not evaluate these rules. The setup has three parts:
 
-- **The tenant's Kustomization** in `base/tenants/<tenant>/bundle.yaml` sets `commonMetadata.labels` `o11y.futo.org/tenant: <tenant>` on everything it applies. Flux overrides any value the bundle sets for that key, so a bundle cannot claim another tenant's label. Like the other bundles it depends only on `grafana-operator`. The `VMRule` CRD comes from `victoria-metrics` and is always installed once the cluster is up; on a fresh bootstrap the bundle fails its dry-run until then and Flux retries it.
-- **o11y's own `vmalert`** (`base/victoria-metrics/app/helmrelease.yaml`) selects every `VMRule` without that label.
-- **The tenant's `VMAlert`** (`base/victoria-metrics-users/app/vmalert-<tenant>.yaml`) selects the label in the `o11y` namespace and also matches `kustomize.toolkit.fluxcd.io/name: <tenant>-o11y`, which kustomize-controller sets on every object it applies, so no other bundle can feed it rules. It reads `/select/<tenant>/prometheus`, writes through the multitenant insert endpoint, and sets the tenant's identity labels as `externalLabels`, which route the results back into the tenant.
+- The tenant's Kustomization in `base/tenants/<tenant>/bundle.yaml` sets `commonMetadata.labels` `o11y.futo.org/tenant: <tenant>` on everything that it applies. Flux overrides any value that the bundle sets for that key, so a bundle cannot claim the label of another tenant. Like the other bundles, it depends only on `grafana-operator`. The `VMRule` CRD comes from `victoria-metrics`, and it is always installed after the cluster is up. On a fresh bootstrap, the bundle fails its dry-run until then, and Flux retries it.
+- o11y's own `vmalert` (`base/victoria-metrics/app/helmrelease.yaml`) selects every `VMRule` that does not have that label.
+- The tenant's `VMAlert` (`base/victoria-metrics-users/app/vmalert-<tenant>.yaml`) selects the label in the `o11y` namespace. It also matches `kustomize.toolkit.fluxcd.io/name: <tenant>-o11y`. kustomize-controller sets this label on every object that it applies, so no other bundle can feed rules to this `VMAlert`. It reads `/select/<tenant>/prometheus` and writes through the multitenant insert endpoint. It sets the tenant's identity labels as `externalLabels`, and these labels route the results back into the tenant.
 
-Those `externalLabels` do not pin the tenant. They displace a same-named label that comes from the query result, which `vmalert` keeps as `exported_<name>`, but a group's or rule's own `labels:` override them. A rule that set `project` or `cluster` would be filed under another tenant, so a bundle must not set identity labels (`project`, `cluster`, `env`, `provider`, `region`, `vm_account_id`, `vm_project_id`) on its groups or rules. o11y does not enforce this; immich-app/version's render script rejects them before it publishes.
+These `externalLabels` do not pin the tenant. They displace a label with the same name from the query result, and `vmalert` keeps that label as `exported_<name>`. But a group's or a rule's own `labels:` override the `externalLabels`. If a rule sets `project` or `cluster`, its results go under another tenant.
 
-Per-group `tenant` on a `VMRule` is VictoriaMetrics Enterprise only, so each tenant with rules gets its own `vmalert`. A rule that joins a recorded series with an aggregate must match on the aggregate's labels (`and on(client_ip)`), because the recorded series carries the external labels and the aggregate does not.
+Thus a bundle must not set identity labels on its groups or rules. The identity labels are `project`, `cluster`, `env`, `provider`, `region`, `vm_account_id`, and `vm_project_id`. o11y does not enforce this. The render script of immich-app/version rejects these labels before it publishes.
+
+Per-group `tenant` on a `VMRule` is in VictoriaMetrics Enterprise only, so each tenant with rules gets its own `vmalert`. If a rule joins a recorded series with an aggregate, the rule must match on the labels of the aggregate (`and on(client_ip)`). The recorded series carries the external labels, and the aggregate does not.
 
 ## Model B: authored in this repo (o11y's own)
 
-For this cluster's own dashboards and alerts, they live under `kubernetes/apps/base/grafana/app/` and deploy with the grafana Flux Kustomization:
+This cluster's own dashboards and alerts are under `kubernetes/apps/base/grafana/app/`, and they deploy with the grafana Flux Kustomization:
 
-- **Dashboards** - `base/grafana/app/dashboards.yaml`, a single file holding the `o11y` `GrafanaFolder` and one `GrafanaDashboard` document per dashboard, `folderRef: o11y`. Source the JSON however fits: `spec.grafanaCom` or `spec.url` to a grafana.com or raw dashboard (the grafana-operator dashboard), `spec.gzipJson`, etc. Map dashboard `__inputs` (e.g. `DS_PROMETHEUS`) to `datasourceName: VictoriaMetrics`, which serves o11y's own tenant.
-- **Alerts** - `base/grafana/app/alerts-*.yaml`, a `GrafanaAlertRuleGroup` with `folderRef: o11y`.
+- Dashboards: `base/grafana/app/dashboards.yaml` is a single file. It holds the `o11y` `GrafanaFolder` and one `GrafanaDashboard` document per dashboard, with `folderRef: o11y`. Use any source for the JSON that fits. Examples are `spec.grafanaCom` or `spec.url` to a grafana.com or raw dashboard (the grafana-operator dashboard), and `spec.gzipJson`. Map the dashboard `__inputs` (for example `DS_PROMETHEUS`) to `datasourceName: VictoriaMetrics`, which serves o11y's own tenant.
+- Alerts: `base/grafana/app/alerts-*.yaml`, a `GrafanaAlertRuleGroup` with `folderRef: o11y`.
 
-Another project's CRs authored here read its data from another tenant, so they use the Fleet datasource like a bundle does (see Datasources and tenants).
+CRs for another project that are written in this repo read their data from another tenant. Thus they use the Fleet datasource, as a bundle does (see Datasources and tenants).
 
 ## Shared dashboards
 
-Cluster-generic boards (Kubernetes views and system, node exporter, vmagent, Cilium, Flux, Envoy Gateway, CloudNativePG) live once in the **`Shared`** folder rather than in every tenant bundle. They are rendered from their upstream sources by the VictoriaMetrics sync-job in generate mode, filtered on a multi-select `$cluster` variable and pinned to the `VictoriaMetrics Fleet` datasource, so one copy serves every cluster; see [`o11y/README.md`](../o11y/README.md) for how to add one. A tenant bundle should not ship its own copy of a board that exists in `Shared`.
+Cluster-generic boards (Kubernetes views and system, node exporter, vmagent, Cilium, Flux, Envoy Gateway, CloudNativePG) are in the `Shared` folder once, not in each tenant bundle. The VictoriaMetrics sync-job in generate mode renders them from their upstream sources. Each board filters on a multi-select `$cluster` variable and is pinned to the `VictoriaMetrics Fleet` datasource, so one copy serves every cluster. To add a board, see [`o11y/README.md`](../o11y/README.md). A tenant bundle must not ship its own copy of a board that is in `Shared`.
 
 ## Alerting
 
-**Contact points.** A `GrafanaContactPoint` per destination. Alerts go to [Rootly](https://rootly.com): one webhook contact point per project (`rootly-<project>` in `base/grafana/app/contactpoint-rootly-alerts.yaml`), each posting to that project's Rootly alert source with the source's own secret, plus `rootly-heartbeat` for the dead man's switch and `rootly-heartbeat-remote` for the env's remote cluster (`CLUSTER_REMOTE_HEARTBEAT` in cluster-settings: father on production, luke on staging). `o11y-remote-heartbeat` in `alerts-fleet.yaml` fires only while that cluster's metrics arrive, so once the heartbeat has had its first ping, the cluster going dark stops the pings and Rootly alerts the yucca topic within about 8 minutes, then stays alerted until metrics return (a heartbeat that has never been pinged stays waiting and cannot alert); the contact point sends no resolve message, since Rootly counts any POST as a ping. The alert sources, per-project services and their credentials are managed by the `deployment/modules/rootly/cluster` Terraform module, which writes each source's webhook URL into the env 1Password vault as `ROOTLY_ALERTS_<PROJECT>_URL`; the secret rides in that URL's `secret` query parameter because Rootly's Grafana endpoint reads it nowhere else. An ExternalSecret materializes it into the Secret the contact point reads via `receivers[].valuesFrom` - never in git. A resolved Grafana notification resolves the Rootly alert, and repeat notifications for a group that is still firing fold into its open Rootly alert by Grafana's group key, so each group posts to Zulip once when it fires and once when it resolves. Until escalation policies page someone, a high-urgency alert that stays open and unacknowledged also gets a daily reminder in its topic. The Rootly alert description is Grafana's notification message, rendered by the `rootly.message` template in `base/grafana/app/notificationtemplate-rootly.yaml`: each firing alert's `summary` and `description` annotations, then links to its rule, its dashboard and runbook when set, and a silence, for up to five alerts per group. Fired posts and reminders in Zulip carry that description under the title line. Rootly derives alert urgency from the `severity` label (`critical` -> High, `warning` -> Medium, otherwise Low) and, until escalation policies exist, forwards fired and resolved alerts from its own cloud to Zulip, where each project's alerts land in the `yucca-alerts` channel (harbor in `harbor-alerts`) under a `<project>-<env>` topic, via Zulip's Slack-compatible incoming webhook. An expired heartbeat raises a Rootly alert with no Grafana payload, which those workflows can't match, so a separate pair of workflows per heartbeat matches it by heartbeat id and posts its expiry and recovery to the topic of the project it watches. Contact points live in the shared Grafana Postgres, so with the HA replica gossip cluster a firing alert notifies **once**, not once per replica.
+Contact points: each destination has one `GrafanaContactPoint`. Alerts go to [Rootly](https://rootly.com). Each project has one webhook contact point, `rootly-<project>` in `base/grafana/app/contactpoint-rootly-alerts.yaml`. Each of these contact points posts to the Rootly alert source of its project, with the source's own secret. Two more contact points exist: `rootly-heartbeat` for the dead man's switch, and `rootly-heartbeat-remote` for the env's remote cluster (`CLUSTER_REMOTE_HEARTBEAT` in cluster-settings: father on production, luke on staging).
 
-**Rootly's Grafana integration.** Besides the alert sources, Rootly has an account-level Grafana integration (Integrations > Grafana) that takes this cluster's Grafana URL and an Admin service account token; it is what lets Rootly deep-link rules and snapshot dashboards into incidents. Rootly exposes no API or Terraform surface for it, so it is installed by hand once per env. The `deployment/modules/grafana/cluster` module owns the `rootly` service account and its token and writes the token to the env vault as `ROOTLY_GRAFANA_SERVICE_ACCOUNT_TOKEN`; paste that and `https://grafana.<env domain>` into Rootly. It is a separate module from `rootly/cluster` so the latter stays plannable while Grafana is down.
+`o11y-remote-heartbeat` in `alerts-fleet.yaml` fires only while metrics from that cluster arrive. If the cluster goes dark after the first ping of the heartbeat, the pings stop. Rootly then alerts the yucca topic within about 8 minutes, and it stays alerted until metrics return. A heartbeat that never got a ping stays waiting and cannot alert. The contact point sends no resolve message, because Rootly counts any POST as a ping.
 
-**Routing.** One `GrafanaNotificationPolicy` routes by the **`project`** label first and the **`grafana_folder`** label second. `project` is the same identity label every shipper stamps on its series (see the [shipping guide](05-shipping-metrics-guide.md#labels)); an alert instance carries it when the rule sets it as a rule label or the query keeps it in its aggregation. `grafana_folder` is added by Grafana from the folder each rule files into, so rules without the label still route by their folder:
+The `deployment/modules/rootly/cluster` Terraform module manages the alert sources, the per-project services, and their credentials. It writes the webhook URL of each source into the env 1Password vault as `ROOTLY_ALERTS_<PROJECT>_URL`. The secret travels in the `secret` query parameter of that URL, because Rootly's Grafana endpoint reads it from no other place. An ExternalSecret materializes the vault item into the Secret that the contact point reads through `receivers[].valuesFrom`. The value is never in git.
+
+A resolved Grafana notification resolves the Rootly alert. Repeat notifications for a group that is still firing merge into its open Rootly alert by the Grafana group key. Thus each group posts to Zulip only twice: once at fire time and once at resolve time. Until escalation policies page someone, a high-urgency alert that stays open and unacknowledged also gets a daily reminder in its topic.
+
+The Rootly alert description is the Grafana notification message, which the `rootly.message` template in `base/grafana/app/notificationtemplate-rootly.yaml` renders. For each firing alert, it shows the `summary` and `description` annotations. Then it shows links to the rule, to the dashboard and the runbook where set, and to a silence. The message covers up to five alerts per group. In Zulip, fired posts and reminders carry that description under the title line.
+
+Rootly derives the alert urgency from the `severity` label (`critical` -> High, `warning` -> Medium, otherwise Low). Until escalation policies exist, Rootly workflows forward fired and resolved alerts from the Rootly cloud to Zulip. They use the Slack-compatible incoming webhook of Zulip. The alerts of each project land in the `yucca-alerts` channel (harbor in `harbor-alerts`) under a `<project>-<env>` topic.
+
+An expired heartbeat raises a Rootly alert with no Grafana payload, and the forwarding workflows cannot match it. Thus a separate pair of workflows for each heartbeat matches the alert by heartbeat id. This pair posts the expiry and the recovery to the topic of the project that the heartbeat watches.
+
+Contact points are in the shared Grafana Postgres, so every replica has the same ones. The replicas form an HA gossip cluster, so a firing alert notifies once, not once per replica.
+
+Rootly's Grafana integration: in addition to the alert sources, Rootly has an account-level Grafana integration (Integrations > Grafana). The integration takes this cluster's Grafana URL and an Admin service account token. With it, Rootly can deep-link rules and snapshot dashboards into incidents. Rootly exposes no API or Terraform surface for it, so an operator installs it by hand once per env.
+
+The `deployment/modules/grafana/cluster` module owns the `rootly` service account and its token. It writes the token to the env vault as `ROOTLY_GRAFANA_SERVICE_ACCOUNT_TOKEN`. To install the integration, paste that token and `https://grafana.<env domain>` into Integrations > Grafana in Rootly. The module is separate from `rootly/cluster`, so a plan of `rootly/cluster` still works while Grafana is down.
+
+Routing: one `GrafanaNotificationPolicy` routes by the `project` label first and by the `grafana_folder` label second. `project` is the same identity label that every shipper stamps on its series (see the [shipping guide](05-shipping-metrics-guide.md#labels)). If the rule sets it as a rule label, or if the query keeps it in its aggregation, the alert instance carries it. Grafana adds `grafana_folder` from the folder that each rule files into. Thus rules without a `project` label still route by their folder:
 
 ```yaml
 route:
@@ -171,23 +198,50 @@ route:
       receiver: rootly-o11y
 ```
 
-Rules owned by one project set `project: <project>` as a rule label, which both routes them and pins the label even when the query aggregates it away. A shared rule that should reach each remote cluster's own team must instead keep `project` in its aggregation and set **no** `project` rule label, since a rule label overrides the series label and would send every cluster's firing to one team. `o11y-external-secret-not-ready` in `alerts-fleet.yaml` works this way (`by (project, env, cluster, ...)`); a firing for a project with no route of its own falls through to the `o11y` folder route. The other fleet rule, `o11y-cluster-silent`, is o11y's own: it reads vminsert's per-tenant ingestion counters, which live in o11y's own tenant, aggregates `by (accountID, projectID)` and sets `project: o11y`, so a tenant that stops ingesting pages o11y, not the cluster's owner. It deliberately reads nothing from the silent cluster: the multitenant path stops returning a tenant that has ingested nothing since UTC midnight, so any rule computed from a dark cluster's own history goes empty, and resolves, at the first midnight of the outage. A project that wants its own page for that ships an absence rule in its folder gated on o11y's own current `up`, not on the silent cluster's history (yucca's `ClusterMetricsGone*`, for example). Notifications group by `project`, `grafana_folder`, `alertname` and `cluster`, so the same rule firing in two clusters arrives as two grouped notifications rather than one blended message. `o11y-cluster-silent` carries no `cluster` label, so grouping also takes `accountID` and `projectID`, which only that rule sets, and each silent tenant arrives as its own notification.
+A rule that one project owns sets `project: <project>` as a rule label. This label routes the rule. If the query aggregates the label away, the rule label still pins it. If a shared rule must go to each remote cluster's own team, it keeps `project` in its aggregation and sets no `project` rule label. A rule label overrides the series label, and then the firings of every cluster go to one team.
 
-**Datasources and tenants.** Two Prometheus-type datasources front the same store. `VictoriaMetrics` (uid `VictoriaMetrics`, the default) carries this cluster's own tenant in its URL and goes through the `self-select` vmauth, which routes only that path, so anything that does not pick a datasource explicitly sees only o11y's series. `VictoriaMetrics Fleet` (uid `VictoriaMetricsFleet`) reads the multitenant endpoint across every tenant, including tenant 0 where unmigrated remotes still land; it is the explicit opt-in for cross-cluster dashboards and rules (`alerts-fleet.yaml`). Tenancy is carried by the datasource URL, never by dashboard JSON or rule queries: both keep filtering and grouping on the `cluster` label, which survives the tenant split unchanged.
+`o11y-external-secret-not-ready` in `alerts-fleet.yaml` works this way (`by (project, env, cluster, ...)`). If a firing is for a project with no route of its own, it falls through to the `o11y` folder route.
 
-The default datasource is therefore right only for o11y's own rules and boards. Every other project's series live in its own tenant (or tenant 0), which only `VictoriaMetrics Fleet` can see, so a remote project (every bundle, and another project's CRs authored here) uses Fleet throughout: `datasourceUid: VictoriaMetricsFleet` on every alert query node, since a rule cannot use a `$datasource` variable, and on dashboards a `$datasource` variable with the regex `/^VictoriaMetrics Fleet$/`. A remote rule left on the default datasource evaluates to NoData, which the usual `noDataState: OK` keeps Normal through a real outage; yucca's `o11y/README.md` records one that went unalerted this way. Fleet serves every tenant, so a remote project also scopes each selector with `project="<project>"`, or a generic one (Flux, cert-manager, Kubernetes) fires on other projects' clusters.
+The other fleet rule, `o11y-cluster-silent`, is o11y's own rule. It reads vminsert's per-tenant ingestion counters, which are in o11y's own tenant. It aggregates `by (accountID, projectID)` and sets `project: o11y`. So if a tenant stops ingesting, the page goes to o11y, not to the owner of the cluster.
 
-**Alert rule anatomy.** A `GrafanaAlertRuleGroup` (`folderRef: <project>`, an `interval`) with `rules[]`; each rule is a query stage on a Prometheus datasource (uid `VictoriaMetrics` for o11y's own rules, `VictoriaMetricsFleet` for the fleet rules and every remote project's, see Datasources and tenants) feeding a `__expr__` threshold stage, plus `labels` (at least `severity`) and `annotations`: a one-line `summary` and a `description` of what to check, which Rootly and Zulip show for every firing alert, and optionally a `runbook_url`. See `base/grafana/app/alerts-o11y.yaml` for the pattern (a heartbeat plus target-down and ingestion-stalled rules). Rules that span clusters aggregate `by (cluster)` so each cluster raises its own instance and carries its `cluster` label into notification grouping; store-local rules (the heartbeat, ingestion-stalled) don't.
+By design, the rule reads nothing from the silent cluster. The multitenant path stops returning a tenant with no ingestion since UTC midnight. So any rule computed from a dark cluster's own history goes empty, and resolves, at the first midnight of the outage. If a project wants its own page for that case, it ships an absence rule in its folder. That rule is gated on o11y's own current `up`, not on the silent cluster's history (yucca's `ClusterMetricsGone*`, for example).
+
+Notifications group by `project`, `grafana_folder`, `alertname` and `cluster`. So if the same rule fires in two clusters, two grouped notifications arrive, not one blended message. `o11y-cluster-silent` carries no `cluster` label, so grouping also uses `accountID` and `projectID`. Only that rule sets these two labels, and each silent tenant arrives as its own notification.
+
+Datasources and tenants: two Prometheus-type datasources are in front of the same store. `VictoriaMetrics` (uid `VictoriaMetrics`, the default) carries this cluster's own tenant in its URL. It goes through the `self-select` vmauth, which routes only that path. So anything that does not pick a datasource explicitly sees only o11y's series. `VictoriaMetrics Fleet` (uid `VictoriaMetricsFleet`) reads the multitenant endpoint across all tenants. This includes tenant 0, where unmigrated remotes still land.
+
+Fleet is the explicit opt-in for cross-cluster dashboards and rules (`alerts-fleet.yaml`). The datasource URL carries the tenancy, never the dashboard JSON or the rule queries. Both continue to filter and group on the `cluster` label, which stays the same after the tenant split.
+
+Thus the default datasource is correct only for o11y's own rules and boards. The series of every other project are in its own tenant (or tenant 0), and only `VictoriaMetrics Fleet` can see them. So a remote project uses Fleet everywhere. Here, a remote project is every bundle, and also another project's CRs that are written in this repo. A rule cannot use a `$datasource` variable, so every alert query node sets `datasourceUid: VictoriaMetricsFleet`. Dashboards use a `$datasource` variable with the regex `/^VictoriaMetrics Fleet$/`.
+
+If a remote rule stays on the default datasource, it evaluates to NoData. The usual `noDataState: OK` keeps such a rule Normal through a real outage. yucca's `o11y/README.md` records one case that went unalerted this way. Fleet serves every tenant, so a remote project also scopes each selector with `project="<project>"`. Without this scope, a generic rule (Flux, cert-manager, Kubernetes) fires on the clusters of other projects.
+
+Alert rule anatomy: a `GrafanaAlertRuleGroup` has `folderRef: <project>`, an `interval`, and `rules[]`. Each rule has a query stage on a Prometheus datasource, and this stage feeds a `__expr__` threshold stage. The datasource uid is `VictoriaMetrics` for o11y's own rules. It is `VictoriaMetricsFleet` for the fleet rules and for the rules of every remote project (see Datasources and tenants). Each rule also has `labels` (at least `severity`) and `annotations`. The annotations are a one-line `summary`, a `description` of what to check, and optionally a `runbook_url`.
+
+Rootly and Zulip show the `summary` and the `description` for every firing alert. See `base/grafana/app/alerts-o11y.yaml` for the pattern (a heartbeat plus target-down and ingestion-stalled rules). Rules that span clusters aggregate `by (cluster)`. Thus each cluster raises its own instance and carries its `cluster` label into notification grouping. Store-local rules (the heartbeat, ingestion-stalled) do not aggregate this way.
 
 ## If you ship metrics to this cluster and want dashboards/alerts
 
-1. Pick a delivery model: **Model A** (recommended for a separate repo/cluster - you own a signed bundle, o11y adds one OCIRepository) or **Model B** (PR the CRs into `base/grafana`).
-2. Everything you ship files under **your project's folder**; ask for one if it does not exist.
-3. Set `project: <project>` as a rule label on your rules (folder routing is the fallback). Ask for your project to be added to the Rootly module's `projects` list; once an operator applies `deployment/modules/rootly/cluster` in both environments, that gives you a Rootly alert source, a service, Zulip delivery to `yucca-alerts` under a `<project>-<env>` topic, and the `ROOTLY_ALERTS_<PROJECT>_URL` vault item. The `rootly-<project>` contact point, its ExternalSecret and the two routes in `base/grafana/app` are a second change here, merged after that apply because the ExternalSecret needs the item (bootstrap: #388, then #389).
-4. Query `VictoriaMetrics Fleet`, never the default `VictoriaMetrics` datasource, which sees only o11y's own tenant: alerts set `datasourceUid: VictoriaMetricsFleet` on every query node, dashboards use a `$datasource` variable with the regex `/^VictoriaMetrics Fleet$/`, and every selector carries `project="<project>"` (see Datasources and tenants).
-5. Tag dashboards by signal/layer in the JSON (`metrics`, `logs`, `infra`, ...) so they stay filterable across folders (see Tags). Alerts that compare across clusters aggregate `by (cluster)`; stamp the five identity labels on your series (see the [shipping guide](05-shipping-metrics-guide.md#labels)) so per-cluster alerting works.
+1. Pick a delivery model: Model A or Model B. Model A is recommended for a separate repo or cluster. In Model A, you own a signed bundle, and o11y adds one OCIRepository. In Model B, you open a PR that adds the CRs to `base/grafana`.
+2. If your project has no folder yet, ask for one.
+3. File everything that you ship under your project's folder.
+4. Set `project: <project>` as a rule label on your rules. Folder routing is the fallback.
+5. Ask for your project to be added to the `projects` list of the Rootly module. After an operator applies `deployment/modules/rootly/cluster` in both environments, you get these items:
+   - A Rootly alert source
+   - A service
+   - Zulip delivery to `yucca-alerts` under a `<project>-<env>` topic
+   - The `ROOTLY_ALERTS_<PROJECT>_URL` vault item
+6. Open a second change in this repo with the `rootly-<project>` contact point, its ExternalSecret and the two routes in `base/grafana/app`.
+7. Merge that change only after the apply, because the ExternalSecret needs the vault item (bootstrap: #388, then #389).
+8. Query `VictoriaMetrics Fleet`, never the default `VictoriaMetrics` datasource. The default sees only o11y's own tenant (see Datasources and tenants).
+9. In alerts, set `datasourceUid: VictoriaMetricsFleet` on every query node.
+10. In dashboards, use a `$datasource` variable with the regex `/^VictoriaMetrics Fleet$/`.
+11. Put `project="<project>"` in every selector.
+12. Tag dashboards by signal and layer in the JSON (`metrics`, `logs`, `infra`, ...). The tags keep them filterable across folders (see Tags).
+13. If an alert compares across clusters, aggregate it `by (cluster)`.
+14. Stamp the five identity labels on your series (see the [shipping guide](05-shipping-metrics-guide.md#labels)). Per-cluster alerting needs these labels.
 
 ## How updates flow
 
-- **Model A:** edit in the source repo, merge to `main` -> CI pushes the `:main` artifact (signed) -> o11y's OCIRepository picks it up within its `interval` -> Kustomization applies -> grafana-operator syncs. Roughly a minute end to end.
-- **Model B:** PR the CR change here -> merge -> Flux reconciles `base/grafana`.
+- Model A: edit in the source repo and merge to `main`. CI then pushes the `:main` artifact (signed). o11y's OCIRepository picks it up within its `interval`. The Kustomization applies, and grafana-operator syncs. From end to end, this takes about a minute.
+- Model B: open a PR in this repo with the CR change, and merge it. Flux then reconciles `base/grafana`.

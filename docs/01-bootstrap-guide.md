@@ -94,7 +94,7 @@ export TF_VAR_env=staging
    mise run //bootstrap:cluster
    ```
 
-   1. `//bootstrap:etcd` bootstraps etcd on the first control plane. It connects to the private IP of that node, so your NetBird client must have the route to the vRack. If etcd is not bootstrapped within 20 minutes, the task stops.
+   1. `//bootstrap:etcd` bootstraps etcd on the first control plane. It connects to the private IP of that node, so your NetBird client must have the route to the vRack. If the etcd bootstrap does not complete within 20 minutes, the task stops.
    2. `//bootstrap:kubeconfig --direct` writes the kubeconfig (see [Cluster access](#cluster-access)). It points the kubeconfig at the first control plane, because the mesh gateway does not exist yet.
    3. `//bootstrap:ready` waits until every node in `topf.yaml` is registered and `Ready`. If a node does not join within 20 minutes, the task stops and names it.
    4. `//bootstrap:resources` applies the namespaces, the `bootstrap-settings` ConfigMap and the bootstrap secrets. The secrets are the OVH DNS credentials for cert-manager, the NetBird routing-peer key and the 1Password Connect token for external-secrets.
@@ -158,6 +158,35 @@ talosctl -n 10.150.200.10 health   # any CP private IP. The talosconfig also lis
 - If a change needs a reboot, apply it to the elected NetBird routing peer last (`-- --nodes-filter`). A reboot of that peer drops the vRack route until NetBird elects another peer.
 - Apply each change to staging first.
 - An apply cannot destroy a server. The OVH control-plane instances, the bare-metal workers and the Talos machine secrets carry `prevent_destroy`. If a plan replaces or deletes one of them, the plan fails. To tear one down, remove that lifecycle rule in the same change.
+
+## Rebuild an environment with a new secrets bundle
+
+This procedure rebuilds the cluster of an environment with a new Talos secrets bundle, for example after the bundle leaks. The OVH infrastructure, the NetBird setup keys and the 1Password items stay as they are.
+
+Do not run this procedure on production unless you must rebuild it. It deletes all data on the nodes, including the metrics, logs and traces on the local volumes of the workers.
+
+Run the commands from the root of the repository, with `ENVIRONMENT` set to the environment:
+
+1. Reset every node while the current talosconfig still works, because the old bundle signs it. Reset the workers first, then the control planes. Run this command for each node, with the private IP of the node:
+
+   ```bash
+   talosctl --endpoints <private-ip> --nodes <private-ip> reset --graceful=false --reboot
+   ```
+
+   The default `--wipe-mode all` also wipes the data volumes of the workers. Each node then reboots into maintenance mode.
+
+2. Back up the old bundle, then replace it. The Talos machine secrets carry `prevent_destroy`, so you remove them from the state and apply the module to create a new bundle:
+
+   ```bash
+   mise -C deployment/modules/talos/cluster run //:tg -- run -- state pull > ".private/$ENVIRONMENT/talos-cluster.tfstate.json"
+   mise -C deployment/modules/talos/cluster run //:tg -- run -- state rm talos_machine_secrets.this
+   mise run //deployment/modules/talos/cluster:apply
+   ```
+
+3. Configure the nodes and bootstrap the cluster: run steps 5 and 6 of [Apply order](#apply-order).
+4. Write new access files with `mise run //talos:talosconfig` and `mise run //bootstrap:kubeconfig`. The old files carry signatures from the old bundle.
+5. When Grafana is up, apply the Grafana module with `mise run //deployment/modules/grafana/cluster:apply`. The Rootly service-account token was in the old Grafana database.
+6. In the NetBird dashboard, delete the old peers of the nodes. The Talos setup key is not ephemeral, so each node joins as a new peer, and its old peer stays.
 
 ## Tooling
 
