@@ -35,7 +35,9 @@ spec:
     # One sample per event from serverless pushers, summed per series per
     # minute by vmagent-serverless before it reaches vminsert (docs/05).
     # Its ingestion endpoints only: vmagent's /flags, /metrics and pprof
-    # answer anyone who reaches them.
+    # answer anyone who reaches them. The Service is headless (a stateful
+    # VMAgent), so without discovery vmauth sees one backend and cannot
+    # take a stopped replica out of rotation or retry on the other one.
     - static:
         url: http://vmagent-serverless.o11y.svc.cluster.local:8429
       paths:
@@ -43,6 +45,7 @@ spec:
         - /serverless/insert/api/v1/import/prometheus
         - /serverless/insert/api/v1/write
       drop_src_path_prefix_parts: 2
+      discover_backend_ips: true
     - static:
         url: http://vmauth-victoria-logs.o11y.svc.cluster.local:8427
       paths:

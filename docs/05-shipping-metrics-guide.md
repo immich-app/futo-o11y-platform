@@ -157,7 +157,7 @@ Prometheus users get the same effect by setting `cluster` as a target label in `
 
 ### Shippers that push instead of scrape
 
-The fleet-wide `o11y cluster stopped reporting` alert fires about 20 minutes after a tenant that ingested within the last 7 days stops writing (a 15-minute window, then `for: 5m`). A pusher such as a serverless worker often ships in bursts, which that window would misread as an outage, so bursty tenants are left out of the rule (fmeet's and geoshenanigans' geocoder today) and can go dark without anyone noticing. Such a shipper should emit one steady heartbeat metric and own an `absent_over_time` alert on it in its project folder, with a window matched to its push cadence. A shipper on the serverless path below writes every minute while it has traffic, so it stays in the rule.
+The fleet-wide `o11y cluster stopped reporting` alert fires about 20 minutes after a tenant that ingested within the last 7 days stops writing (a 15-minute window, then `for: 5m`). A pusher such as a serverless worker often ships in bursts, which that window would misread as an outage, so bursty tenants are left out of the rule (fmeet's, and geoshenanigans' geocoder and tiles, today) and can go dark without anyone noticing. Such a shipper should emit one steady heartbeat metric and own an `absent_over_time` alert on it in its project folder, with a window matched to its push cadence. The serverless path below does not change that. It writes only while events arrive and for 5 minutes after, so a worker with no traffic for 20 minutes looks down.
 
 ### Shippers that send one sample per event
 
@@ -186,10 +186,12 @@ What a shipper on this path must do:
 
 - **Stamp the five identity labels on every sample** and add its rule pair to the [tenant registry](#tenants), as for `/insert/0/`: the shared token trusts the labels the same way.
 - **Send no timestamps.** The aggregator files a sample under the minute it arrives in.
+- **Send no `aggregator` label.** The aggregator sums by the labels it receives and then overwrites `aggregator` with its own. Two series that differ only in it become one, and the store keeps one of the two sums.
+- **Send each event once, to one gateway.** A sum cannot tell a resent sample from a new event. A sample sent to both gateways counts twice. So does a retried push whose first attempt reached the aggregator but lost its response.
 - **Keep label values bounded.** Every label combination is a series written every minute while it has events and for 5 minutes after (as zeros), and a distribution once per bucket. Per-request values (client IPs, origins, user agents, error messages) belong in logs, not labels, and a label taken from a request (a path segment, a query parameter) needs its values limited to the ones the shipper serves.
 - **Send gauges and heartbeats to `/insert/0/`**, at most one sample per series per 20s: this path would add up two readings of a gauge.
 
-The aggregator keeps only the minute in progress in memory, so a replica that stops abruptly loses that minute's events, and one that stops within its first two minutes loses everything it received: its first flush comes at the end of the first whole minute after it started. A clean shutdown writes the minute in progress out first. Nothing is lost silently beyond that: there are no running totals whose reset a restart could hide.
+The aggregator keeps the minute in progress in memory, so a replica that stops abruptly loses that minute's events, and one that stops within its first two minutes loses everything it received: its first flush comes at the end of the first whole minute after it started. A finished minute's sums also wait in memory for a few seconds before vmagent sends them or queues them on disk. An abrupt stop just after a flush can lose that minute too. A clean shutdown writes the minute in progress out first. Nothing is lost silently beyond that: there are no running totals whose reset a restart could hide.
 
 ## Sample cadence
 
