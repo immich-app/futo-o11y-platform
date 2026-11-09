@@ -272,6 +272,8 @@ Rules are keyed on `project;cluster` for both labels, never on the project alone
 | bootstrap      | 8         | palpatine            | prod          | production | `8:1`  |
 | geoshenanigans | 6         | geocoder             | prod          | production | `6:2`  |
 | geoshenanigans | 6         | tiles                | dev, prod     | both       | `6:3`  |
+| fap            | 9         | fap-us-east-1        | prod          | production | `9:1`  |
+| fap            | 9         | fap-us-west-1        | prod          | production | `9:2`  |
 
 Onboarding a cluster onto its own tenant needs a change on the central side only. Add the rule pair of the cluster to the tenant registry. For example:
 

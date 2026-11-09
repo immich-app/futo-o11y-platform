@@ -117,3 +117,19 @@ data:
       regex: geoshenanigans;tiles
       target_label: vm_project_id
       replacement: "3"
+    - source_labels: [project, cluster]
+      regex: fap;fap-us-east-1
+      target_label: vm_account_id
+      replacement: "9"
+    - source_labels: [project, cluster]
+      regex: fap;fap-us-east-1
+      target_label: vm_project_id
+      replacement: "1"
+    - source_labels: [project, cluster]
+      regex: fap;fap-us-west-1
+      target_label: vm_account_id
+      replacement: "9"
+    - source_labels: [project, cluster]
+      regex: fap;fap-us-west-1
+      target_label: vm_project_id
+      replacement: "2"
