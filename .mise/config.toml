@@ -53,7 +53,10 @@ pin_fleet = "yq '(select(.kind == \"GrafanaDashboard\") | .spec.json) |= (fromjs
 sort_docs = "yq eval-all '[.] | sort_by(.metadata.name) | .[] | splitDoc'"
 # CI authenticates with a service-account token, which op rejects alongside --account.
 op_account = "{% if get_env(name='OP_SERVICE_ACCOUNT_TOKEN', default='') == '' %}--account 'team-futo.1password.com' {% endif %}"
-tg = "op run {{vars.op_account}}'--env-file={{config_root}}/deployment/.env' -- terragrunt"
+# The onepassword provider treats an OP_SERVICE_ACCOUNT_TOKEN in its environment
+# as a credential that conflicts with the explicit Connect ones, so op run keeps
+# it for itself and terragrunt runs without it.
+tg = "op run {{vars.op_account}}'--env-file={{config_root}}/deployment/.env' -- env -u OP_SERVICE_ACCOUNT_TOKEN terragrunt"
 
 # Escape hatch for terragrunt subcommands the tasks below don't cover
 # (state rm/import/force-unlock, ...); operates on the caller's directory.
