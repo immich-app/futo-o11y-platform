@@ -185,7 +185,7 @@ If email is not configured, you share organization invites as links.
 
 ## CloudNativePG
 
-The database of Grafana is a CloudNativePG cluster. The operator runs in the `cnpg-system` namespace. The `grafana-postgres` cluster runs three instances on `openebs-spare-disk`, with required pod anti-affinity (one per worker). Its credentials are basic-auth Secrets (a superuser and the Grafana owner) from 1Password. CloudNativePG requires that secret type, and the username of the database owner must match the secret.
+The database of Grafana is a CloudNativePG cluster. The operator runs in the `cnpg-system` namespace. The `grafana-postgres` cluster runs three instances on `openebs-system-disk`, with required pod anti-affinity (one per worker). Its credentials are basic-auth Secrets (a superuser and the Grafana owner) from 1Password. CloudNativePG requires that secret type, and the username of the database owner must match the secret.
 
 ## Supporting components
 
@@ -194,7 +194,7 @@ The database of Grafana is a CloudNativePG cluster. The operator runs in the `cn
 - gatus: the status page at `gatus.<mesh-domain>`. It probes the HTTPRoutes on both gateways, which its sidecar discovers. It also probes the 1Password Connect of every project on the bootstrap cluster (`opc.<project>.futo.network/heartbeat`). These probes are static and go over the `netbird-egress` leg. The results are scraped as `gatus_results_*`. The alert bundle of the bootstrap project pages on the Connect probes of production.
 - grafana-operator: manages the Grafana instance, and also the dashboard and datasource resources. The VictoriaMetrics chart provisions these resources.
 - prometheus-operator CRDs: the ServiceMonitor/PrometheusRule CRDs that the VM stack consumes.
-- OpenEBS: the local-hostpath provisioner behind the `openebs-system-disk` and `openebs-spare-disk` StorageClasses.
+- OpenEBS: the local-hostpath provisioner behind the `openebs-system-disk` and `openebs-spare-disk` StorageClasses, and on production also `openebs-spare-disk-2`.
 - Spegel: a peer-to-peer image registry mirror across the nodes.
 - descheduler: rebalances pods.
 - reloader: reloads pods after a configuration change.

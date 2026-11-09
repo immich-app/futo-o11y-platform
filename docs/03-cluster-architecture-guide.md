@@ -39,9 +39,14 @@ tuppr connects to the Talos API with an `os:admin` talosconfig. Talos gives that
 
 ### Worker storage
 
-Each worker has two NVMe drives. Talos divides the system disk into a fixed EPHEMERAL partition and a growing hostpath UserVolume. The EPHEMERAL partition holds the container image cache and the working directories of the kubelet. A factory reset wipes it. The hostpath UserVolume backs the default `openebs-system-disk` StorageClass. This StorageClass holds the vmagent buffer, the vmselect cache, and the app configuration.
+The staging workers have two NVMe drives, and the production workers have three. Talos divides the system disk into a fixed EPHEMERAL partition and a growing hostpath UserVolume. The EPHEMERAL partition holds the container image cache and the working directories of the kubelet. A factory reset wipes it. The hostpath UserVolume backs the default `openebs-system-disk` StorageClass. This StorageClass holds the vmagent buffers, the vmselect cache, the CloudNativePG Postgres clusters of Grafana and GlitchTip, the GlitchTip Dragonfly, and the app configuration.
 
-The second NVMe drive is a separate `local-hostpath` UserVolume. It backs the `openebs-spare-disk` StorageClass. This StorageClass is reserved for two workloads that are isolated from the general pool: VictoriaMetrics `vmstorage` and the CloudNativePG Postgres of Grafana. The UserVolume selects the spare disk by its exact model. If a re-provision runs on different hardware, it fails with an error and does not take the wrong disk. Control planes use the default Talos layout.
+Each other NVMe drive is a separate UserVolume that keeps the storage-heavy workloads out of the general pool:
+
+- `local-hostpath` backs the `openebs-spare-disk` StorageClass. It holds VictoriaMetrics `vmstorage` in both environments, and on staging also VictoriaLogs and VictoriaTraces.
+- On production only, `local-hostpath-2` backs the `openebs-spare-disk-2` StorageClass. It holds VictoriaLogs and VictoriaTraces.
+
+The UserVolumes select the spare disks by their exact model. If a re-provision runs on different hardware, it fails with an error and does not take the wrong disk. Control planes use the default Talos layout.
 
 ### Host firewall
 

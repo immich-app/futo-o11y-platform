@@ -101,10 +101,9 @@ registry, so there is one token, and it is the same in every environment. The
 `o11y-manual-secrets` module in core-infra-tf declares them, and an operator
 fills them in by hand in `o11y_tf_manual`.
 
-This repo adds that `onepassword` ClusterSecretStore. Before it, the cluster
-reached `shared_tf` and the per-environment o11y vaults, but nothing needed the
-global o11y vault. Only terragrunt consumes the other items in that vault.
-Nothing inside the cluster consumes them.
+The `onepassword` ClusterSecretStore reads the global `o11y_tf` vault. The other
+stores read `shared_tf` and the per-environment o11y vaults. Terragrunt consumes
+the other items in the global vault, and nothing inside the cluster reads them.
 
 The key under `auths` must match the pull host of the `OCIRepository` exactly,
 including the port (`gitlab.futo.org:5050`, not `gitlab.futo.org`). A mismatch
@@ -214,7 +213,7 @@ Fleet is the explicit opt-in for cross-cluster dashboards and rules (`alerts-fle
 
 Thus the default datasource is correct only for o11y's own rules and boards. The series of every other project are in its own tenant (or tenant 0), and only `VictoriaMetrics Fleet` can see them. So a remote project uses Fleet everywhere. Here, a remote project is every bundle, and also another project's CRs that are written in this repo. A rule cannot use a `$datasource` variable, so every alert query node sets `datasourceUid: VictoriaMetricsFleet`. Dashboards use a `$datasource` variable with the regex `/^VictoriaMetrics Fleet$/`.
 
-If a remote rule stays on the default datasource, it evaluates to NoData. The usual `noDataState: OK` keeps such a rule Normal through a real outage. yucca's `o11y/README.md` records one case that went unalerted this way. Fleet serves every tenant, so a remote project also scopes each selector with `project="<project>"`. Without this scope, a generic rule (Flux, cert-manager, Kubernetes) fires on the clusters of other projects.
+If a remote rule stays on the default datasource, it evaluates to NoData. The usual `noDataState: OK` keeps such a rule Normal through a real outage. Fleet serves every tenant, so a remote project also scopes each selector with `project="<project>"`. Without this scope, a generic rule (Flux, cert-manager, Kubernetes) fires on the clusters of other projects.
 
 Alert rule anatomy: a `GrafanaAlertRuleGroup` has `folderRef: <project>`, an `interval`, and `rules[]`. Each rule has a query stage on a Prometheus datasource, and this stage feeds a `__expr__` threshold stage. The datasource uid is `VictoriaMetrics` for o11y's own rules. It is `VictoriaMetricsFleet` for the fleet rules and for the rules of every remote project (see Datasources and tenants). Each rule also has `labels` (at least `severity`) and `annotations`. The annotations are a one-line `summary`, a `description` of what to check, and optionally a `runbook_url`.
 

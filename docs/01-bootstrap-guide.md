@@ -163,17 +163,27 @@ talosctl -n 10.150.200.10 health   # any CP private IP. The talosconfig also lis
 
 This procedure rebuilds the cluster of an environment with a new Talos secrets bundle, for example after the bundle leaks. The OVH infrastructure, the NetBird setup keys and the 1Password items stay as they are.
 
-Do not run this procedure on production unless you must rebuild it. It deletes all data on the nodes, including the metrics, logs and traces on the local volumes of the workers.
+Do not run this procedure on production unless you must rebuild it. It deletes all data in the cluster: the metrics, logs and traces, and the Grafana and GlitchTip databases.
 
 Run the commands from the root of the repository, with `ENVIRONMENT` set to the environment:
 
-1. Reset every node while the current talosconfig still works, because the old bundle signs it. Reset the workers first, then the control planes. Run this command for each node, with the private IP of the node:
+1. Reset every node while the current talosconfig still works, because the old bundle signs it. Reset the workers first, then the control planes. Wipe only the volumes below, by label. Without `--system-labels-to-wipe`, a reset wipes the whole system disk, and the node then cannot boot Talos.
+   - For each worker, wipe the system volumes and the user volumes. On production, also add `--system-labels-to-wipe u-local-hostpath-2`:
 
-   ```bash
-   talosctl --endpoints <private-ip> --nodes <private-ip> reset --graceful=false --reboot
-   ```
+     ```bash
+     talosctl --endpoints <private-ip> --nodes <private-ip> reset --graceful=false --reboot \
+       --system-labels-to-wipe STATE --system-labels-to-wipe EPHEMERAL \
+       --system-labels-to-wipe u-hostpath --system-labels-to-wipe u-local-hostpath
+     ```
 
-   The default `--wipe-mode all` also wipes the data volumes of the workers. Each node then reboots into maintenance mode.
+   - For each control plane, wipe the system volumes:
+
+     ```bash
+     talosctl --endpoints <private-ip> --nodes <private-ip> reset --graceful=false --reboot \
+       --system-labels-to-wipe STATE --system-labels-to-wipe EPHEMERAL
+     ```
+
+   The installed Talos stays. Each node reboots into maintenance mode, because its configuration is gone.
 
 2. Back up the old bundle, then replace it. The Talos machine secrets carry `prevent_destroy`, so you remove them from the state and apply the module to create a new bundle:
 
@@ -185,8 +195,10 @@ Run the commands from the root of the repository, with `ENVIRONMENT` set to the 
 
 3. Configure the nodes and bootstrap the cluster: run steps 5 and 6 of [Apply order](#apply-order).
 4. Write new access files with `mise run //talos:talosconfig` and `mise run //bootstrap:kubeconfig`. The old files carry signatures from the old bundle.
-5. When Grafana is up, apply the Grafana module with `mise run //deployment/modules/grafana/cluster:apply`. The Rootly service-account token was in the old Grafana database.
-6. In the NetBird dashboard, delete the old peers of the nodes. The Talos setup key is not ephemeral, so each node joins as a new peer, and its old peer stays.
+5. When Grafana is up, apply the Grafana module with `mise run //deployment/modules/grafana/cluster:apply`. The Rootly service-account token was in the old Grafana database. The module writes a new token to `ROOTLY_GRAFANA_SERVICE_ACCOUNT_TOKEN` in `o11y_tf_<env>`.
+6. In Rootly, paste the new token into Integrations > Grafana. Rootly has no API for this integration, so Terraform cannot update it.
+7. When GlitchTip is up, repeat the sign-in setup in [GlitchTip](04-application-architecture-guide.md#glitchtip). GlitchTip keeps its Zitadel provider in its database, which the rebuild deletes.
+8. In the NetBird dashboard, delete the old peers of the nodes. The Talos setup key is not ephemeral, so each node joins as a new peer, and its old peer stays.
 
 ## Tooling
 
