@@ -13,6 +13,7 @@ resources:
   - ../../base/victoria-metrics-mcp
   - ../../base/victoria-logs
   - ../../base/victoria-logs-collector
+  - ../../base/talos-logs
   - ../../base/victoria-logs-mcp
   - ../../base/victoria-traces
   - ../../base/glitchtip-postgres

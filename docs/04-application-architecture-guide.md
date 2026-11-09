@@ -90,6 +90,7 @@ The operator puts a managed `VMAuth` named `victoria-logs` on port 8427 in front
 All clients point at this endpoint:
 
 - The `victoria-logs-collector` DaemonSet.
+- The `talos-logs` DaemonSet, for node logs. It runs on the host network with `ClusterFirstWithHostNet` DNS, so it reaches this endpoint by its Service name.
 - The external clusters that arrive through the two vmauth gateways.
 - The Grafana datasource.
 - `victoria-logs-mcp`.
