@@ -27,6 +27,9 @@ export ENVIRONMENT=staging
 export TF_VAR_env=staging
 ```
 
+> [!IMPORTANT]
+> Set `ENVIRONMENT` in every shell before you run a task. If it is unset, the tasks read the 1Password vault and the Terraform state of the `development` environment.
+
 1. Apply the OVH module. It creates the cloud project, the vRack, the private network, the control-plane instances, the workers, the IPLB and the DNS records. The first run is slow. Each control-plane instance takes about 5 minutes, each bare-metal order takes 20 to 45 minutes, and the IPLB takes about 10 minutes.
 
    ```bash
@@ -163,11 +166,12 @@ talosctl -n 10.150.200.10 health   # any CP private IP. The talosconfig also lis
 
 This procedure rebuilds the cluster of an environment with a new Talos secrets bundle, for example after the bundle leaks. The OVH infrastructure, the NetBird setup keys and the 1Password items stay as they are.
 
-Do not run this procedure on production unless you must rebuild it. It deletes all data in the cluster: the metrics, logs and traces, and the Grafana and GlitchTip databases.
+> [!CAUTION]
+> Do not run this procedure on production unless you must rebuild it. It deletes all data in the cluster: the metrics, logs and traces, and the Grafana and GlitchTip databases. Reset the nodes only with the commands in step 1. Without `--system-labels-to-wipe`, a reset wipes the whole system disk, and the node then cannot boot Talos.
 
 Run the commands from the root of the repository, with `ENVIRONMENT` set to the environment:
 
-1. Reset every node while the current talosconfig still works, because the old bundle signs it. The commands below reset the workers first, then the control planes. They wipe only the system volumes, and on the workers also the user volumes that `talos/$ENVIRONMENT/topf.yaml` lists. Without `--system-labels-to-wipe`, a reset wipes the whole system disk, and the node then cannot boot Talos.
+1. Reset every node while the current talosconfig still works, because the old bundle signs it. The commands below reset the workers first, then the control planes. They wipe only the system volumes, and on the workers also the user volumes that `talos/$ENVIRONMENT/topf.yaml` lists.
 
    ```bash
    topf="talos/$ENVIRONMENT/topf.yaml"

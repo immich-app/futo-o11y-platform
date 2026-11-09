@@ -56,7 +56,10 @@ To onboard a remote cluster, do these steps:
    - The mandatory external labels.
    - A remote-write to the public `vmauth` endpoint, authenticated with the bearer token.
 
-core-infra-tf generates the token. To rotate the token, rotate it in core-infra-tf. Do not edit the vault item. Then re-apply each cluster that injects the token from Terraform. ExternalSecret consumers re-sync on their own. For details, see [Option B in the shipping guide](05-shipping-metrics-guide.md#option-b-over-the-internet).
+> [!WARNING]
+> Do not edit the vault item of the token. core-infra-tf generates the token, so rotate it there.
+
+After a rotation, re-apply each cluster that injects the token from Terraform. ExternalSecret consumers re-sync on their own. For details, see [Option B in the shipping guide](05-shipping-metrics-guide.md#option-b-over-the-internet).
 
 If you ever need per-cluster revocation, split the setup into per-cluster vault items and `VMUser`s.
 
@@ -102,6 +105,10 @@ A read-only legacy tier also runs. It uses the `victoria-logs-cluster` chart, wi
 
 The legacy tier holds the logs from before the two zones existed. It keeps them until they age out under its own retention. The default `VictoriaLogs` datasource, `victoria-logs-mcp`, the `vlogs.` mesh route and both gateways see only the two zones.
 
+Logs stay single-tenant (tenant 0). The five labels (`project`/`env`/`cluster`/`provider`/`region`) identify them, and the logs carry these labels as fields.
+
+VictoriaLogs has tenants too: an `(AccountID, ProjectID)` pair, like VictoriaMetrics. But request headers set the tenant, not URL path segments. Also, VictoriaLogs has no cross-tenant read: only `/insert/multitenant/native` exists, with no select equivalent. A split of the logs across tenants makes fleet-wide queries impossible. [VictoriaLogs#91](https://github.com/VictoriaMetrics/VictoriaLogs/issues/91) tracks this upstream. If it ships, revisit the single-tenant choice.
+
 ### Remove the legacy tier
 
 When the legacy tier is empty, remove it. If the tier is empty, this query returns no rows:
@@ -110,17 +117,16 @@ When the legacy tier is empty, remove it. If the tier is empty, this query retur
 kubectl get --raw '/api/v1/namespaces/o11y/services/victoria-logs-vlselect:9471/proxy/select/logsql/query?query=*%20%7C%20limit%201'
 ```
 
+> [!WARNING]
+> Before you remove the legacy datasource, search the dashboard JSON for `VictoriaLogsLegacy`. If a dashboard uses this uid, it breaks without the datasource.
+
 Remove these in one PR:
 
 1. `kubernetes/apps/base/victoria-logs/`, and its entry in `kubernetes/apps/<env>/o11y/kustomization.yaml` for both environments.
 2. `kubernetes/apps/production/o11y/patches/victoria-logs.yaml`, and its `patches:` line.
-3. `kubernetes/apps/base/grafana/app/datasource-victoria-logs-legacy.yaml`, and its `kustomization.yaml` line. Before you remove it, search the dashboard JSON for `VictoriaLogsLegacy`. If a dashboard uses this uid, it breaks without the datasource.
+3. `kubernetes/apps/base/grafana/app/datasource-victoria-logs-legacy.yaml`, and its `kustomization.yaml` line.
 
 After Flux prunes the HelmRelease and its pods, delete the PVCs `vlstorage-volume-victoria-logs-vlstorage-{0,1,2}` in the `o11y` namespace by hand. Flux does not delete them.
-
-Logs stay single-tenant (tenant 0). The five labels (`project`/`env`/`cluster`/`provider`/`region`) identify them, and the logs carry these labels as fields.
-
-VictoriaLogs has tenants too: an `(AccountID, ProjectID)` pair, like VictoriaMetrics. But request headers set the tenant, not URL path segments. Also, VictoriaLogs has no cross-tenant read: only `/insert/multitenant/native` exists, with no select equivalent. A split of the logs across tenants makes fleet-wide queries impossible. [VictoriaLogs#91](https://github.com/VictoriaMetrics/VictoriaLogs/issues/91) tracks this upstream. If it ships, revisit the single-tenant choice.
 
 ## VictoriaTraces
 

@@ -14,7 +14,10 @@ Each path ends at a `vmauth` gateway, and both gateways forward requests to the 
 | Transport        | private overlay, never leaves the mesh    | public internet, TLS at Envoy         |
 | Use when         | the remote cluster is already a mesh peer | the remote cluster is not on the mesh |
 
-If a cluster is already joined to the FUTO NetBird mesh, prefer the mesh path. That path has no token to distribute or rotate, and its traffic never crosses the public internet. If a cluster is not on the mesh, use the internet path. You can use both paths at the same time. They write to the same store.
+> [!TIP]
+> If a cluster is already joined to the FUTO NetBird mesh, prefer the mesh path. That path has no token to distribute or rotate, and its traffic never crosses the public internet.
+
+If a cluster is not on the mesh, use the internet path. You can use both paths at the same time. They write to the same store.
 
 ### Per-environment endpoints
 
@@ -316,7 +319,10 @@ Logs carry the same identity labels as metrics. The shipper stamps them as field
 
 ### Shipping logs from an app
 
-The shared token above is for clusters that we run. It also grants `select`. So it must never ship inside an app binary, where any credential is public. Instead, a client-side shipper gets its own write-only user on the public gateway. Today, that shipper is the Harbor mobile app. `kubernetes/apps/base/victoria-metrics-users/app/vmuser-client-logs.yaml` defines this user:
+> [!CAUTION]
+> Do not ship the shared token above inside an app binary, where any credential is public. The token is for clusters that we run, and it also grants `select`.
+
+Instead, a client-side shipper gets its own write-only user on the public gateway. Today, that shipper is the Harbor mobile app. `kubernetes/apps/base/victoria-metrics-users/app/vmuser-client-logs.yaml` defines this user:
 
 - Token: the 1Password item `O11Y_VICTORIALOGS_CLIENT_TOKEN`, in the same `shared_tf_<env>` vault as the gateway URLs. The `shared-generated-secrets` module of core-infra-tf generates it, with one value per environment. The token allows nothing but the two insert paths below.
 - Paths: `https://vmauth.<app-domain>/client/harbor-mobile/insert/jsonline` for [JSON lines](https://docs.victoriametrics.com/victorialogs/data-ingestion/#json-stream-api), which need no SDK, and `.../client/harbor-mobile/insert/opentelemetry/v1/logs` for OTLP. `vmauth` strips the `/client/<name>/` prefix before the request reaches VictoriaLogs. The prefix lets the gateway rate limit these paths on their own. `httproute-client-logs.yaml` sets a local request limit per Envoy replica, answered with `429`. It also sets a 1 MiB cap per request, answered with `413`. OTLP is protobuf only. VictoriaLogs rejects a JSON-encoded OTLP body, so a hand-rolled client posts JSON lines.

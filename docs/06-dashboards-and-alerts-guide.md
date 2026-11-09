@@ -142,7 +142,10 @@ If a project records its own series, its bundle can also ship `VMRule`s. immich-
 
 These `externalLabels` do not pin the tenant. They displace a label with the same name from the query result, and `vmalert` keeps that label as `exported_<name>`. But a group's or a rule's own `labels:` override the `externalLabels`. If a rule sets `project` or `cluster`, its results go under another tenant.
 
-Thus a bundle must not set identity labels on its groups or rules. The identity labels are `project`, `cluster`, `env`, `provider`, `region`, `vm_account_id`, and `vm_project_id`. o11y does not enforce this. The render script of immich-app/version rejects these labels before it publishes.
+> [!IMPORTANT]
+> Do not set identity labels on the groups or rules of a bundle. The identity labels are `project`, `cluster`, `env`, `provider`, `region`, `vm_account_id`, and `vm_project_id`. o11y does not enforce this.
+
+The render script of immich-app/version rejects these labels before it publishes.
 
 Per-group `tenant` on a `VMRule` is in VictoriaMetrics Enterprise only, so each tenant with rules gets its own `vmalert`. If a rule joins a recorded series with an aggregate, the rule must match on the labels of the aggregate (`and on(client_ip)`). The recorded series carries the external labels, and the aggregate does not.
 
@@ -213,7 +216,10 @@ Fleet is the explicit opt-in for cross-cluster dashboards and rules (`alerts-fle
 
 Thus the default datasource is correct only for o11y's own rules and boards. The series of every other project are in its own tenant (or tenant 0), and only `VictoriaMetrics Fleet` can see them. So a remote project uses Fleet everywhere. Here, a remote project is every bundle, and also another project's CRs that are written in this repo. A rule cannot use a `$datasource` variable, so every alert query node sets `datasourceUid: VictoriaMetricsFleet`. Dashboards use a `$datasource` variable with the regex `/^VictoriaMetrics Fleet$/`.
 
-If a remote rule stays on the default datasource, it evaluates to NoData. The usual `noDataState: OK` keeps such a rule Normal through a real outage. Fleet serves every tenant, so a remote project also scopes each selector with `project="<project>"`. Without this scope, a generic rule (Flux, cert-manager, Kubernetes) fires on the clusters of other projects.
+> [!WARNING]
+> If a remote rule stays on the default datasource, it evaluates to NoData. The usual `noDataState: OK` then keeps the rule Normal through a real outage, and no alert fires.
+
+Fleet serves every tenant, so a remote project also scopes each selector with `project="<project>"`. Without this scope, a generic rule (Flux, cert-manager, Kubernetes) fires on the clusters of other projects.
 
 Alert rule anatomy: a `GrafanaAlertRuleGroup` has `folderRef: <project>`, an `interval`, and `rules[]`. Each rule has a query stage on a Prometheus datasource, and this stage feeds a `__expr__` threshold stage. The datasource uid is `VictoriaMetrics` for o11y's own rules. It is `VictoriaMetricsFleet` for the fleet rules and for the rules of every remote project (see Datasources and tenants). Each rule also has `labels` (at least `severity`) and `annotations`. The annotations are a one-line `summary`, a `description` of what to check, and optionally a `runbook_url`.
 

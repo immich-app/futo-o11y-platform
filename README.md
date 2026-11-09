@@ -49,3 +49,6 @@ kubernetes/
 ```
 
 The Terraform state is in S3 under `yucca/o11y/v3/<module>/<env>`. Each environment has its own Terragrunt working directory. When you change `ENVIRONMENT`, you do not have to run init again. The secrets and the OVH and NetBird tokens come from 1Password through `op run` and `deployment/.env`.
+
+> [!IMPORTANT]
+> Set `ENVIRONMENT` to `staging` or `production` before you run a task. If it is unset, the tasks read the 1Password vault and the Terraform state of the `development` environment.
