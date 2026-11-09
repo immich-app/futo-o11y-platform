@@ -174,12 +174,22 @@ resource "netbird_dns_zone" "mesh" {
     [data.netbird_group.yucca.id, netbird_group.k8s_routing_peers.id],
     var.env == "production" ? [data.netbird_group.yucca_ceph[0].id] : [],
     var.env == "production" ? [data.netbird_group.fip_k8s_routing_peers[0].id] : [],
+    [for group in data.netbird_group.fap_k8s_routing_peers : group.id],
   )
 }
 
 data "netbird_group" "fip_k8s_routing_peers" {
   count = var.env == "production" ? 1 : 0
   name  = "fip-prod-k8s-routing-peers"
+}
+
+# FAP's prod clusters (fap-us-east-1, fap-us-west-1). Their routing pods serve
+# NetBird DNS to CoreDNS, so pods resolve vmauth through this zone; reaching
+# the gateway is still gated by FAP's own talos-to-o11y-gateway policy.
+# Created by FAP's prod/ovh-{vin1,hil1} netbird stacks.
+data "netbird_group" "fap_k8s_routing_peers" {
+  for_each = var.env == "production" ? toset(["vin1", "hil1"]) : toset([])
+  name     = "fap-prod-ovh-${each.key}-k8s-routing-peers"
 }
 
 # Wildcard A -> the gateway VIP (HA is the >=2 routing Pods, not multiple records).
