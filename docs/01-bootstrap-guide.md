@@ -138,17 +138,17 @@ talosctl -n 10.150.200.10 health   # any CP private IP. The talosconfig also lis
 
 ## Common operations
 
-| Task                             | Command                                                                                                                                           |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Plan/apply one module            | `mise run //deployment/modules/<m>:plan` / `mise run //deployment/modules/<m>:apply` (or `mise run :plan` from inside the module)                 |
-| Plan/apply all in dep order      | `mise run //deployment:plan` / `mise run //deployment:apply`                                                                                      |
-| Re-init backends                 | `mise run //deployment:init`                                                                                                                      |
-| Any other terragrunt subcommand  | `mise run //:tg <args>` (runs in the current directory, for example `state rm`, `import`, `force-unlock`)                                         |
-| Format HCL / Terraform           | `mise run //deployment:fmt`                                                                                                                       |
-| Format docs and manifests        | `mise run //:fmt` (`//:fmt:check` reports without a change. lefthook runs it on each commit.)                                                     |
-| Fetch kubeconfig / talosconfig   | `mise run //bootstrap:kubeconfig` / `mise run //talos:talosconfig` (see [Cluster access](#cluster-access))                                        |
-| Diff / apply Talos configuration | `mise run //talos:diff` / `mise run //talos:apply` (append `-- --nodes-filter <regex>` for some nodes)                                            |
-| Upgrade Talos or Kubernetes      | Merge the grouped Renovate PR, or bump the versions in `talos/<env>/topf.yaml` and in the tuppr upgrades together. tuppr then upgrades the nodes. |
+| Task                             | Command                                                                                                                                              |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Plan/apply one module            | `mise run //deployment/modules/<m>:plan` / `mise run //deployment/modules/<m>:apply` (or `mise run :plan` from inside the module)                    |
+| Plan/apply all in dep order      | `mise run //deployment:plan` / `mise run //deployment:apply`                                                                                         |
+| Re-init backends                 | `mise run //deployment:init`                                                                                                                         |
+| Any other terragrunt subcommand  | `mise run //:tg <args>` (runs in the current directory, for example `state rm`, `import`, `force-unlock`)                                            |
+| Format HCL / Terraform           | `mise run //deployment:fmt` (`//deployment:fmt:check` reports without a change)                                                                      |
+| Format everything                | `mise run //:fmt`, which also runs `//deployment:fmt` (`//:fmt:check` reports without a change. lefthook formats docs and manifests on each commit.) |
+| Fetch kubeconfig / talosconfig   | `mise run //bootstrap:kubeconfig` / `mise run //talos:talosconfig` (see [Cluster access](#cluster-access))                                           |
+| Diff / apply Talos configuration | `mise run //talos:diff` / `mise run //talos:apply` (append `-- --nodes-filter <regex>` for some nodes)                                               |
+| Upgrade Talos or Kubernetes      | Merge the grouped Renovate PR, or bump the versions in `talos/<env>/topf.yaml` and in the tuppr upgrades together. tuppr then upgrades the nodes.    |
 
 ## Apply guardrails
 

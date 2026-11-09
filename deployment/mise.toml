@@ -22,3 +22,10 @@ tofu fmt -recursive {{config_root}}
 terragrunt hcl fmt
 """
 description = "Format terraform and terragrunt files"
+
+[tasks."fmt:check"]
+run = """
+tofu fmt -check -recursive {{config_root}}
+terragrunt hcl fmt --check
+"""
+description = "Verify terraform and terragrunt files are formatted"
