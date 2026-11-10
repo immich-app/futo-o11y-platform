@@ -70,7 +70,7 @@ jobs:
       - name: Setup Mise
         uses: jdx/mise-action@6be3c7ed4c21d4f76b208d351d95aac273ebb76d # v5.2.4
         with:
-          install_args: --locked opentofu terragrunt infisical
+          install_args: --locked opentofu terragrunt
 
       - name: Init
         run: mise run //deployment:init
@@ -91,12 +91,17 @@ jobs:
           hostname: gha-plan-${{ matrix.environment }}-${{ github.run_id }}
           wait-for-url: https://infisical.futo.network/api/status
 
-      # The identity IDs are Actions variables that core-infra-tf (github/secrets) writes.
+      # Trades the job's OIDC token for an Infisical access token, which the
+      # Plan step hands to the modules' infisical provider. The identity IDs
+      # are Actions variables that core-infra-tf (github/secrets) writes.
       - name: Log in to Infisical
         id: infisical
-        uses: $/.github/actions/infisical-login
+        uses: Infisical/auth-action@e185aa3147cfed88a436b182fe482aef039a26a1 # v1.0.1
         with:
+          method: oidc
           identity-id: ${{ matrix.environment == 'production' && vars.INFISICAL_O11Y_CI_PLAN_PROD_ID || vars.INFISICAL_O11Y_CI_PLAN_STAGING_ID }}
+          oidc-audience: https://infisical.futo.network
+          domain: https://infisical.futo.network
 
       # A PR plans the modules it changes plus their dependents; root.hcl marks
       # the files every module depends on, so changing one plans them all. A
@@ -105,5 +110,5 @@ jobs:
       - name: Plan
         env:
           TG_FILTER: ${{ github.event_name == 'pull_request' && format('...[{0}...HEAD]', github.event.pull_request.base.sha) || '' }}
-          INFISICAL_TOKEN: ${{ steps.infisical.outputs.token }}
+          INFISICAL_TOKEN: ${{ steps.infisical.outputs.access-token }}
         run: mise run //deployment:plan
