@@ -118,6 +118,35 @@ checksum_source = "mise-versions"
 url = "https://github.com/home-operations/flate/releases/download/v0.7.3/flate_0.7.3_darwin_amd64.tar.gz"
 url_api = "https://api.github.com/repos/home-operations/flate/releases/assets/727305361"
 
+[[tools."github:netbirdio/netbird"]]
+version = "0.82.1"
+backend = "github:netbirdio/netbird"
+specifiers = ["v0.82.1"]
+
+[tools."github:netbirdio/netbird"."platforms.linux-arm64"]
+checksum = "sha256:8c6a4d4084e1746a3c9b86f0ce8be1ca05544ba08d7dbb78609c5c9d6b009e0e"
+checksum_source = "mise-versions"
+url = "https://github.com/netbirdio/netbird/releases/download/v0.82.1/netbird_0.82.1_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/netbirdio/netbird/releases/assets/730851852"
+
+[tools."github:netbirdio/netbird"."platforms.linux-x64"]
+checksum = "sha256:c8f10b89dfa01b8bcad5ec25b666a83e351be4e22eb784b822478b9326a35423"
+checksum_source = "mise-versions"
+url = "https://github.com/netbirdio/netbird/releases/download/v0.82.1/netbird_0.82.1_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/netbirdio/netbird/releases/assets/730851970"
+
+[tools."github:netbirdio/netbird"."platforms.macos-arm64"]
+checksum = "sha256:c7be441f6e53a859322375c7739c5f584f626857fb37268da340742168ff5894"
+checksum_source = "mise-versions"
+url = "https://github.com/netbirdio/netbird/releases/download/v0.82.1/netbird_0.82.1_darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/netbirdio/netbird/releases/assets/730851934"
+
+[tools."github:netbirdio/netbird"."platforms.macos-x64"]
+checksum = "sha256:f62a6c8a4bdf2bce86116741071cb9802fc56136c1fb89930f88e1e623a9fb39"
+checksum_source = "mise-versions"
+url = "https://github.com/netbirdio/netbird/releases/download/v0.82.1/netbird_0.82.1_darwin_amd64.tar.gz"
+url_api = "https://api.github.com/repos/netbirdio/netbird/releases/assets/730851836"
+
 [[tools.helm]]
 version = "4.3.1"
 backend = "aqua:helm/helm"

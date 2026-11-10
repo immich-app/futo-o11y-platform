@@ -1,9 +1,10 @@
 name: Connect to NetBird
 description: >-
-  Install a pinned NetBird client, join the FUTO mesh with the setup key the
-  caller read from netbird/cluster (o11y-<env>-ci, so that module must be
-  applied first), and wait until a mesh-only URL answers: mesh DNS and routes
-  land a little after the client reports connected.
+  Run the NetBird client mise installed (github:netbirdio/netbird in
+  .mise/config.toml), join the FUTO mesh with the setup key the caller read
+  from netbird/cluster (o11y-<env>-ci, so that module must be applied first),
+  and wait until a mesh-only URL answers: mesh DNS and routes land a little
+  after the client reports connected.
 
 inputs:
   setup-key:
@@ -15,32 +16,16 @@ inputs:
   wait-for-url:
     description: URL that must answer over the mesh before the action returns.
     required: true
-  version:
-    description: NetBird client version; bump together with the sha256 below.
-    required: false
-    default: "0.82.1"
-  sha256:
-    description: >-
-      SHA256 of netbird_<version>_linux_amd64.tar.gz, from
-      https://github.com/netbirdio/netbird/releases/download/v<version>/netbird_<version>_checksums.txt
-    required: false
-    default: c8f10b89dfa01b8bcad5ec25b666a83e351be4e22eb784b822478b9326a35423
 
 runs:
   using: composite
   steps:
-    # NetBird ships no action and mise has no package, so the release tarball
-    # is fetched and checked against the pinned sha256 (never `curl | sh`).
-    - name: Install NetBird
+    # The daemon runs as root, whose PATH has no mise shims, so the installed
+    # binary is linked where sudo finds it.
+    - name: Start the NetBird service
       shell: bash
-      env:
-        NB_VERSION: ${{ inputs.version }}
-        NB_SHA256: ${{ inputs.sha256 }}
       run: |
-        curl -fsSL --retry 3 --proto '=https' --tlsv1.2 -o "$RUNNER_TEMP/netbird.tar.gz" \
-          "https://github.com/netbirdio/netbird/releases/download/v${NB_VERSION}/netbird_${NB_VERSION}_linux_amd64.tar.gz"
-        echo "$NB_SHA256  $RUNNER_TEMP/netbird.tar.gz" | sha256sum -c
-        sudo tar -xzf "$RUNNER_TEMP/netbird.tar.gz" -C /usr/local/bin netbird
+        sudo ln -sf "$(mise which netbird)" /usr/local/bin/netbird
         sudo netbird service install
         sudo netbird service start
 
