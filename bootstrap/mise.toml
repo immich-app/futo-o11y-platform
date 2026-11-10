@@ -121,17 +121,15 @@ if [[ -z "$token" ]]; then
   exit 1
 fi
 
-kubectl get namespace "$namespace" >/dev/null
 # Server-side apply keeps the token out of a last-applied-configuration annotation.
 printf '%s' "$token" | kubectl create secret generic infisical-gateway-enrollment \
   --namespace "$namespace" --from-file=enrollment-token=/dev/stdin --dry-run=client -o yaml \
   | kubectl apply --server-side --force-conflicts --field-manager=gateway-enroll -f - >/dev/null
-unset token
 
 flux reconcile kustomization infisical-gateway --namespace flux-system --with-source
 kubectl wait --namespace "$namespace" --for=create deployment/infisical-gateway --timeout=5m
-# A pod stuck on the missing Secret only retries on kubelet's backoff.
-kubectl rollout restart --namespace "$namespace" deployment/infisical-gateway
+# A pod that started before the Secret existed waits on kubelet's backoff; a running one is left alone.
+kubectl delete pod --namespace "$namespace" -l app.kubernetes.io/name=infisical-gateway --field-selector=status.phase=Pending
 kubectl rollout status --namespace "$namespace" deployment/infisical-gateway --timeout=5m
 echo "gw-o11y-$ENVIRONMENT_SHORT is running; set gateway_connected = true for it in core-infra-tf once Infisical shows it connected"
 '''

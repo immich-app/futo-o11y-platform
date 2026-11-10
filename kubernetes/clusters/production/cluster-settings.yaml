@@ -8,17 +8,14 @@ data:
   CLUSTER_APP_DOMAIN: futostatus.com
   # Bootstrap-cluster-owned opc VIP (not o11y TF, hence not in bootstrap-settings).
   CLUSTER_OPC_VIP: 10.41.19.250
-  # Bootstrap-cluster-owned Infisical and instance-relay VIPs (infisical.futo.network,
-  # bootstrap-relay), routed over the mesh egress like opc.
-  CLUSTER_INFISICAL_VIP: 10.41.16.37
-  CLUSTER_INFISICAL_RELAY_VIP: 10.41.16.38
+  # Bootstrap's per-service VIP range (Infisical, its relay, the per-service opc), routed
+  # over the mesh egress like the legacy opc VIP.
+  CLUSTER_BOOTSTRAP_VIP_CIDR: 10.41.16.32/27
   CLUSTER_NAME: o11y
   # Remote cluster whose metrics ping the Rootly remote heartbeat; matches the
   # rootly module's remote_cluster heartbeat for this env.
   CLUSTER_REMOTE_HEARTBEAT: father
   CLUSTER_ENV: prod
-  # The cluster's Infisical gateway, created by core-infra-tf (infisical/instance).
-  CLUSTER_INFISICAL_GATEWAY_NAME: gw-o11y-prod
   CLUSTER_OP_O11Y_VAULT: o11y_tf_prod
   CLUSTER_OP_SHARED_VAULT: shared_tf_prod
   CLUSTER_VMLOGS_RETENTION: 120d

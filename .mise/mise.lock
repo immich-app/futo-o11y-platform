@@ -339,6 +339,9 @@ aube = { path = "locks/oxfmt/0.74.0", digest = "sha256:b7977a181c0e11736ab44f83b
 backend = "npm:oxfmt"
 specifiers = ["0.74.0"]
 
+[tools.oxfmt.provenance]
+repository = "github.com/oxc-project/oxc"
+
 [[tools.pipx]]
 version = "1.18.10"
 backend = "aqua:pypa/pipx"

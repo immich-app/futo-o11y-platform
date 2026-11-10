@@ -33,6 +33,9 @@ _.path = ["{{config_root}}/talos/bin"]
 # Written by //bootstrap:kubeconfig and //talos:talosconfig.
 KUBECONFIG = "{{config_root}}/.private/{{ get_env(name='ENVIRONMENT', default='') }}/kubeconfig"
 TALOSCONFIG = "{{config_root}}/.private/{{ get_env(name='ENVIRONMENT', default='') }}/talosconfig"
+# The modules' infisical provider reads INFISICAL_TOKEN as a plain access token
+# (CI's OIDC login or the operator's session, see vars.infisical_env).
+INFISICAL_AUTH_METHOD = "token"
 
 # Maps long env names (development/staging/production) to the short suffixes
 # used by 1Password vault paths (dev/staging/prod).
@@ -53,14 +56,16 @@ pin_fleet = "yq '(select(.kind == \"GrafanaDashboard\") | .spec.json) |= (fromjs
 sort_docs = "yq eval-all '[.] | sort_by(.metadata.name) | .[] | splitDoc'"
 # CI authenticates with a service-account token, which op rejects alongside --account.
 op_account = "{% if get_env(name='OP_SERVICE_ACCOUNT_TOKEN', default='') == '' %}--account 'team-futo.1password.com' {% endif %}"
-# The modules' infisical provider reads INFISICAL_TOKEN. CI sets it from its
-# OIDC login; locally it comes from the operator's `infisical login` session
-# (on the mesh), unless one is already exported.
-infisical_env = "{% if get_env(name='INFISICAL_TOKEN', default='') == '' %}INFISICAL_AUTH_METHOD=token INFISICAL_TOKEN=\"$(infisical user get token --plain)\" {% endif %}"
 # The onepassword provider treats an OP_SERVICE_ACCOUNT_TOKEN in its environment
 # as a credential that conflicts with the explicit Connect ones, so op run keeps
 # it for itself and terragrunt runs without it.
-tg = "op run {{vars.op_account}}'--env-file={{config_root}}/deployment/.env' -- env -u OP_SERVICE_ACCOUNT_TOKEN {{vars.infisical_env}}terragrunt"
+tg = "op run {{vars.op_account}}'--env-file={{config_root}}/deployment/.env' -- env -u OP_SERVICE_ACCOUNT_TOKEN terragrunt"
+# INFISICAL_TOKEN for the modules' infisical provider: CI exports it from its
+# OIDC login; otherwise the operator's `infisical login` session supplies it
+# (and starts the login when there is none). Only plan/apply/destroy configure
+# providers, so init and output run without it.
+infisical_env = "{% if get_env(name='INFISICAL_TOKEN', default='') == '' %}INFISICAL_TOKEN=\"$(infisical user get token --plain)\" {% endif %}"
+tg_rw = "op run {{vars.op_account}}'--env-file={{config_root}}/deployment/.env' -- env -u OP_SERVICE_ACCOUNT_TOKEN {{vars.infisical_env}}terragrunt"
 
 # Escape hatch for terragrunt subcommands the tasks below don't cover
 # (state rm/import/force-unlock, ...); operates on the caller's directory.
@@ -79,15 +84,15 @@ run = "{{vars.tg}} run -- init -reconfigure"
 description = "Init this module"
 
 [task_templates."tg:plan"]
-run = "{{vars.tg}} run -- plan"
+run = "{{vars.tg_rw}} run -- plan"
 description = "Plan this module"
 
 [task_templates."tg:apply"]
-run = "{{vars.tg}} run -- apply"
+run = "{{vars.tg_rw}} run -- apply"
 description = "Apply this module"
 
 [task_templates."tg:destroy"]
-run = "{{vars.tg}} run -- destroy"
+run = "{{vars.tg_rw}} run -- destroy"
 description = "Destroy this module"
 
 [task_templates."tg:output"]

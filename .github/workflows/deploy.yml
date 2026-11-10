@@ -100,19 +100,17 @@ jobs:
         run: |
           set -euo pipefail
           : "${INFISICAL_IDENTITY_ID:?set the INFISICAL_O11Y_CI_PLAN_<ENV>_ID repository variable (core-infra-tf github/secrets)}"
-          for _ in $(seq 1 30); do
-            curl -sSf --max-time 5 https://infisical.futo.network/api/status >/dev/null && break
-            sleep 2
-          done
-          INFISICAL_JWT="$(curl -sSf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+          jwt="$(curl -sSf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
             "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https://infisical.futo.network" | jq -r .value)"
-          echo "::add-mask::$INFISICAL_JWT"
-          export INFISICAL_IDENTITY_ID INFISICAL_JWT
-          token="$(jq -n '{identityId: env.INFISICAL_IDENTITY_ID, jwt: env.INFISICAL_JWT}' \
-            | curl -sSf -H 'Content-Type: application/json' --data-binary @- \
+          echo "::add-mask::$jwt"
+          # The mesh route to Infisical can come up a little after NetBird reports
+          # connected; the JWT is reusable, so the login just retries.
+          token="$(jq -n --arg id "$INFISICAL_IDENTITY_ID" --arg jwt "$jwt" '{identityId: $id, jwt: $jwt}' \
+            | curl -sSf --retry 10 --retry-all-errors --retry-connrefused --retry-delay 2 \
+              -H 'Content-Type: application/json' --data-binary @- \
               https://infisical.futo.network/api/v1/auth/oidc-auth/login | jq -r .accessToken)"
           echo "::add-mask::$token"
-          { echo "INFISICAL_AUTH_METHOD=token"; echo "INFISICAL_TOKEN=$token"; } >> "$GITHUB_ENV"
+          echo "INFISICAL_TOKEN=$token" >> "$GITHUB_ENV"
 
       # A PR plans the modules it changes plus their dependents; root.hcl marks
       # the files every module depends on, so changing one plans them all. A

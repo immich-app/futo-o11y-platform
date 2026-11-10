@@ -3,7 +3,8 @@
 # Second interface for mesh-egress pods (external-secrets and gatus -> opc, external-secrets
 # and the Infisical gateway -> Infisical and its relay). Node-local bridge; the same range on
 # every node is fine — traffic leaves masqueraded as the node peer (the nodes advertise the
-# range). Routes scoped to the bootstrap VIPs so everything else stays on flannel.
+# range). Routes scoped to the legacy opc VIP and bootstrap's per-service VIP range, so
+# everything else stays on flannel; NetBird policies decide which VIPs the nodes may reach.
 apiVersion: k8s.cni.cncf.io/v1
 kind: NetworkAttachmentDefinition
 metadata:
@@ -26,8 +27,7 @@ spec:
             ],
             "routes": [
               {"dst": "${CLUSTER_OPC_VIP}/32", "gw": "${BOOTSTRAP_NETBIRD_EGRESS_GW}"},
-              {"dst": "${CLUSTER_INFISICAL_VIP}/32", "gw": "${BOOTSTRAP_NETBIRD_EGRESS_GW}"},
-              {"dst": "${CLUSTER_INFISICAL_RELAY_VIP}/32", "gw": "${BOOTSTRAP_NETBIRD_EGRESS_GW}"}
+              {"dst": "${CLUSTER_BOOTSTRAP_VIP_CIDR}", "gw": "${BOOTSTRAP_NETBIRD_EGRESS_GW}"}
             ]
           }
         }

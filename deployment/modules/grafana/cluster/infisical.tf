@@ -4,12 +4,20 @@ data "infisical_projects" "observability" {
   slug = "observability"
 }
 
-resource "infisical_secret" "rootly_service_account_token" {
+locals {
+  infisical_secrets = {
+    ROOTLY_GRAFANA_SERVICE_ACCOUNT_TOKEN = grafana_service_account_token.rootly.key
+  }
+}
+
+resource "infisical_secret" "this" {
+  for_each = toset(keys(local.infisical_secrets))
+
   workspace_id = data.infisical_projects.observability.id
   env_slug     = local.env_short
   folder_path  = "/tf"
-  name         = "ROOTLY_GRAFANA_SERVICE_ACCOUNT_TOKEN"
-  value        = grafana_service_account_token.rootly.key
+  name         = each.key
+  value        = local.infisical_secrets[each.key]
 
   metadata = {
     type   = "external"

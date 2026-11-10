@@ -22,7 +22,8 @@ spec:
       retries: 3
   values:
     gateway:
-      name: ${CLUSTER_INFISICAL_GATEWAY_NAME}
+      # core-infra-tf names the gateway after the cluster (infisical/instance).
+      name: gw-${CLUSTER_NAME}-${CLUSTER_ENV}
       domain: https://infisical.futo.network
       relayName: bootstrap-relay
       enrollment:
@@ -32,6 +33,10 @@ spec:
     persistence:
       storageClass: openebs-system-disk
       size: 1Gi
+    # No CPU limit, like the other releases here; null removes the chart's.
+    resources:
+      limits:
+        cpu: null
     # Resolve and reach infisical.futo.network over the mesh, like external-secrets.
     podAnnotations:
       k8s.v1.cni.cncf.io/networks: kube-system/netbird-egress
