@@ -10,13 +10,9 @@ kind: HelmRelease
 metadata:
   name: infisical-gateway
 spec:
-  chart:
-    spec:
-      chart: infisical-gateway
-      version: 1.6.1
-      sourceRef:
-        kind: HelmRepository
-        name: infisical
+  chartRef:
+    kind: OCIRepository
+    name: infisical-gateway
   interval: 1h
   install:
     # Without this the first install waits on a pod that cannot start before

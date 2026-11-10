@@ -1,0 +1,15 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/source.toolkit.fluxcd.io/ocirepository_v1.json
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: infisical-gateway
+spec:
+  interval: 15m
+  layerSelector:
+    mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
+    operation: copy
+  ref:
+    tag: 1.6.1
+    digest: sha256:a598b2832bd6eb94c266a0fdc2e4f893e01ba9bd928696a9abe6e87d553e1af8
+  url: oci://helm.oci.cloudsmith.io/infisical/helm-charts/infisical-gateway
