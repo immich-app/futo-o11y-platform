@@ -1,0 +1,9 @@
+---
+# Named by the including kustomization's namespace field. Flux owns the
+# namespace afterwards (kubernetes/apps/<env>/<namespace>/namespace.yaml).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: _
+  annotations:
+    kustomize.toolkit.fluxcd.io/prune: disabled

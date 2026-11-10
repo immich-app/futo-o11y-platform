@@ -1,0 +1,12 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+# The namespaces and Secrets Flux needs on its first reconcile, applied by
+# `mise run //bootstrap:resources`, which fills the ${...} placeholders from
+# the observability Infisical project (<env>:/tf and <env>:/ci).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ./cert-manager
+  - ./external-secrets
+  - ./flux-system
+  - ./netbird

@@ -1,9 +1,0 @@
----
-# Holds the hand-made enrollment Secret and the PVC with the enrolled
-# credential; pruning it would force a core-infra-tf re-enrollment.
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: infisical-gateway
-  annotations:
-    kustomize.toolkit.fluxcd.io/prune: disabled

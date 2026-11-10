@@ -100,19 +100,11 @@ export TF_VAR_env=staging
    1. `//bootstrap:etcd` bootstraps etcd on the first control plane. It connects to the private IP of that node, so your NetBird client must have the route to the vRack. If the etcd bootstrap does not complete within 20 minutes, the task stops.
    2. `//bootstrap:kubeconfig --direct` writes the kubeconfig (see [Cluster access](#cluster-access)). It points the kubeconfig at the first control plane, because the mesh gateway does not exist yet.
    3. `//bootstrap:ready` waits until every node in `topf.yaml` is registered and `Ready`. If a node does not join within 20 minutes, the task stops and names it.
-   4. `//bootstrap:resources` applies the namespaces, the `bootstrap-settings` ConfigMap and the bootstrap secrets. The secrets are the OVH DNS credentials for cert-manager, the NetBird routing-peer key and the 1Password Connect token for external-secrets.
+   4. `//bootstrap:resources` applies the namespaces, the `bootstrap-settings` ConfigMap and the bootstrap Secrets in `bootstrap/kustomize`, filled from the `observability` Infisical project. The Secrets are the OVH DNS credentials for cert-manager, the NetBird routing-peer key and the Infisical client credentials for external-secrets. Sign in to Infisical first (see [Cluster access](#cluster-access)).
    5. `//bootstrap:crds` creates the missing CRDs of the charts in `bootstrap/crds.yaml`: the Prometheus Operator CRDs and the grafana-operator CRDs. Apps that only use these CRDs need no Flux `dependsOn` on these charts. Existing CRDs belong to Flux, so the task does not change them.
    6. `//bootstrap:apps` installs CoreDNS, the Flux Operator and the FluxInstance with helmfile (`bootstrap/helmfile.yaml`). The chart versions and values come from the Flux apps, so Flux takes over the same releases.
 
 Flux then reconciles from `kubernetes/clusters/<env>/apps.yaml`. From there, it applies the Kustomization of each app in dependency order. When the mesh gateway is up, run `mise run //bootstrap:kubeconfig` to point the kubeconfig at the mesh endpoint.
-
-7. Enroll the Infisical gateway. The cluster runs an Infisical gateway (`gw-o11y-<env>`, the `infisical-gateway` app). Infisical uses it to check the Kubernetes Auth logins of external-secrets, because Infisical has no route into the cluster. The gateway enrolls once, with a token that core-infra-tf mints into the `observability` project (`<env>:/ci`) when you set `gateway_enrollment` for the cluster in `infisical/instance/kubernetes.tf`. The token lives one hour. Sign in to Infisical, then run:
-
-   ```bash
-   mise run //bootstrap:infisical-gateway-enroll
-   ```
-
-   The task writes the token to the `infisical-gateway-enrollment` Secret, starts the gateway and waits for it. When Infisical shows the gateway as connected (Organization → Networking → Gateways), set `gateway_connected = true` for the cluster in core-infra-tf. The gateway keeps its enrolled credential on its volume, so it needs no new token after a restart.
 
 ## Cluster access
 
@@ -122,7 +114,7 @@ The cluster APIs are reachable only over the NetBird network. Run the NetBird cl
 
 Install the 1Password CLI (`op`) and sign in to the `team-futo.1password.com` account. The tasks below read the Talos secrets bundle from the Terraform state through the `//:tg` Terragrunt wrapper. The wrapper runs `op run` to inject the state credentials. Without a signed-in `op`, the tasks cannot read the state.
 
-The modules that write to Infisical (grafana, rootly, netbird, glitchtip and victoria-metrics) also need an Infisical session. Sign in once with `infisical login --domain https://infisical.futo.network` while you are on the mesh. The wrapper passes your session token to Terraform. In CI, the plan job signs in with its GitHub OIDC token instead.
+The bootstrap Secrets and the modules that write to Infisical (grafana, rootly, netbird, glitchtip and victoria-metrics) need an Infisical session. Sign in once with `infisical login --domain https://infisical.futo.network` while you are on the mesh. The wrapper passes your session token to Terraform for plan, apply and destroy. In CI, the plan job signs in with its GitHub OIDC token instead.
 
 Run these tasks to write the kubeconfig and the talosconfig for the environment. Run only the one that you need:
 
