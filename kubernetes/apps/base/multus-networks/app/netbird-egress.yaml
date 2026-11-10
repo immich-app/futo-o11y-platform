@@ -1,10 +1,10 @@
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/k8s.cni.cncf.io/networkattachmentdefinition_v1.json
-# Second interface for mesh-egress pods (external-secrets and gatus -> opc, external-secrets
-# and the Infisical gateway -> Infisical and its relay). Node-local bridge; the same range on
-# every node is fine — traffic leaves masqueraded as the node peer (the nodes advertise the
-# range). Routes scoped to the legacy opc VIP and bootstrap's per-service VIP range, so
-# everything else stays on flannel; NetBird policies decide which VIPs the nodes may reach.
+# Second interface for mesh-egress pods (external-secrets -> Infisical and opc, gatus -> opc).
+# Node-local bridge; the same range on every node is fine — traffic leaves masqueraded as the
+# node peer (the nodes advertise the range). Routes scoped to the legacy opc VIP and
+# bootstrap's per-service VIP range, so everything else stays on flannel; NetBird policies
+# decide which VIPs the nodes may reach.
 apiVersion: k8s.cni.cncf.io/v1
 kind: NetworkAttachmentDefinition
 metadata:

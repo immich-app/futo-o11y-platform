@@ -103,9 +103,13 @@ export INFISICAL_DOMAIN="${INFISICAL_DOMAIN:-https://infisical.futo.network}"
 
 project_id="$(infisical secrets-manager projects get observability -o json --silent | jq -er .id)"
 kustomize build kustomize | infisical run --silent --projectId "$project_id" --env "$ENVIRONMENT_SHORT" --path /tf --path /ci -- sh -c '
+  set -eu
   cluster="O11Y_$(printf "%s" "$ENVIRONMENT_SHORT" | tr "[:lower:]" "[:upper:]")"
-  INFISICAL_K8S_CLIENT_ID="$(printenv "INFISICAL_K8S_CLIENT_ID_$cluster")" \
-  INFISICAL_K8S_CLIENT_SECRET="$(printenv "INFISICAL_K8S_CLIENT_SECRET_$cluster")" \
+  INFISICAL_K8S_CLIENT_ID="$(printenv "INFISICAL_K8S_CLIENT_ID_$cluster" || true)"
+  INFISICAL_K8S_CLIENT_SECRET="$(printenv "INFISICAL_K8S_CLIENT_SECRET_$cluster" || true)"
+  : "${INFISICAL_K8S_CLIENT_ID:?INFISICAL_K8S_CLIENT_ID_$cluster is not in observability $ENVIRONMENT_SHORT:/ci (core-infra-tf infisical/instance)}"
+  : "${INFISICAL_K8S_CLIENT_SECRET:?INFISICAL_K8S_CLIENT_SECRET_$cluster is not in observability $ENVIRONMENT_SHORT:/ci (core-infra-tf infisical/instance)}"
+  export INFISICAL_K8S_CLIENT_ID INFISICAL_K8S_CLIENT_SECRET
   flux envsubst --strict
 ' | kubectl apply --server-side --force-conflicts --filename -
 ''',

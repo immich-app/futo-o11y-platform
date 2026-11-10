@@ -35,7 +35,7 @@ talos/
 ├── bin/talos-secrets         # topf secrets provider: reads the bundle from Terraform state
 └── .env                      # 1Password references for `op run` (NetBird setup key)
 
-bootstrap/                    # bring-up stages (mise.toml), resources.yaml, helmfiles for CRDs, CoreDNS + Flux
+bootstrap/                    # bring-up stages (mise.toml), kustomize/ (bootstrap Secrets), helmfiles for CRDs, CoreDNS + Flux
 
 kubernetes/
 ├── apps/
