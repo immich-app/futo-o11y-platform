@@ -77,6 +77,18 @@
       "groupName": "mise tools"
     },
     {
+      "description": "One NetBird client bump per environment: the CI mesh client (mise, named github:netbirdio/netbird) and the base router image move together in staging's PR, production's router patch in its own",
+      "matchPackageNames": ["netbirdio/netbird"],
+      "groupName": "netbird"
+    },
+    {
+      "description": "The CI mesh client rides with staging (base), like talosctl and kubectl",
+      "matchFileNames": [".mise/config.toml"],
+      "matchPackageNames": ["netbirdio/netbird"],
+      "additionalBranchPrefix": "base-",
+      "semanticCommitScope": "base"
+    },
+    {
       "description": "One Talos upgrade per environment: topf's talosVersion and the tuppr TalosUpgrade move together, with talosctl in staging's PR and the OVH image in production's",
       "matchDepNames": ["siderolabs/talos", "talosctl"],
       "groupName": "talos",
