@@ -8,6 +8,7 @@ metadata:
 spec:
   dependsOn:
     - name: cert-manager
+    - name: cluster-secret-store
   healthChecks:
     - apiVersion: helm.toolkit.fluxcd.io/v2
       kind: HelmRelease
