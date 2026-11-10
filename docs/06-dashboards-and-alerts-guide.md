@@ -238,9 +238,9 @@ Rootly and Zulip show the `summary` and the `description` for every firing alert
    - A Rootly alert source
    - A service
    - Zulip delivery to `yucca-alerts` under a `<project>-<env>` topic
-   - The `ROOTLY_ALERTS_<PROJECT>_URL` vault item
+   - The `ROOTLY_ALERTS_<PROJECT>_URL` item in the vault and in Infisical
 6. Open a second change in this repo with the `rootly-<project>` contact point, its ExternalSecret and the two routes in `base/grafana/app`.
-7. Merge that change only after the apply, because the ExternalSecret needs the vault item (bootstrap: #388, then #389).
+7. Merge that change only after the apply, because the ExternalSecret needs the Infisical secret (bootstrap: #388, then #389).
 8. Query `VictoriaMetrics Fleet`, never the default `VictoriaMetrics` datasource. The default sees only o11y's own tenant (see Datasources and tenants).
 9. In alerts, set `datasourceUid: VictoriaMetricsFleet` on every query node.
 10. In dashboards, use a `$datasource` variable with the regex `/^VictoriaMetrics Fleet$/`.

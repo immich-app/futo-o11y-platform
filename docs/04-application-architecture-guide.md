@@ -193,7 +193,7 @@ If email is not configured, you share organization invites as links.
 
 ## CloudNativePG
 
-The database of Grafana is a CloudNativePG cluster. The operator runs in the `cnpg-system` namespace. The `grafana-postgres` cluster runs three instances on `openebs-system-disk`, with required pod anti-affinity (one per worker). Its credentials are basic-auth Secrets (a superuser and the Grafana owner) from 1Password. CloudNativePG requires that secret type, and the username of the database owner must match the secret.
+The database of Grafana is a CloudNativePG cluster. The operator runs in the `cnpg-system` namespace. The `grafana-postgres` cluster runs three instances on `openebs-system-disk`, with required pod anti-affinity (one per worker). Its credentials are basic-auth Secrets (a superuser and the Grafana owner) from Infisical. CloudNativePG requires that secret type, and the username of the database owner must match the secret.
 
 ## Supporting components
 
