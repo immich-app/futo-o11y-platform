@@ -1,70 +1,64 @@
 name: Connect to NetBird
 description: >-
-  Install the NetBird client and join the mesh with a setup key the caller
-  already read (and masked). The key is minted by netbird/cluster
-  (o11y-<env>-ci), so that module must be applied before this runs.
+  Install a pinned NetBird client, join the FUTO mesh with the setup key the
+  caller read from netbird/cluster (o11y-<env>-ci, so that module must be
+  applied first), and wait until a mesh-only URL answers: mesh DNS and routes
+  land a little after the client reports connected.
 
 inputs:
   setup-key:
     description: NetBird setup key (plaintext; mask it before passing).
     required: true
-  management-url:
-    description: NetBird management URL.
-    required: false
-    default: https://api.netbird.io
   hostname:
     description: Peer hostname to register the runner as.
-    required: false
-    default: ""
+    required: true
   wait-for-url:
-    description: >-
-      URL that must answer over the mesh before the action returns. Mesh DNS
-      and routes land a little after the client reports connected.
+    description: URL that must answer over the mesh before the action returns.
+    required: true
+  version:
+    description: NetBird client version; bump together with the SHA256 below.
     required: false
-    default: ""
+    default: "0.82.1"
 
 runs:
   using: composite
   steps:
-    - name: Install NetBird client
+    # Never `curl | sh`: the runner holds cluster credentials, so the release
+    # is checked against an in-repo SHA256 before it is unpacked. To bump, copy
+    # the netbird_<ver>_linux_amd64.tar.gz line from
+    # https://github.com/netbirdio/netbird/releases/download/v<ver>/netbird_<ver>_checksums.txt
+    - name: Install NetBird
       shell: bash
+      env:
+        NB_VERSION: ${{ inputs.version }}
+        NB_SHA256: c8f10b89dfa01b8bcad5ec25b666a83e351be4e22eb784b822478b9326a35423
       run: |
         set -euo pipefail
-        curl -fsSL https://pkgs.netbird.io/install.sh | sh
-        netbird version
+        [ "$(uname -m)" = x86_64 ] || { echo "only linux/amd64 is pinned" >&2; exit 1; }
+        tarball="netbird_${NB_VERSION}_linux_amd64.tar.gz"
+        tmp="$(mktemp -d)"
+        trap 'rm -rf "$tmp"' EXIT
+        curl -fsSL --retry 3 --proto '=https' --tlsv1.2 -o "$tmp/$tarball" \
+          "https://github.com/netbirdio/netbird/releases/download/v${NB_VERSION}/${tarball}"
+        echo "${NB_SHA256}  ${tmp}/${tarball}" | sha256sum -c -
+        tar -xzf "$tmp/$tarball" -C "$tmp" netbird
+        sudo install -m 0755 "$tmp/netbird" /usr/local/bin/netbird
+        sudo netbird service install
+        sudo netbird service start
 
-    - name: Connect to NetBird
+    # `netbird up` returns once the client is connected to management.
+    - name: Join NetBird
       shell: bash
       env:
         NB_SETUP_KEY: ${{ inputs.setup-key }}
-        NB_MANAGEMENT_URL: ${{ inputs.management-url }}
         NB_HOSTNAME: ${{ inputs.hostname }}
       run: |
         set -euo pipefail
-        args=(--setup-key "$NB_SETUP_KEY" --management-url "$NB_MANAGEMENT_URL")
-        if [ -n "$NB_HOSTNAME" ]; then
-          args+=(--hostname "$NB_HOSTNAME")
-        fi
-        sudo netbird up "${args[@]}"
+        sudo --preserve-env=NB_SETUP_KEY netbird up \
+          --management-url https://api.netbird.io \
+          --hostname "$NB_HOSTNAME"
 
-    - name: Wait for NetBird connection
-      shell: bash
-      run: |
-        set -euo pipefail
-        for _ in $(seq 1 30); do
-          if sudo netbird status 2>/dev/null | grep -qE "Management:[[:space:]]+Connected"; then
-            sudo netbird status --detail || true
-            echo "NetBird connected."
-            exit 0
-          fi
-          sleep 2
-        done
-        echo "NetBird did not reach the Connected state in time." >&2
-        sudo netbird status --detail || true
-        exit 1
-
-    - name: Wait for the mesh route
-      if: inputs.wait-for-url != ''
+    - name: Wait for the mesh
       shell: bash
       env:
         WAIT_FOR_URL: ${{ inputs.wait-for-url }}
