@@ -100,12 +100,17 @@ spec:
       # from VictoriaLogs fail the readiness probe, the Service drops the pod,
       # and Talos cannot hand over lines during an outage. The default retry
       # back-off grows to 2000s. A cap of 30s keeps recovery under a minute.
+      # A chunk is about 2MB and every chunk that is up is mapped in memory.
+      # The defaults (128 chunks up, a 100MB backlog queue at start) exceed
+      # the 128Mi memory limit during a backlog; these keep it near 50MB.
       service: |
         [SERVICE]
             Flush 5
             HTTP_Server On
             HTTP_Port {{ .Values.metricsPort }}
             storage.path /var/lib/talos-logs
+            storage.max_chunks_up 16
+            storage.backlog.mem_limit 16M
             scheduler.cap 30
 
       # A Talos line is at most 64KiB. A line that is larger than Buffer_Size
