@@ -25,7 +25,7 @@ On bare metal, `qemu-guest-agent` blocks the boot. It waits for a virtio-serial 
 - The configuration pins the node IP of the kubelet to the vRack subnet. Without the pin, the kubelet detects the node IP itself. A host address that sorts lower, such as the Multus egress bridge, then takes the InternalIP of the node. This breaks the traffic from the apiserver to the kubelet.
 - The metrics endpoints of kube-controller-manager, kube-scheduler, and etcd bind to all interfaces, not to localhost, so that VMAgent on a worker can scrape them. The host firewall keeps these ports private. The controller-manager and scheduler endpoints use authenticated HTTPS. The etcd endpoint uses plain HTTP, so the firewall is its only protection.
 - kube-proxy answers NodePorts on every interface, not only on the primary vRack IP of the node. This lets the IPLB reach Envoy on the public NIC of the workers. The metrics endpoint of kube-proxy is bound in the same way, for scraping. The generated kube-proxy DaemonSet for the whole cluster contains this configuration.
-- Talos sends its service logs and the kernel ring buffer to the `talos-logs` relay on loopback (`talos/patches/all/07-logging.yaml`): service logs to `127.0.0.1:6050`, kernel logs to `127.0.0.1:6051`. The relay is a host-network Vector DaemonSet (`kubernetes/apps/base/talos-logs`) that posts them to VictoriaLogs. Talos can only send JSON lines over TCP or UDP, and VictoriaLogs reads only syslog on a raw socket, so the relay translates. Both inputs replay their buffers back to boot once the relay accepts.
+- Talos sends its service logs and the kernel ring buffer to the `talos-logs` relay, a Fluent Bit DaemonSet (`kubernetes/apps/base/talos-logs`). Talos can only send JSON lines over TCP or UDP, and VictoriaLogs reads only syslog on a raw socket, so the relay translates. Talos sends from the host network namespace, where cluster DNS does not resolve. The machine configuration (`talos/patches/all/07-logging.yaml`) therefore holds the pinned ClusterIP of the relay Service. The Service uses `internalTrafficPolicy: Local`, so kube-proxy delivers the lines of a node to the relay pod on that node.
 - The configuration pins the VXLAN endpoint of flannel to the vRack interface. Without the pin, flannel uses the public NIC by default. The host firewall then drops the east-west pod traffic, which is pod traffic between nodes.
 
 ### Upgrades
@@ -64,7 +64,7 @@ Every node denies ingress by default. The host drops all traffic that the table 
 | Spegel registry (workers)  | 30020/tcp              | vRack                                 |
 | Envoy ingress (workers)    | 30443/tcp              | `10.108.0.0/14` (IPLB NAT range only) |
 | CP component metrics (CPs) | 10257, 10259, 2381/tcp | vRack + pod CIDR                      |
-| Node metrics (all nodes)   | 10249, 9100, 9598/tcp  | vRack + pod CIDR                      |
+| Node metrics (all nodes)   | 10249, 9100/tcp        | vRack + pod CIDR                      |
 
 The rules for `apid` (for tuppr), `kubelet` and the metrics ports also allow the pod CIDR. Traffic from a pod to the IP of its own node skips the flannel masquerade, so it keeps the pod IP as its source. A rule for the vRack alone drops that traffic.
 

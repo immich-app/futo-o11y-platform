@@ -9,6 +9,11 @@ spec:
   # Its sink, the managed VMAuth victoria-logs, comes with victoria-metrics.
   dependsOn:
     - name: victoria-metrics
+  healthChecks:
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: talos-logs
+      namespace: o11y
   interval: 1h
   path: ./kubernetes/apps/base/talos-logs/app
   patches: []
@@ -17,4 +22,3 @@ spec:
     kind: GitRepository
     name: flux-system
     namespace: flux-system
-  wait: true
