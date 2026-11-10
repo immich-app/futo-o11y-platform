@@ -1,9 +1,9 @@
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/k8s.cni.cncf.io/networkattachmentdefinition_v1.json
-# Second interface for mesh-egress pods (external-secrets and gatus -> opc). Node-local
-# bridge; the same range on every node is fine — traffic leaves masqueraded as the node peer
-# (the nodes advertise the range). Route scoped to the opc VIP so everything else stays on
-# flannel.
+# Second interface for mesh-egress pods (external-secrets and gatus -> opc, external-secrets
+# and the Infisical gateway -> Infisical and its relay). Node-local bridge; the same range on
+# every node is fine — traffic leaves masqueraded as the node peer (the nodes advertise the
+# range). Routes scoped to the bootstrap VIPs so everything else stays on flannel.
 apiVersion: k8s.cni.cncf.io/v1
 kind: NetworkAttachmentDefinition
 metadata:
@@ -25,7 +25,9 @@ spec:
               [{"subnet": "${BOOTSTRAP_NETBIRD_EGRESS_CIDR}", "gateway": "${BOOTSTRAP_NETBIRD_EGRESS_GW}"}]
             ],
             "routes": [
-              {"dst": "${CLUSTER_OPC_VIP}/32", "gw": "${BOOTSTRAP_NETBIRD_EGRESS_GW}"}
+              {"dst": "${CLUSTER_OPC_VIP}/32", "gw": "${BOOTSTRAP_NETBIRD_EGRESS_GW}"},
+              {"dst": "${CLUSTER_INFISICAL_VIP}/32", "gw": "${BOOTSTRAP_NETBIRD_EGRESS_GW}"},
+              {"dst": "${CLUSTER_INFISICAL_RELAY_VIP}/32", "gw": "${BOOTSTRAP_NETBIRD_EGRESS_GW}"}
             ]
           }
         }

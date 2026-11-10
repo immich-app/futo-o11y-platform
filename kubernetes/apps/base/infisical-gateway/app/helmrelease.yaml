@@ -1,0 +1,70 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/helm.toolkit.fluxcd.io/helmrelease_v2.json
+# The cluster's Infisical gateway (gw-o11y-<env>, owned by core-infra-tf). It
+# dials bootstrap's instance relay over the mesh so Infisical can review the
+# Kubernetes Auth logins of the External Secrets store without a route into
+# the cluster. Enrollment is `mise run //bootstrap:infisical-gateway-enroll`;
+# until it creates infisical-gateway-enrollment the pod cannot start.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: infisical-gateway
+spec:
+  chart:
+    spec:
+      chart: infisical-gateway
+      version: 1.6.1
+      sourceRef:
+        kind: HelmRepository
+        name: infisical
+  interval: 1h
+  install:
+    # Without this the first install waits on a pod that cannot start before
+    # enrollment, fails, and stays failed until someone resets it.
+    disableWait: true
+    remediation:
+      retries: 3
+  values:
+    gateway:
+      name: ${CLUSTER_INFISICAL_GATEWAY_NAME}
+      domain: https://infisical.futo.network
+      relayName: bootstrap-relay
+      enrollment:
+        method: token
+        token:
+          existingSecretRef: infisical-gateway-enrollment
+          secretKey: enrollment-token
+    persistence:
+      enabled: true
+      storageClass: openebs-system-disk
+      size: 1Gi
+    # Resolve and reach infisical.futo.network over the mesh, like external-secrets.
+    podAnnotations:
+      k8s.v1.cni.cncf.io/networks: kube-system/netbird-egress
+    # Merged into the chart's defaults (runAsNonRoot, runAsUser and fsGroup
+    # 1000, which keep the PVC's credential writable) to pass the restricted
+    # Pod Security level.
+    podSecurityContext:
+      seccompProfile:
+        type: RuntimeDefault
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+      seccompProfile:
+        type: RuntimeDefault
+  postRenderers:
+    - kustomize:
+        patches:
+          # The PVC holds the enrolled credential and the token is single-use:
+          # if an uninstall took it, the gateway could only come back through a
+          # new core-infra-tf enrollment.
+          - target:
+              kind: PersistentVolumeClaim
+              name: infisical-gateway-data
+            patch: |-
+              - op: add
+                path: /metadata/annotations
+                value:
+                  helm.sh/resource-policy: keep

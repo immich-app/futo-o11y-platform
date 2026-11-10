@@ -1,0 +1,10 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/source.toolkit.fluxcd.io/helmrepository_v1.json
+# Infisical publishes this chart over HTTP only; there is no OCI mirror.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: infisical
+spec:
+  interval: 1h
+  url: https://dl.cloudsmith.io/public/infisical/helm-charts/helm/charts/
