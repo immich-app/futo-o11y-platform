@@ -16,6 +16,12 @@ inputs:
     description: Peer hostname to register the runner as.
     required: false
     default: ""
+  wait-for-url:
+    description: >-
+      URL that must answer over the mesh before the action returns. Mesh DNS
+      and routes land a little after the client reports connected.
+    required: false
+    default: ""
 
 runs:
   using: composite
@@ -54,5 +60,22 @@ runs:
           sleep 2
         done
         echo "NetBird did not reach the Connected state in time." >&2
+        sudo netbird status --detail || true
+        exit 1
+
+    - name: Wait for the mesh route
+      if: inputs.wait-for-url != ''
+      shell: bash
+      env:
+        WAIT_FOR_URL: ${{ inputs.wait-for-url }}
+      run: |
+        set -euo pipefail
+        for _ in $(seq 1 60); do
+          if curl -fsS -m 5 -o /dev/null "$WAIT_FOR_URL"; then
+            exit 0
+          fi
+          sleep 2
+        done
+        echo "$WAIT_FOR_URL did not answer over NetBird" >&2
         sudo netbird status --detail || true
         exit 1

@@ -70,7 +70,7 @@ jobs:
       - name: Setup Mise
         uses: jdx/mise-action@6be3c7ed4c21d4f76b208d351d95aac273ebb76d # v5.2.4
         with:
-          install_args: --locked opentofu terragrunt
+          install_args: --locked opentofu terragrunt infisical
 
       - name: Init
         run: mise run //deployment:init
@@ -85,32 +85,18 @@ jobs:
           echo "setup-key=$key" >> "$GITHUB_OUTPUT"
 
       - name: Connect to NetBird
-        uses: ./.github/actions/netbird-connect
+        uses: $/.github/actions/netbird-connect
         with:
           setup-key: ${{ steps.nb.outputs.setup-key }}
           hostname: gha-plan-${{ matrix.environment }}-${{ github.run_id }}
+          wait-for-url: https://infisical.futo.network/api/status
 
-      # Infisical only answers over the mesh. The GitHub OIDC token expires in
-      # minutes, so it is traded once for an Infisical access token that lasts
-      # the job; the modules' infisical provider reads it from the environment.
       # The identity IDs are Actions variables that core-infra-tf (github/secrets) writes.
       - name: Log in to Infisical
-        env:
-          INFISICAL_IDENTITY_ID: ${{ matrix.environment == 'production' && vars.INFISICAL_O11Y_CI_PLAN_PROD_ID || vars.INFISICAL_O11Y_CI_PLAN_STAGING_ID }}
-        run: |
-          set -euo pipefail
-          : "${INFISICAL_IDENTITY_ID:?set the INFISICAL_O11Y_CI_PLAN_<ENV>_ID repository variable (core-infra-tf github/secrets)}"
-          jwt="$(curl -sSf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https://infisical.futo.network" | jq -r .value)"
-          echo "::add-mask::$jwt"
-          # The mesh route to Infisical can come up a little after NetBird reports
-          # connected; the JWT is reusable, so the login just retries.
-          token="$(jq -n --arg id "$INFISICAL_IDENTITY_ID" --arg jwt "$jwt" '{identityId: $id, jwt: $jwt}' \
-            | curl -sSf --retry 10 --retry-all-errors --retry-connrefused --retry-delay 2 \
-              -H 'Content-Type: application/json' --data-binary @- \
-              https://infisical.futo.network/api/v1/auth/oidc-auth/login | jq -r .accessToken)"
-          echo "::add-mask::$token"
-          echo "INFISICAL_TOKEN=$token" >> "$GITHUB_ENV"
+        id: infisical
+        uses: $/.github/actions/infisical-login
+        with:
+          identity-id: ${{ matrix.environment == 'production' && vars.INFISICAL_O11Y_CI_PLAN_PROD_ID || vars.INFISICAL_O11Y_CI_PLAN_STAGING_ID }}
 
       # A PR plans the modules it changes plus their dependents; root.hcl marks
       # the files every module depends on, so changing one plans them all. A
@@ -119,4 +105,5 @@ jobs:
       - name: Plan
         env:
           TG_FILTER: ${{ github.event_name == 'pull_request' && format('...[{0}...HEAD]', github.event.pull_request.base.sha) || '' }}
+          INFISICAL_TOKEN: ${{ steps.infisical.outputs.token }}
         run: mise run //deployment:plan
