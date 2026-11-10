@@ -232,13 +232,14 @@ spec:
                 reducer:
                   type: last
                   params: []
-    # The talos-logs relay (kubernetes/apps/base/talos-logs): rejected
-    # requests to VictoriaLogs, lines dropped because its disk buffer filled,
-    # or a backlog of unsent lines. The backlog arm is the one that catches an
-    # unreachable endpoint: Vector retries connection errors and 5xx forever
-    # without counting them in vector_component_errors_total, and the 256MiB
-    # buffer takes days to fill. A healthy relay holds about 0 events and a
-    # boot replay drains in seconds. A dead relay is o11y-target-down's.
+    # The talos-logs relay (kubernetes/apps/base/talos-logs): VictoriaLogs
+    # rejected requests, the full disk queue dropped lines, or chunks wait on
+    # disk. Only the backlog arm catches an unreachable endpoint, because
+    # Fluent Bit retries connection errors and 5xx without counting them as
+    # errors. A healthy relay holds 0 to 2 chunks, and a boot replay drains in
+    # seconds. Each arm is filtered before the `or`. The counters share their
+    # labels, so a zero left arm would otherwise hide a rising right one.
+    # o11y-target-down covers a dead relay.
     - uid: o11y-talos-logs-shipping-errors
       title: o11y node logs not shipping
       condition: B
@@ -247,7 +248,7 @@ spec:
         project: o11y
         severity: warning
       annotations:
-        summary: The talos-logs relay {{ $labels.pod }} on {{ $labels.cluster }} has had requests rejected, dropped lines, or a backlog of unsent lines for 15m (worst signal {{ $values.A.Value }}), so that node's Talos service and kernel logs are not reaching VictoriaLogs; check `kubectl -n o11y logs {{ $labels.pod }}`, where connection errors mean vmauth-victoria-logs or cluster DNS is unreachable.
+        summary: The talos-logs relay {{ $labels.pod }} on {{ $labels.cluster }} has had requests rejected, dropped lines, or a backlog of unsent chunks for 15m (worst signal {{ $values.A.Value }}), so that node's Talos service and kernel logs are not reaching VictoriaLogs; check `kubectl -n o11y logs {{ $labels.pod }}`, where "no upstream connections" means vmauth-victoria-logs or cluster DNS is unreachable.
       execErrState: Error
       noDataState: OK
       data:
@@ -262,7 +263,7 @@ spec:
             datasource:
               type: prometheus
               uid: VictoriaMetrics
-            expr: max by (cluster, pod) (increase(vector_component_errors_total{cluster="${CLUSTER_NAME}", component_id="victorialogs"}[15m]) or increase(vector_buffer_discarded_events_total{cluster="${CLUSTER_NAME}", component_id="victorialogs"}[15m]) or (last_over_time(vector_buffer_size_events{cluster="${CLUSTER_NAME}", component_id="victorialogs"}[5m]) > 1000)) > 0
+            expr: max by (cluster, pod) ((increase(fluentbit_output_errors_total{cluster="${CLUSTER_NAME}", job="talos-logs", name="victorialogs"}[15m]) > 0) or (increase(fluentbit_output_dropped_records_total{cluster="${CLUSTER_NAME}", job="talos-logs", name="victorialogs"}[15m]) > 0) or (last_over_time(fluentbit_storage_fs_chunks{cluster="${CLUSTER_NAME}", job="talos-logs"}[5m]) > 10))
             instant: true
             range: false
             intervalMs: 1000

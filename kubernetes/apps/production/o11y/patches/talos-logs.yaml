@@ -7,17 +7,15 @@ metadata:
 spec:
   patches:
     - patch: |-
-        apiVersion: apps/v1
-        kind: DaemonSet
+        apiVersion: source.toolkit.fluxcd.io/v1
+        kind: OCIRepository
         metadata:
           name: talos-logs
         spec:
-          template:
-            spec:
-              containers:
-                - name: vector
-                  # renovate: datasource=docker depName=timberio/vector
-                  image: timberio/vector:0.61.0-distroless-static@sha256:6901c28cc86ed3d41880198dad12ba7b6df83efdf9c61c0c175d23980689a16f
+          ref:
+            # renovate: datasource=docker depName=ghcr.io/fluent/helm-charts/fluent-bit
+            tag: 0.58.3
+            digest: sha256:0bbd4067157c075a09a743a928adc8f21be3793405d810a2d2aa65214c47f51f
       target:
-        kind: DaemonSet
+        kind: OCIRepository
         name: talos-logs
