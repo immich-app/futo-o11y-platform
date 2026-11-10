@@ -23,7 +23,6 @@ on:
     paths:
       - "deployment/**"
       - ".mise/**"
-      - ".github/actions/netbird-connect/**"
       - ".github/workflows/deploy.yml"
   workflow_dispatch:
 
@@ -84,12 +83,24 @@ jobs:
           echo "::add-mask::$key"
           echo "setup-key=$key" >> "$GITHUB_OUTPUT"
 
-      - name: Connect to NetBird
-        uses: $/.github/actions/netbird-connect
-        with:
-          setup-key: ${{ steps.nb.outputs.setup-key }}
-          hostname: gha-plan-${{ matrix.environment }}-${{ github.run_id }}
-          wait-for-url: https://infisical.futo.network/api/status
+      # The daemon runs as root, whose PATH has no mise shims, so the client
+      # mise installed (github:netbirdio/netbird) is linked where sudo finds it.
+      - name: Start the NetBird service
+        run: |
+          sudo ln -sf "$(mise which netbird)" /usr/local/bin/netbird
+          sudo netbird service install
+          sudo netbird service start
+
+      # Returns once the client is connected to management.
+      - name: Join NetBird
+        env:
+          NB_SETUP_KEY: ${{ steps.nb.outputs.setup-key }}
+          NB_HOSTNAME: gha-plan-${{ matrix.environment }}-${{ github.run_id }}
+        run: sudo --preserve-env=NB_SETUP_KEY netbird up --management-url https://api.netbird.io --hostname "$NB_HOSTNAME"
+
+      # Mesh DNS and routes land a little after the client reports connected.
+      - name: Wait for Infisical over the mesh
+        run: curl -fsS --retry 60 --retry-delay 2 --retry-all-errors --max-time 5 -o /dev/null https://infisical.futo.network/api/status
 
       # Trades the job's OIDC token for an Infisical access token, which the
       # Plan step hands to the modules' infisical provider. The identity IDs
