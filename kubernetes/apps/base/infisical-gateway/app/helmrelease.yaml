@@ -29,9 +29,7 @@ spec:
         method: token
         token:
           existingSecretRef: infisical-gateway-enrollment
-          secretKey: enrollment-token
     persistence:
-      enabled: true
       storageClass: openebs-system-disk
       size: 1Gi
     # Resolve and reach infisical.futo.network over the mesh, like external-secrets.
