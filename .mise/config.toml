@@ -38,6 +38,8 @@ TALOSCONFIG = "{{config_root}}/.private/{{ get_env(name='ENVIRONMENT', default='
 # The modules' infisical provider reads INFISICAL_TOKEN as a plain access token
 # (CI's OIDC login or the operator's session, see vars.infisical_env).
 INFISICAL_AUTH_METHOD = "token"
+# The infisical CLI (bootstrap, the operator's session) talks to the FUTO instance.
+INFISICAL_DOMAIN = "https://infisical.futo.network"
 
 # Maps long env names (development/staging/production) to the short suffixes
 # used by 1Password vault paths (dev/staging/prod).

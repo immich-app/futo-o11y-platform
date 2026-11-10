@@ -91,27 +91,18 @@ description = "Apply the namespaces, Secrets and bootstrap-settings ConfigMap Fl
 run = [
   '''
 #!/usr/bin/env bash
-# kustomize/ holds the manifests with ${...} placeholders; infisical run puts
-# the observability project's <env>:/tf (which imports global) and <env>:/ci
-# into the environment and flux envsubst fills them in, failing on a missing
-# one. The client credentials carry the cluster name in Infisical, so they
-# are mapped to the placeholder names first. Needs an `infisical login`
-# session on the mesh.
+# kustomize/<env> holds the manifests with ${...} placeholders named like the
+# Infisical secrets. infisical run puts the observability project's <env>:/tf
+# (which imports global) and <env>:/ci into the environment and flux envsubst
+# fills them in, failing on a missing one. Needs an `infisical login` session
+# on the mesh.
 set -euo pipefail
 : "${ENVIRONMENT:?set ENVIRONMENT=staging (or production) first}"
-export INFISICAL_DOMAIN="${INFISICAL_DOMAIN:-https://infisical.futo.network}"
 
 project_id="$(infisical secrets-manager projects get observability -o json --silent | jq -er .id)"
-kustomize build kustomize | infisical run --silent --projectId "$project_id" --env "$ENVIRONMENT_SHORT" --path /tf --path /ci -- sh -c '
-  set -eu
-  cluster="O11Y_$(printf "%s" "$ENVIRONMENT_SHORT" | tr "[:lower:]" "[:upper:]")"
-  INFISICAL_K8S_CLIENT_ID="$(printenv "INFISICAL_K8S_CLIENT_ID_$cluster" || true)"
-  INFISICAL_K8S_CLIENT_SECRET="$(printenv "INFISICAL_K8S_CLIENT_SECRET_$cluster" || true)"
-  : "${INFISICAL_K8S_CLIENT_ID:?INFISICAL_K8S_CLIENT_ID_$cluster is not in observability $ENVIRONMENT_SHORT:/ci (core-infra-tf infisical/instance)}"
-  : "${INFISICAL_K8S_CLIENT_SECRET:?INFISICAL_K8S_CLIENT_SECRET_$cluster is not in observability $ENVIRONMENT_SHORT:/ci (core-infra-tf infisical/instance)}"
-  export INFISICAL_K8S_CLIENT_ID INFISICAL_K8S_CLIENT_SECRET
-  flux envsubst --strict
-' | kubectl apply --server-side --force-conflicts --filename -
+kustomize build "kustomize/$ENVIRONMENT" \
+  | infisical run --silent --projectId "$project_id" --env "$ENVIRONMENT_SHORT" --path /tf --path /ci -- flux envsubst --strict \
+  | kubectl apply --server-side --force-conflicts --filename -
 ''',
   "mise run //deployment/modules/netbird/cluster:output -- -raw bootstrap_settings | kubectl apply --server-side --force-conflicts --filename -",
 ]
