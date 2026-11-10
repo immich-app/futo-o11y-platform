@@ -16,60 +16,44 @@ inputs:
     description: URL that must answer over the mesh before the action returns.
     required: true
   version:
-    description: NetBird client version; bump together with the SHA256 below.
+    description: NetBird client version; bump together with the sha256 below.
     required: false
     default: "0.82.1"
+  sha256:
+    description: >-
+      SHA256 of netbird_<version>_linux_amd64.tar.gz, from
+      https://github.com/netbirdio/netbird/releases/download/v<version>/netbird_<version>_checksums.txt
+    required: false
+    default: c8f10b89dfa01b8bcad5ec25b666a83e351be4e22eb784b822478b9326a35423
 
 runs:
   using: composite
   steps:
-    # Never `curl | sh`: the runner holds cluster credentials, so the release
-    # is checked against an in-repo SHA256 before it is unpacked. To bump, copy
-    # the netbird_<ver>_linux_amd64.tar.gz line from
-    # https://github.com/netbirdio/netbird/releases/download/v<ver>/netbird_<ver>_checksums.txt
+    # NetBird ships no action and mise has no package, so the release tarball
+    # is fetched and checked against the pinned sha256 (never `curl | sh`).
     - name: Install NetBird
       shell: bash
       env:
         NB_VERSION: ${{ inputs.version }}
-        NB_SHA256: c8f10b89dfa01b8bcad5ec25b666a83e351be4e22eb784b822478b9326a35423
+        NB_SHA256: ${{ inputs.sha256 }}
       run: |
-        set -euo pipefail
-        [ "$(uname -m)" = x86_64 ] || { echo "only linux/amd64 is pinned" >&2; exit 1; }
-        tarball="netbird_${NB_VERSION}_linux_amd64.tar.gz"
-        tmp="$(mktemp -d)"
-        trap 'rm -rf "$tmp"' EXIT
-        curl -fsSL --retry 3 --proto '=https' --tlsv1.2 -o "$tmp/$tarball" \
-          "https://github.com/netbirdio/netbird/releases/download/v${NB_VERSION}/${tarball}"
-        echo "${NB_SHA256}  ${tmp}/${tarball}" | sha256sum -c -
-        tar -xzf "$tmp/$tarball" -C "$tmp" netbird
-        sudo install -m 0755 "$tmp/netbird" /usr/local/bin/netbird
+        curl -fsSL --retry 3 --proto '=https' --tlsv1.2 -o "$RUNNER_TEMP/netbird.tar.gz" \
+          "https://github.com/netbirdio/netbird/releases/download/v${NB_VERSION}/netbird_${NB_VERSION}_linux_amd64.tar.gz"
+        echo "$NB_SHA256  $RUNNER_TEMP/netbird.tar.gz" | sha256sum -c
+        sudo tar -xzf "$RUNNER_TEMP/netbird.tar.gz" -C /usr/local/bin netbird
         sudo netbird service install
         sudo netbird service start
 
-    # `netbird up` returns once the client is connected to management.
+    # Returns once the client is connected to management.
     - name: Join NetBird
       shell: bash
       env:
         NB_SETUP_KEY: ${{ inputs.setup-key }}
         NB_HOSTNAME: ${{ inputs.hostname }}
-      run: |
-        set -euo pipefail
-        sudo --preserve-env=NB_SETUP_KEY netbird up \
-          --management-url https://api.netbird.io \
-          --hostname "$NB_HOSTNAME"
+      run: sudo --preserve-env=NB_SETUP_KEY netbird up --management-url https://api.netbird.io --hostname "$NB_HOSTNAME"
 
     - name: Wait for the mesh
       shell: bash
       env:
         WAIT_FOR_URL: ${{ inputs.wait-for-url }}
-      run: |
-        set -euo pipefail
-        for _ in $(seq 1 60); do
-          if curl -fsS -m 5 -o /dev/null "$WAIT_FOR_URL"; then
-            exit 0
-          fi
-          sleep 2
-        done
-        echo "$WAIT_FOR_URL did not answer over NetBird" >&2
-        sudo netbird status --detail || true
-        exit 1
+      run: curl -fsS --retry 60 --retry-delay 2 --retry-all-errors --max-time 5 -o /dev/null "$WAIT_FOR_URL"
