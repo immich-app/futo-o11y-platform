@@ -16,8 +16,6 @@ data:
   # rootly module's remote_cluster heartbeat for this env.
   CLUSTER_REMOTE_HEARTBEAT: luke
   CLUSTER_ENV: staging
-  CLUSTER_OP_O11Y_VAULT: o11y_tf_staging
-  CLUSTER_OP_SHARED_VAULT: shared_tf_staging
   CLUSTER_VMLOGS_RETENTION: 30d
   CLUSTER_VMLOGS_STORAGE_CLASS: openebs-spare-disk
   CLUSTER_VMLOGS_SIZE: 200Gi

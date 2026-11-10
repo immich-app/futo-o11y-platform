@@ -7,14 +7,12 @@ metadata:
 spec:
   secretStoreRef:
     kind: ClusterSecretStore
-    name: onepassword-shared-environment
+    name: infisical-shared
   target:
     name: vmuser-client-logs-token
-    template:
-      data:
-        token: "{{ .password }}"
-  dataFrom:
-    - extract:
+  data:
+    - secretKey: token
+      remoteRef:
         key: O11Y_VICTORIALOGS_CLIENT_TOKEN
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/operator.victoriametrics.com/vmuser_v1beta1.json

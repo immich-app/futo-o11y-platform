@@ -37,7 +37,7 @@ Each cluster lands in its own VictoriaMetrics tenant, with `accountID` = project
 
 This cluster derives the tenant centrally, and the shippers do not declare it. A single shared bearer token authenticates all remote clusters. The `VMUser` that the token is bound to rewrites each write onto the multitenant insert endpoint. Then `vminsert` relabeling maps the `project`/`cluster` labels of each sample to a tenant. Remotes ship only the five identity labels. Per-tenant enforcement is possible later: move a remote to its own token, pinned to its tenant path.
 
-1Password stores the token, and an ExternalSecret injects it into that `VMUser`. The operator installs the `VMUser` CRD. Thus those resources live in a separate Flux Kustomization that depends on the VictoriaMetrics release and external-secrets. This order prevents a race with the CRD registration.
+Infisical stores the token, and an ExternalSecret injects it into that `VMUser`. The operator installs the `VMUser` CRD. Thus those resources live in a separate Flux Kustomization that depends on the VictoriaMetrics release and external-secrets. This order prevents a race with the CRD registration.
 
 Serverless pushers can only send one sample per event. They write to `/serverless/insert/` on the same gateways instead. That path goes to `vmagent-serverless`, which writes the per-minute sum of each series to `vminsert`. Thus the 20s deduplication of the store does not drop events. For details, see the [shipping guide](05-shipping-metrics-guide.md#shippers-that-send-one-sample-per-event).
 
@@ -153,7 +153,7 @@ The agents need the `/insert/native` path of `vtinsert`, which VictoriaTraces v0
 
 Grafana runs as a 3-replica HA deployment that the Grafana operator manages. Rolling updates do not block (zero surge, one unavailable). A topology-spread constraint puts one replica on each worker.
 
-Pod storage is ephemeral, and all state lives in Postgres. The replicas share a single security secret key from 1Password, so signed cookies and sessions are valid on any replica. Grafana connects to its Postgres over TLS. The password comes from an environment variable and is not written into the configuration.
+Pod storage is ephemeral, and all state lives in Postgres. The replicas share a single security secret key from Infisical, so signed cookies and sessions are valid on any replica. Grafana connects to its Postgres over TLS. The password comes from an environment variable and is not written into the configuration.
 
 Users reach Grafana at `grafana.<CLUSTER_APP_DOMAIN>` and at the alternate domain.
 
@@ -197,7 +197,7 @@ The database of Grafana is a CloudNativePG cluster. The operator runs in the `cn
 
 ## Supporting components
 
-- external-secrets: syncs 1Password items into Kubernetes Secrets through cluster secret stores. These stores use the 1Password Connect of the bootstrap cluster (`opc.o11y.futo.network`), which external-secrets reaches over the NetBird mesh. The controller pod has a Multus egress interface and resolves the endpoint through mesh DNS. Nearly every app above gets its credentials this way. `mise run //bootstrap:resources` puts the auth token from 1Password into the cluster.
+- external-secrets: syncs Infisical secrets into Kubernetes Secrets through two cluster secret stores, `infisical` (the `observability` project, this environment's `/tf`) and `infisical-shared` (the `shared` project). Both log in with the Universal Auth client credentials of the cluster's identity, which `mise run //bootstrap:resources` puts into the `external-secrets` namespace. The controller reaches Infisical on the bootstrap cluster (`infisical.futo.network`) over the NetBird mesh: the pod has a Multus egress interface and resolves the name through mesh DNS. Nearly every app above gets its credentials this way.
 - Multus: a meta-CNI that gives pods opt-in secondary interfaces. The only attachment at this time is `netbird-egress`, which external-secrets and gatus use.
 - gatus: the status page at `gatus.<mesh-domain>`. It probes the HTTPRoutes on both gateways, which its sidecar discovers. It also probes the 1Password Connect of every project on the bootstrap cluster (`opc.<project>.futo.network/heartbeat`). These probes are static and go over the `netbird-egress` leg. The results are scraped as `gatus_results_*`. The alert bundle of the bootstrap project pages on the Connect probes of production.
 - grafana-operator: manages the Grafana instance, and also the dashboard and datasource resources. The VictoriaMetrics chart provisions these resources.

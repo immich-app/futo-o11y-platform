@@ -52,7 +52,7 @@ metadata:
 spec:
   secretStoreRef:
     kind: ClusterSecretStore
-    name: onepassword
+    name: infisical
   target:
     name: fmeet-o11y-registry
     template:
