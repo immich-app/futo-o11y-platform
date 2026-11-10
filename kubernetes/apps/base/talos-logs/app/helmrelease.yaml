@@ -15,6 +15,12 @@ spec:
     kind: OCIRepository
     name: talos-logs
   interval: 1h
+  # The pinned clusterIP can fail to allocate on a first try (the allocator
+  # with two ServiceCIDRs). Flux leaves a failed install alone until the spec
+  # changes, and the shared patch only sets retries for upgrades.
+  install:
+    remediation:
+      retries: 3
   values:
     fullnameOverride: talos-logs
 
