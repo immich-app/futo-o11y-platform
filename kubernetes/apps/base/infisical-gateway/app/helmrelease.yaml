@@ -38,18 +38,12 @@ spec:
     podAnnotations:
       k8s.v1.cni.cncf.io/networks: kube-system/netbird-egress
     # Merged into the chart's defaults (runAsNonRoot, runAsUser and fsGroup
-    # 1000, which keep the PVC's credential writable) to pass the restricted
-    # Pod Security level.
-    podSecurityContext:
-      seccompProfile:
-        type: RuntimeDefault
+    # 1000, which keep the PVC's credential writable).
     securityContext:
       allowPrivilegeEscalation: false
       capabilities:
         drop:
           - ALL
-      seccompProfile:
-        type: RuntimeDefault
   postRenderers:
     - kustomize:
         patches:
