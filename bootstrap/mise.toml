@@ -94,9 +94,9 @@ run = [
 # kustomize/ holds the manifests with ${...} placeholders; infisical run puts
 # the observability project's <env>:/tf (which imports global) and <env>:/ci
 # into the environment and flux envsubst fills them in, failing on a missing
-# one. The client credentials carry the cluster name in Infisical, so they
-# are mapped to the placeholder names first. Needs an `infisical login`
-# session on the mesh.
+# one. The client credentials carry the cluster name in Infisical and the
+# Connect token's name is no shell variable name, so they are mapped to the
+# placeholder names first. Needs an `infisical login` session on the mesh.
 set -euo pipefail
 : "${ENVIRONMENT:?set ENVIRONMENT=staging (or production) first}"
 export INFISICAL_DOMAIN="${INFISICAL_DOMAIN:-https://infisical.futo.network}"
@@ -107,9 +107,11 @@ kustomize build kustomize | infisical run --silent --projectId "$project_id" --e
   cluster="O11Y_$(printf "%s" "$ENVIRONMENT_SHORT" | tr "[:lower:]" "[:upper:]")"
   INFISICAL_K8S_CLIENT_ID="$(printenv "INFISICAL_K8S_CLIENT_ID_$cluster" || true)"
   INFISICAL_K8S_CLIENT_SECRET="$(printenv "INFISICAL_K8S_CLIENT_SECRET_$cluster" || true)"
+  ONEPASSWORD_CONNECT_TOKEN="$(printenv 1PASS_CONNECT_O11Y_READ || true)"
   : "${INFISICAL_K8S_CLIENT_ID:?INFISICAL_K8S_CLIENT_ID_$cluster is not in observability $ENVIRONMENT_SHORT:/ci (core-infra-tf infisical/instance)}"
   : "${INFISICAL_K8S_CLIENT_SECRET:?INFISICAL_K8S_CLIENT_SECRET_$cluster is not in observability $ENVIRONMENT_SHORT:/ci (core-infra-tf infisical/instance)}"
-  export INFISICAL_K8S_CLIENT_ID INFISICAL_K8S_CLIENT_SECRET
+  : "${ONEPASSWORD_CONNECT_TOKEN:?1PASS_CONNECT_O11Y_READ is not in observability $ENVIRONMENT_SHORT:/tf}"
+  export INFISICAL_K8S_CLIENT_ID INFISICAL_K8S_CLIENT_SECRET ONEPASSWORD_CONNECT_TOKEN
   flux envsubst --strict
 ' | kubectl apply --server-side --force-conflicts --filename -
 ''',
