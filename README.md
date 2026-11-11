@@ -22,7 +22,6 @@ terraform/modules/
 ├── root.hcl                  # included by every module: S3 backend + per-env .terragrunt-cache/<env>
 ├── ovh/account/              # cloud project, vRack, private network, CPs, workers, IPLB, DNS
 ├── netbird/cluster/          # per-env mesh: vRack route, mesh-gateway VIP + DNS, pod egress, policies
-├── grafana/cluster/          # Grafana service account for the Rootly integration
 ├── rootly/cluster/           # Rootly service, heartbeats, alert sources, Zulip workflows, status page
 ├── netbox/cluster/           # IPAM registration of the ranges the other modules allocate
 ├── talos/cluster/            # Talos secrets bundle (state only), read by topf

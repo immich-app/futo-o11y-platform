@@ -99,7 +99,7 @@ export ENVIRONMENT=staging
    1. `//bootstrap:etcd` bootstraps etcd on the first control plane. It connects to the private IP of that node, so your NetBird client must have the route to the vRack. If the etcd bootstrap does not complete within 20 minutes, the task stops.
    2. `//bootstrap:kubeconfig --direct` writes the kubeconfig (see [Cluster access](#cluster-access)). It points the kubeconfig at the first control plane, because the mesh gateway does not exist yet.
    3. `//bootstrap:ready` waits until every node in `topf.yaml` is registered and `Ready`. If a node does not join within 20 minutes, the task stops and names it.
-   4. `//bootstrap:resources` applies the namespaces, the `bootstrap-settings` ConfigMap and the bootstrap Secrets in `bootstrap/kustomize`, filled from the `observability` Infisical project. The Secrets are the NetBird routing-peer key and the Infisical client credentials for external-secrets; every other Secret is an ExternalSecret. Sign in to Infisical first (see [Cluster access](#cluster-access)).
+   4. `//bootstrap:resources` applies the namespaces, the `bootstrap-settings` ConfigMap and the bootstrap Secrets in `bootstrap/kustomize`, filled from the `observability` Infisical project. The Secrets are the NetBird routing-peer key and the Infisical client credentials for external-secrets. Every other Secret comes from an ExternalSecret, except the ones an operator creates, such as the `grafana-rootly-token` of the grafana-operator. Sign in to Infisical first (see [Cluster access](#cluster-access)).
    5. `//bootstrap:crds` creates the missing CRDs of the charts in `bootstrap/crds.yaml`: the Prometheus Operator CRDs and the grafana-operator CRDs. Apps that only use these CRDs need no Flux `dependsOn` on these charts. Existing CRDs belong to Flux, so the task does not change them.
    6. `//bootstrap:apps` installs CoreDNS, the Flux Operator and the FluxInstance with helmfile (`bootstrap/helmfile.yaml`). The chart versions and values come from the Flux apps, so Flux takes over the same releases.
 
@@ -194,7 +194,7 @@ Run the commands from the root of the repository, with `ENVIRONMENT` set to the 
    ```
 
 3. Configure the nodes and bootstrap the cluster: run steps 5 and 6 of [Apply order](#apply-order). The bootstrap writes a new talosconfig and kubeconfig from the new bundle.
-4. When Grafana is up, apply the Grafana module with `mise run //terraform/modules/grafana/cluster:apply`. Then install the new token in Rootly, as [Alerting](06-dashboards-and-alerts-guide.md#alerting) describes. The old token was in the old Grafana database.
+4. When Grafana is up, the grafana-operator creates the `rootly` service account and a new token, and a PushSecret writes the token to Infisical. Install that token in Rootly, as [Alerting](06-dashboards-and-alerts-guide.md#alerting) describes. The old token was in the old Grafana database.
 5. When GlitchTip is up, repeat the sign-in setup in [GlitchTip](04-application-architecture-guide.md#glitchtip). GlitchTip keeps its Zitadel provider in its database, which the rebuild deletes.
 6. In the NetBird dashboard, delete the old peers of the nodes. The Talos setup key is not ephemeral, so each node joins as a new peer, and its old peer stays.
 

@@ -24,8 +24,6 @@ inputs = {
   ovh_application_secret = get_env("OVH_APPLICATION_SECRET")
   ovh_consumer_key       = get_env("OVH_CONSUMER_KEY")
 
-  grafana_admin_password = get_env("GRAFANA_ADMIN_PASSWORD")
-
   netbird_tf_pat = get_env("NETBIRD_TF_PAT")
 
   netbox_url   = get_env("NETBOX_URL")
