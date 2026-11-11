@@ -13,9 +13,6 @@ patchesDir: ../patches
 # Resolved on PATH (talos/bin, added by .mise/config.toml).
 secretsProvider: talos-secrets
 data:
-  # The //talos tasks set the env var from Infisical. Resolving it through vals
-  # makes topf redact the key in diffs.
-  netbirdSetupKey: ref+envsubst://$NETBIRD_TALOS_SETUP_KEY
   privateNetwork: 10.150.100.0/24
   privateGateway: 10.150.100.1
   controlplaneIps:

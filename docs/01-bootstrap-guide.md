@@ -153,7 +153,7 @@ talosctl -n 10.150.200.10 health   # any CP private IP. The talosconfig also lis
 
 ## Apply guardrails
 
-- Run `mise run //talos:diff` before every apply. If the configuration of a node will change, the task exits with code 2. topf redacts the Talos secrets and the NetBird setup key in each diff. `topf.yaml` reads the key through a vals reference, and topf redacts every value that vals resolves. During a key rotation, the old key can show in the diff, because the node still has it. A rotation replaces the key in Terraform, which deletes the old key in NetBird, so the old key no longer works.
+- Run `mise run //talos:diff` before every apply. If the configuration of a node will change, the task exits with code 2. topf redacts the Talos secrets in each diff, but not the NetBird setup key. If a diff changes the netbird patch, for example during a key rotation, the keys show in it. Do not share such a diff. A rotation replaces the key in Terraform, which deletes the old key in NetBird, so the old key no longer works.
 - `//talos:apply` changes one node at a time. topf shows the diff of each node and asks before it applies the change. It applies with `auto` and waits until the node is ready again before it continues.
 - Talos 1.14 applies most changes without a reboot, and it no longer reports whether a change needs one. If a change needs a reboot, the nodes reboot one at a time.
 - If a change needs a reboot, apply it to the elected NetBird routing peer last (`-- --nodes-filter`). A reboot of that peer drops the vRack route until NetBird elects another peer.
