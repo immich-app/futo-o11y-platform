@@ -74,7 +74,10 @@ jobs:
           sudo netbird service start
 
       # Returns once the client is connected to management; netbird reads NB_* flags.
+      # Without a setup key it waits for an interactive login, so an unset
+      # secret fails the step at the timeout instead of holding the job.
       - name: Join NetBird
+        timeout-minutes: 5
         env:
           NB_SETUP_KEY: ${{ matrix.environment == 'production' && secrets.NETBIRD_O11Y_CI_SETUP_KEY_PROD || secrets.NETBIRD_O11Y_CI_SETUP_KEY_STAGING }}
           NB_HOSTNAME: gha-plan-${{ matrix.environment }}-${{ github.run_id }}
