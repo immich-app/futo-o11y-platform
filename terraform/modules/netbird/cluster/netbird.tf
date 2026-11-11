@@ -272,7 +272,7 @@ data "netbird_group" "bootstrap_opc" {
 }
 
 # Egress leaves masqueraded as the node peer -> nodes are the source; also pushes them the opc /32 route.
-# gatus probes every project's Connect server over it.
+# gatus probes the other projects' Connect servers over it.
 resource "netbird_policy" "talos_to_bootstrap_opc" {
   name    = "o11y-${var.env}-talos-to-bootstrap-opc"
   enabled = true
