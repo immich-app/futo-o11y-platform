@@ -9,6 +9,7 @@ resources:
   - ../../base/grafana-operator
   - ../../base/grafana-postgres
   - ../../base/grafana
+  - ../../base/grafana-rootly
   - ../../base/victoria-metrics
   - ../../base/victoria-metrics-users
   - ../../base/victoria-metrics-mcp
