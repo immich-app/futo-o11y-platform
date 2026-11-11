@@ -14,8 +14,8 @@ metadata:
 spec:
   replicaCount: 1
   remoteWrite:
-    - url: http://vtinsert-victoria-traces-a.o11y.svc:10481/insert/native
-    - url: http://vtinsert-victoria-traces-b.o11y.svc:10481/insert/native
+    - url: http://vtinsert-victoria-traces-a.o11y.svc:10481/insert/opentelemetry/v1/traces
+    - url: http://vtinsert-victoria-traces-b.o11y.svc:10481/insert/opentelemetry/v1/traces
   storage:
     volumeClaimTemplate:
       spec:
@@ -45,8 +45,8 @@ metadata:
 spec:
   replicaCount: 1
   remoteWrite:
-    - url: http://vtinsert-victoria-traces-a.o11y.svc:10481/insert/native
-    - url: http://vtinsert-victoria-traces-b.o11y.svc:10481/insert/native
+    - url: http://vtinsert-victoria-traces-a.o11y.svc:10481/insert/opentelemetry/v1/traces
+    - url: http://vtinsert-victoria-traces-b.o11y.svc:10481/insert/opentelemetry/v1/traces
   storage:
     volumeClaimTemplate:
       spec:
