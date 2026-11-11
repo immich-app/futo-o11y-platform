@@ -1,5 +1,6 @@
-# The same items as onepassword.tf, in the observability project's /tf folder
-# of this environment, until 1Password is retired.
+# Publishes the heartbeat ping credentials and the per-project alert URLs to
+# the observability project's /tf folder of this environment, for the
+# rootly-heartbeat and rootly-alerts-* ExternalSecrets.
 data "infisical_projects" "observability" {
   slug = "observability"
 }

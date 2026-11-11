@@ -40,9 +40,10 @@ TALOSCONFIG = "{{config_root}}/.private/{{ get_env(name='ENVIRONMENT', default='
 INFISICAL_DOMAIN = "https://infisical.futo.network"
 INFISICAL_HOST = "{{ env.INFISICAL_DOMAIN }}"
 
-# Maps long env names (development/staging/production) to the short suffixes
-# used by 1Password vault paths and Infisical environment slugs (dev/staging/prod).
-ENVIRONMENT_SHORT = "{% set e = get_env(name='ENVIRONMENT', default='development') %}{% if e == 'development' or e == '' %}dev{% elif e == 'production' %}prod{% else %}{{ e }}{% endif %}"
+# The Infisical environment slug of $ENVIRONMENT, for task scripts.
+ENVIRONMENT_SHORT = "{{ vars.env_short }}"
+# The modules' env variable and root.hcl's state key and working directory.
+TF_VAR_env = "{% set e = get_env(name='ENVIRONMENT', default='') %}{% if e == '' %}development{% else %}{{ e }}{% endif %}"
 
 # Rendered at the root, so {{config_root}} here is the repo root from any subproject.
 [vars]
@@ -57,24 +58,30 @@ pin_fleet = "yq '(select(.kind == \"GrafanaDashboard\") | .spec.json) |= (fromjs
 # The sync-job emits the kube-prometheus bundle in map order; sort documents so an unchanged
 # upstream renders byte-identical and the artifact's content layer keeps its digest.
 sort_docs = "yq eval-all '[.] | sort_by(.metadata.name) | .[] | splitDoc'"
-# CI authenticates with a service-account token, which op rejects alongside --account.
-op_account = "{% if get_env(name='OP_SERVICE_ACCOUNT_TOKEN', default='') == '' %}--account 'team-futo.1password.com' {% endif %}"
-# The onepassword provider treats an OP_SERVICE_ACCOUNT_TOKEN in its environment
-# as a credential that conflicts with the explicit Connect ones, so op run keeps
-# it for itself and terragrunt runs without it.
-tg = "op run {{vars.op_account}}'--env-file={{config_root}}/deployment/.env' -- env -u OP_SERVICE_ACCOUNT_TOKEN terragrunt"
-# INFISICAL_TOKEN for the modules' infisical provider: CI exports it from its
-# OIDC login; otherwise the operator's `infisical login` session supplies it
-# (and starts the login when there is none). Only plan/apply/destroy configure
-# providers, so init and output run without it.
+# Maps long env names (development/staging/production) to the short suffixes
+# used by the Infisical environment slugs (dev/staging/prod).
+env_short = "{% set e = get_env(name='ENVIRONMENT', default='development') %}{% if e == 'development' or e == '' %}dev{% elif e == 'production' %}prod{% else %}{{ e }}{% endif %}"
+# Infisical project IDs (core-infra-tf infisical/instance).
+infisical_observability = "12d6474a-148e-4170-ae08-e24e1232a116"
+infisical_shared = "fe818c25-3e88-4d62-914e-df845b95c535"
+# INFISICAL_TOKEN for `infisical run` and the modules' infisical provider: CI
+# exports it from its OIDC login; otherwise the operator's `infisical login`
+# session supplies it (and starts the login when there is none).
 infisical_env = "{% if get_env(name='INFISICAL_TOKEN', default='') == '' %}INFISICAL_TOKEN=\"$(infisical user get token --plain)\" {% endif %}"
-tg_rw = "{{vars.infisical_env}}{{vars.tg}}"
+# Terragrunt gets the shared project's global /tf first, then this
+# environment's /tf of the observability project (which imports its global
+# /tf and wins on a name both hold). core-infra-tf lets the o11y identities read
+# their shared names in global only, so that run cannot use env_short.
+# root.hcl maps the names to the module inputs and the state backend.
+# --log-level keeps a LOG_LEVEL=debug meant for another tool from making
+# infisical log every secret it injects. infisical run exits 1 for any failed
+# command, so terragrunt's other exit codes (plan -detailed-exitcode) are lost.
+tg = "{{vars.infisical_env}}infisical run --silent --log-level warn --projectId {{vars.infisical_shared}} --env global --path /tf -- infisical run --silent --log-level warn --projectId {{vars.infisical_observability}} --env {{vars.env_short}} --path /tf -- terragrunt"
 
 # Escape hatch for terragrunt subcommands the tasks below don't cover
 # (state rm/import/force-unlock, ...); operates on the caller's directory.
-# import configures providers, so it gets the Infisical token too.
 [tasks.tg]
-run = "{{vars.tg_rw}}"
+run = "{{vars.tg}}"
 description = "Wrapper for terragrunt"
 dir = "{{cwd}}"
 
@@ -88,15 +95,15 @@ run = "{{vars.tg}} run -- init -reconfigure"
 description = "Init this module"
 
 [task_templates."tg:plan"]
-run = "{{vars.tg_rw}} run -- plan"
+run = "{{vars.tg}} run -- plan"
 description = "Plan this module"
 
 [task_templates."tg:apply"]
-run = "{{vars.tg_rw}} run -- apply"
+run = "{{vars.tg}} run -- apply"
 description = "Apply this module"
 
 [task_templates."tg:destroy"]
-run = "{{vars.tg_rw}} run -- destroy"
+run = "{{vars.tg}} run -- destroy"
 description = "Destroy this module"
 
 [task_templates."tg:output"]

@@ -26,14 +26,14 @@ If a cluster is not on the mesh, use the internet path. You can use both paths a
 | Mesh gateway   | `vmauth.staging.o11y.futo.network` | `vmauth.o11y.futo.network` |
 | Public gateway | `vmauth.staging.futostatus.com`    | `vmauth.futostatus.com`    |
 
-The shared 1Password vault of each environment (`shared_tf_staging` / `shared_tf_prod`) also holds both gateway URLs, next to the bearer token. So a consuming cluster can read its endpoint from the vault and does not have to hardcode the hostname:
+The `shared` Infisical project also holds both gateway URLs, in the `/tf` folder of each environment (`staging` / `prod`), next to the bearer token. So a consuming cluster can read its endpoint from Infisical and does not have to hardcode the hostname:
 
-| Item                                     | Value (field `password`)       |
+| Secret                                   | Value                          |
 | ---------------------------------------- | ------------------------------ |
 | `O11Y_VICTORIAMETRICS_VMAUTH_MESH_URL`   | `https://vmauth.<mesh-domain>` |
 | `O11Y_VICTORIAMETRICS_VMAUTH_PUBLIC_URL` | `https://vmauth.<app-domain>`  |
 
-Each item holds the bare origin: the scheme and the host, with no path. Append the insert path or the select path for your shipper. The Terraform module `deployment/modules/victoria-metrics/cluster` manages these items. Terraform also generates the token item, in the `shared-generated-secrets` module of core-infra-tf (`deployment/modules/shared/1password/futo-account/shared-secrets.tf`). That module makes a separate random value in each of `shared_tf_prod`, `shared_tf_staging` and `shared_tf_dev`.
+Each secret holds the bare origin: the scheme and the host, with no path. Append the insert path or the select path for your shipper. The Terraform module `deployment/modules/victoria-metrics/cluster` writes these secrets. Terraform also generates the token, in the `shared-generated-secrets` module of core-infra-tf (`deployment/live/shared/1password/futo-account/shared-secrets.tf`). That module makes a separate random value in each of `shared_tf_prod`, `shared_tf_staging` and `shared_tf_dev`, and writes each value to the `shared` Infisical project too.
 
 The metrics remote-write path is the same on every host:
 
@@ -76,7 +76,7 @@ spec:
 
 ## Option B: over the internet
 
-The public gateway rejects anonymous requests, so this path requires a shared bearer token. The token is in 1Password as the item `O11Y_VICTORIAMETRICS_VMAUTH_PASSWORD` (field `password`). It is in the same vault as the gateway URL items above.
+The public gateway rejects anonymous requests, so this path requires a shared bearer token. The token is in 1Password as the item `O11Y_VICTORIAMETRICS_VMAUTH_PASSWORD` (field `password`). It is in the `shared_tf_<env>` 1Password vault, and in the same Infisical folder as the gateway URLs above.
 
 A cluster that can read the vault pulls the token with an ExternalSecret. As an alternative, it injects the token from Terraform with an `op://shared_tf_<env>/O11Y_VICTORIAMETRICS_VMAUTH_PASSWORD/password` reference. That reference must match the gateway that the cluster ships to: `shared_tf_prod` for production, as yucca and bootstrap do. Do not make a copy of the token by hand. A hand-made copy goes stale at the next rotation.
 
@@ -326,7 +326,7 @@ Logs carry the same identity labels as metrics. The shipper stamps them as field
 
 Instead, a client-side shipper gets its own write-only user on the public gateway. Today, that shipper is the Harbor mobile app. `kubernetes/apps/base/victoria-metrics-users/app/vmuser-client-logs.yaml` defines this user:
 
-- Token: the 1Password item `O11Y_VICTORIALOGS_CLIENT_TOKEN`, in the same `shared_tf_<env>` vault as the gateway URLs. The `shared-generated-secrets` module of core-infra-tf generates it, with one value per environment. The token allows nothing but the two insert paths below.
+- Token: the 1Password item `O11Y_VICTORIALOGS_CLIENT_TOKEN`, in the `shared_tf_<env>` vault. The `shared-generated-secrets` module of core-infra-tf generates it, with one value per environment. The token allows nothing but the two insert paths below.
 - Paths: `https://vmauth.<app-domain>/client/harbor-mobile/insert/jsonline` for [JSON lines](https://docs.victoriametrics.com/victorialogs/data-ingestion/#json-stream-api), which need no SDK, and `.../client/harbor-mobile/insert/opentelemetry/v1/logs` for OTLP. `vmauth` strips the `/client/<name>/` prefix before the request reaches VictoriaLogs. The prefix lets the gateway rate limit these paths on their own. `httproute-client-logs.yaml` sets a local request limit per Envoy replica, answered with `429`. It also sets a 1 MiB cap per request, answered with `413`. OTLP is protobuf only. VictoriaLogs rejects a JSON-encoded OTLP body, so a hand-rolled client posts JSON lines.
 - Identity fields: these are pinned on the server side as `project=harbor, cluster=harbor-mobile, env=<staging|prod>, provider=mobile, region=world`. The log stream is keyed on `project,cluster,env`. VictoriaLogs reads query args before `VL-*` headers, and the args of the gateway come first. So a client cannot relabel itself into another project or create a stream per device. The `AccountID`/`ProjectID` headers are forced to the single logs tenant. Anything else that the app sends (for example `platform`, `app_version` or `device_id`) is stored as a regular field and stays queryable.
 

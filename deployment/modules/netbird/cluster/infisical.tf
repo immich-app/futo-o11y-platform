@@ -1,5 +1,6 @@
-# The same items as onepassword.tf, in the observability project's /tf folder
-# of this environment, until 1Password is retired.
+# Publishes the setup keys to the observability project's /tf folder of this
+# environment, for the tools that use them outside Terraform: topf
+# (//talos tasks) and //bootstrap:resources.
 data "infisical_projects" "observability" {
   slug = "observability"
 }

@@ -142,7 +142,7 @@ resource "netbird_network_resource" "k8s_gateway" {
   enabled    = true
 }
 
-# Reusable, ephemeral enrolment key for the router Pods; env vault (onepassword.tf) ->
+# Reusable, ephemeral enrolment key for the router Pods; Infisical (infisical.tf) ->
 # //bootstrap:resources -> the netbird-setup-key Secret.
 resource "netbird_setup_key" "k8s_routing_peer" {
   name           = "O11Y_${upper(var.env)}_K8S_ROUTING_PEER"
@@ -219,9 +219,9 @@ resource "netbird_policy" "yucca_to_k8s_gateway" {
   }
 }
 
-# opc egress: pods with a Multus leg in this range (netbird-egress NAD) reach the bootstrap
-# 1Password Connect. The nodes advertise it, so NetBird's own rules masquerade it out wt0 —
-# pod-CIDR traffic would be dropped.
+# Bootstrap egress: pods with a Multus leg in this range (netbird-egress NAD) reach the
+# bootstrap cluster's services (Infisical, and the Connect servers gatus probes). The nodes
+# advertise it, so NetBird's own rules masquerade it out wt0 — pod-CIDR traffic would be dropped.
 locals {
   # Registered in netbox/cluster; published to Flux via the bootstrap-settings ConfigMap.
   netbird_egress_cidr = var.env == "production" ? "10.69.2.0/24" : "10.69.3.0/24"
@@ -250,8 +250,9 @@ resource "netbird_network_resource" "k8s_egress" {
   enabled    = true
 }
 
-# CI peers (GitHub Actions runners). The workflow reads the key from this module's
-# state; it never lands in 1Password. Ephemeral: runners are transient.
+# CI peers (GitHub Actions runners). The workflow joins with this key from the
+# NETBIRD_O11Y_CI_SETUP_KEY_<ENV> repo secret, set from the ci_setup_key output.
+# Ephemeral: runners are transient.
 resource "netbird_group" "ci" {
   name = "o11y-${var.env}-ci"
 }
@@ -271,6 +272,7 @@ data "netbird_group" "bootstrap_opc" {
 }
 
 # Egress leaves masqueraded as the node peer -> nodes are the source; also pushes them the opc /32 route.
+# gatus probes every project's Connect server over it.
 resource "netbird_policy" "talos_to_bootstrap_opc" {
   name    = "o11y-${var.env}-talos-to-bootstrap-opc"
   enabled = true
@@ -282,23 +284,6 @@ resource "netbird_policy" "talos_to_bootstrap_opc" {
     enabled       = true
     bidirectional = false
     sources       = [netbird_group.talos.id]
-    destinations  = [data.netbird_group.bootstrap_opc.id]
-    ports         = ["443"]
-  }
-}
-
-# CI plans the modules whose onepassword provider talks to opc.
-resource "netbird_policy" "ci_to_bootstrap_opc" {
-  name    = "o11y-${var.env}-ci-to-bootstrap-opc"
-  enabled = true
-
-  rule {
-    name          = "ci-to-bootstrap-opc"
-    action        = "accept"
-    protocol      = "tcp"
-    enabled       = true
-    bidirectional = false
-    sources       = [netbird_group.ci.id]
     destinations  = [data.netbird_group.bootstrap_opc.id]
     ports         = ["443"]
   }

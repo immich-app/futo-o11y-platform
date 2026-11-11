@@ -6,10 +6,6 @@ terraform {
       source  = "ovh/ovh"
       version = "2.24.0"
     }
-    onepassword = {
-      source  = "1Password/onepassword"
-      version = "~> 3.3"
-    }
     infisical = {
       source  = "infisical/infisical"
       version = "~> 0.20"

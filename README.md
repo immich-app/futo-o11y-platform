@@ -26,14 +26,13 @@ deployment/modules/
 ├── rootly/cluster/           # Rootly service, heartbeats, alert sources, Zulip workflows, status page
 ├── netbox/cluster/           # IPAM registration of the ranges the other modules allocate
 ├── talos/cluster/            # Talos secrets bundle (state only), read by topf
-└── victoria-metrics/cluster/ # vmauth mesh + public URL items in the shared 1Password vault
+└── victoria-metrics/cluster/ # vmauth mesh + public URLs in the Infisical shared project
 
 talos/
 ├── <env>/topf.yaml           # nodes, versions and network values per environment
 ├── patches/                  # machine-config patches: all/, control-plane/, worker/
 ├── schematics/               # Talos Factory schematics (control plane, worker)
-├── bin/talos-secrets         # topf secrets provider: reads the bundle from Terraform state
-└── .env                      # 1Password references for `op run` (NetBird setup key)
+└── bin/talos-secrets         # topf secrets provider: reads the bundle from Terraform state
 
 bootstrap/                    # bring-up stages (mise.toml), kustomize/ (bootstrap Secrets), helmfiles for CRDs, CoreDNS + Flux
 
@@ -48,7 +47,7 @@ kubernetes/
         └── cluster-settings.yaml # per-env CLUSTER_* ConfigMap (BOOTSTRAP_* comes from Terraform)
 ```
 
-The Terraform state is in S3 under `yucca/o11y/v3/<module>/<env>`. Each environment has its own Terragrunt working directory. When you change `ENVIRONMENT`, you do not have to run init again. The secrets and the OVH and NetBird tokens come from 1Password through `op run` and `deployment/.env`.
+The Terraform state is in S3 under `yucca/o11y/v3/<module>/<env>`. Each environment has its own Terragrunt working directory. When you change `ENVIRONMENT`, you do not have to run init again. The secrets, the state bucket keys and the API tokens come from Infisical. The `//:tg` wrapper runs Terragrunt inside `infisical run`, and `deployment/modules/root.hcl` maps the Infisical names to the module inputs.
 
 > [!IMPORTANT]
-> Set `ENVIRONMENT` to `staging` or `production` before you run a task. If it is unset, the tasks read the 1Password vault and the Terraform state of the `development` environment.
+> Set `ENVIRONMENT` to `staging` or `production` before you run a task. If it is unset, the tasks read the Infisical `dev` environment and the Terraform state of the `development` environment.

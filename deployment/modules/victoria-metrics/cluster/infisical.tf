@@ -1,6 +1,5 @@
-# The same items as onepassword.tf, in the shared project's /tf folder of this
-# environment (the remote clusters read them next to the vmauth password),
-# until 1Password is retired.
+# Publishes the vmauth gateway URLs to the shared project's /tf folder of this
+# environment, where the remote clusters read them next to the vmauth password.
 data "infisical_projects" "shared" {
   slug = "shared"
 }
