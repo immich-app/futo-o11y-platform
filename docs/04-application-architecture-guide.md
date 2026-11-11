@@ -165,7 +165,7 @@ The database is the `glitchtip-postgres` CloudNativePG cluster (`kubernetes/apps
 
 The cache, the sessions and the task queue live in a Dragonfly (`glitchtip-dragonfly`), not in the Valkey of the chart. The `dragonfly-operator` in `dragonfly-system` runs this Dragonfly. Ingest accepts an event as soon as the event is in the queue. If both Dragonfly replicas are lost, the events queued since the last 15-minute snapshot are lost too.
 
-Uploads, for example sourcemaps, go to the OVH bucket for each environment, named in `CLUSTER_GLITCHTIP_S3_BUCKET`. `deployment/modules/glitchtip/cluster` creates the bucket with the same user split as the backup buckets. A keyless owner user owns the bucket. GlitchTip writes as a second user, whose S3 policy reaches only this bucket. The split is there because an owner ignores its policy, and the project also holds the backups. The module writes the keys of the writer user to `GLITCHTIP_S3_ACCESS_KEY_ID` / `GLITCHTIP_S3_SECRET_ACCESS_KEY` in `o11y_tf_<env>`.
+Uploads, for example sourcemaps, go to the OVH bucket for each environment, named in `CLUSTER_GLITCHTIP_S3_BUCKET`. `terraform/modules/glitchtip/cluster` creates the bucket with the same user split as the backup buckets. A keyless owner user owns the bucket. GlitchTip writes as a second user, whose S3 policy reaches only this bucket. The split is there because an owner ignores its policy, and the project also holds the backups. The module writes the keys of the writer user to `GLITCHTIP_S3_ACCESS_KEY_ID` / `GLITCHTIP_S3_SECRET_ACCESS_KEY` in `o11y_tf_<env>`.
 
 GlitchTip keeps its own `/metrics` off, because the endpoint has no authentication on the public route.
 

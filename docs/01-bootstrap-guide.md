@@ -9,7 +9,7 @@ This guide builds an environment from nothing. Terragrunt builds the infrastruct
 3. Upload the Talos OpenStack image to the regions of the environment. Only the control planes use this image:
 
    ```bash
-   mise run //deployment/modules/ovh/account:image:download && mise run //deployment/modules/ovh/account:image:upload
+   mise run //terraform/modules/ovh/account:image:download && mise run //terraform/modules/ovh/account:image:upload
    ```
 
    The image contains the `qemu-guest-agent` and `netbird` extensions.
@@ -32,7 +32,7 @@ export ENVIRONMENT=staging
 1. Apply the OVH module. It creates the cloud project, the vRack, the private network, the control-plane instances, the workers, the IPLB and the DNS records. The first run is slow. Each control-plane instance takes about 5 minutes, each bare-metal order takes 20 to 45 minutes, and the IPLB takes about 10 minutes.
 
    ```bash
-   mise run //deployment/modules/ovh/account:apply
+   mise run //terraform/modules/ovh/account:apply
    ```
 
 2. Apply the NetBird module. It creates the mesh objects of the environment, all named `o11y-<env>-*`:
@@ -45,19 +45,19 @@ export ENVIRONMENT=staging
    The module also writes both setup keys to the environment in the `observability` Infisical project (`NETBIRD_TALOS_SETUP_KEY`, `NETBIRD_K8S_ROUTING_PEER_SETUP_KEY`). topf and `//bootstrap:resources` read them from there. For a new environment, run the first apply from your own machine.
 
    ```bash
-   mise run //deployment/modules/netbird/cluster:apply
+   mise run //terraform/modules/netbird/cluster:apply
    ```
 
 3. Apply the NetBox module. It registers the ranges of the environment in IPAM: the vRack, the gateway ServiceCIDR and the CIDR for pod egress. It uses the same values that the other modules allocate.
 
    ```bash
-   mise run //deployment/modules/netbox/cluster:apply
+   mise run //terraform/modules/netbox/cluster:apply
    ```
 
 4. Apply the Talos module. It holds only the Talos secrets bundle: the cluster CAs, keys and tokens. topf reads the bundle from the Terraform state to render the machine configurations.
 
    ```bash
-   mise run //deployment/modules/talos/cluster:apply
+   mise run //terraform/modules/talos/cluster:apply
    ```
 
 5. Apply the machine configurations to the new nodes. A new node boots into maintenance mode, and it accepts an unauthenticated configuration only on its public IP, because NetBird does not run yet.
@@ -72,7 +72,7 @@ export ENVIRONMENT=staging
    2. Apply each configuration over the public IP of its node. The OVH module outputs the public IPs.
 
       ```bash
-      mise run //deployment/modules/ovh/account:output -- -json \
+      mise run //terraform/modules/ovh/account:output -- -json \
         | jq -r '[.controlplane_nodes.value, .worker_nodes.value][][] | "\(.name) \(.public_ip)"' \
         | while read -r name ip; do
             talosctl apply-config --insecure --nodes "$ip" --file "$dir/$name.yaml" </dev/null \
@@ -139,17 +139,17 @@ talosctl -n 10.150.200.10 health   # any CP private IP. The talosconfig also lis
 
 ## Common operations
 
-| Task                             | Command                                                                                                                                              |
-| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Plan/apply one module            | `mise run //deployment/modules/<m>:plan` / `mise run //deployment/modules/<m>:apply` (or `mise run :plan` from inside the module)                    |
-| Plan/apply all in dep order      | `mise run //deployment:plan` / `mise run //deployment:apply`                                                                                         |
-| Re-init backends                 | `mise run //deployment:init`                                                                                                                         |
-| Any other terragrunt subcommand  | `mise run //:tg <args>` (runs in the current directory, for example `state rm`, `import`, `force-unlock`)                                            |
-| Format HCL / Terraform           | `mise run //deployment:fmt` (`//deployment:fmt:check` reports without a change)                                                                      |
-| Format everything                | `mise run //:fmt`, which also runs `//deployment:fmt` (`//:fmt:check` reports without a change. lefthook formats docs and manifests on each commit.) |
-| Fetch kubeconfig / talosconfig   | `mise run //bootstrap:kubeconfig` / `mise run //talos:talosconfig` (see [Cluster access](#cluster-access))                                           |
-| Diff / apply Talos configuration | `mise run //talos:diff` / `mise run //talos:apply` (append `-- --nodes-filter <regex>` for some nodes)                                               |
-| Upgrade Talos or Kubernetes      | Merge the grouped Renovate PR, or bump the versions in `talos/<env>/topf.yaml` and in the tuppr upgrades together. tuppr then upgrades the nodes.    |
+| Task                             | Command                                                                                                                                             |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Plan/apply one module            | `mise run //terraform/modules/<m>:plan` / `mise run //terraform/modules/<m>:apply` (or `mise run :plan` from inside the module)                     |
+| Plan/apply all in dep order      | `mise run //terraform:plan` / `mise run //terraform:apply`                                                                                          |
+| Re-init backends                 | `mise run //terraform:init`                                                                                                                         |
+| Any other terragrunt subcommand  | `mise run //:tg <args>` (runs in the current directory, for example `state rm`, `import`, `force-unlock`)                                           |
+| Format HCL / Terraform           | `mise run //terraform:fmt` (`//terraform:fmt:check` reports without a change)                                                                       |
+| Format everything                | `mise run //:fmt`, which also runs `//terraform:fmt` (`//:fmt:check` reports without a change. lefthook formats docs and manifests on each commit.) |
+| Fetch kubeconfig / talosconfig   | `mise run //bootstrap:kubeconfig` / `mise run //talos:talosconfig` (see [Cluster access](#cluster-access))                                          |
+| Diff / apply Talos configuration | `mise run //talos:diff` / `mise run //talos:apply` (append `-- --nodes-filter <regex>` for some nodes)                                              |
+| Upgrade Talos or Kubernetes      | Merge the grouped Renovate PR, or bump the versions in `talos/<env>/topf.yaml` and in the tuppr upgrades together. tuppr then upgrades the nodes.   |
 
 ## Apply guardrails
 
@@ -189,12 +189,12 @@ Run the commands from the root of the repository, with `ENVIRONMENT` set to the 
 2. Replace the old bundle. The Talos machine secrets carry `prevent_destroy`, so you remove them from the state and apply the module to create a new bundle. Step 1 reset every node, so the old bundle no longer opens anything, and you do not need a copy of it.
 
    ```bash
-   mise -C deployment/modules/talos/cluster run //:tg -- run -- state rm talos_machine_secrets.this
-   mise run //deployment/modules/talos/cluster:apply
+   mise -C terraform/modules/talos/cluster run //:tg -- run -- state rm talos_machine_secrets.this
+   mise run //terraform/modules/talos/cluster:apply
    ```
 
 3. Configure the nodes and bootstrap the cluster: run steps 5 and 6 of [Apply order](#apply-order). The bootstrap writes a new talosconfig and kubeconfig from the new bundle.
-4. When Grafana is up, apply the Grafana module with `mise run //deployment/modules/grafana/cluster:apply`. Then install the new token in Rootly, as [Alerting](06-dashboards-and-alerts-guide.md#alerting) describes. The old token was in the old Grafana database.
+4. When Grafana is up, apply the Grafana module with `mise run //terraform/modules/grafana/cluster:apply`. Then install the new token in Rootly, as [Alerting](06-dashboards-and-alerts-guide.md#alerting) describes. The old token was in the old Grafana database.
 5. When GlitchTip is up, repeat the sign-in setup in [GlitchTip](04-application-architecture-guide.md#glitchtip). GlitchTip keeps its Zitadel provider in its database, which the rebuild deletes.
 6. In the NetBird dashboard, delete the old peers of the nodes. The Talos setup key is not ephemeral, so each node joins as a new peer, and its old peer stays.
 
@@ -202,4 +202,4 @@ Run the commands from the root of the repository, with `ENVIRONMENT` set to the 
 
 OpenTofu and Terragrunt manage the infrastructure as code. topf renders the Talos machine configurations. helmfile installs the releases that Flux needs before it starts. mise sets the tool versions and runs the tasks. The version pins live in `.mise/config.toml` and in the lock file of each module.
 
-When a command runs, the Infisical CLI (`infisical run`) injects the API credentials and the state bucket keys. `deployment/modules/root.hcl` maps them to the module inputs and the S3 backend.
+When a command runs, the Infisical CLI (`infisical run`) injects the API credentials and the state bucket keys. `terraform/modules/root.hcl` maps them to the module inputs and the S3 backend.

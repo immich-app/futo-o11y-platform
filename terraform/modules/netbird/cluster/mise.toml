@@ -6,10 +6,11 @@ extends = "tg:plan"
 
 [tasks.apply]
 extends = "tg:apply"
+wait_for = ["//terraform/modules/ovh/account:apply"]
 
 [tasks.destroy]
 extends = "tg:destroy"
-wait_for = ["//deployment/modules/ovh/account:destroy"]
+wait_for = ["//terraform/modules/netbox/cluster:destroy"]
 
 [tasks.output]
 extends = "tg:output"

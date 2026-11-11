@@ -1,8 +1,8 @@
-name: Infra (Terraform)
+name: Terraform
 
 # On PRs, plans the Terragrunt modules the PR changes and the modules that
 # depend on them; manual dispatch (drift check) plans every module. One
-# deployment tree drives both environments (ENVIRONMENT selects the state and
+# terraform tree drives both environments (ENVIRONMENT selects the state and
 # the Infisical environment), so every change plans against both. Applies stay
 # operator-run.
 #
@@ -14,15 +14,15 @@ name: Infra (Terraform)
 #   - Per-env repo secrets NETBIRD_O11Y_CI_SETUP_KEY_STAGING /
 #     NETBIRD_O11Y_CI_SETUP_KEY_PROD: the ci_setup_key output of netbird/cluster
 #     in that environment.
-#   - Re-enable the workflow: gh workflow enable deploy.yml
+#   - Re-enable the workflow: gh workflow enable terraform.yaml
 
 on:
   pull_request:
     branches: [main]
     paths:
-      - "deployment/**"
+      - "terraform/**"
       - ".mise/**"
-      - ".github/workflows/deploy.yml"
+      - ".github/workflows/terraform.yaml"
   workflow_dispatch:
 
 concurrency:
@@ -104,7 +104,7 @@ jobs:
       - name: Init
         env:
           INFISICAL_TOKEN: ${{ steps.infisical.outputs.access-token }}
-        run: mise run //deployment:init
+        run: mise run //terraform:init
 
       # A PR plans the modules it changes plus their dependents; root.hcl marks
       # the files every module depends on, so changing one plans them all. A
@@ -114,4 +114,4 @@ jobs:
         env:
           TG_FILTER: ${{ github.event_name == 'pull_request' && format('...[{0}...HEAD]', github.event.pull_request.base.sha) || '' }}
           INFISICAL_TOKEN: ${{ steps.infisical.outputs.access-token }}
-        run: mise run //deployment:plan
+        run: mise run //terraform:plan
