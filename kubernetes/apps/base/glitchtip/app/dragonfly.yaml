@@ -49,6 +49,7 @@ spec:
         requests:
           storage: 1Gi
 ---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/generators.external-secrets.io/password_v1alpha1.json
 apiVersion: generators.external-secrets.io/v1alpha1
 kind: Password
 metadata:
@@ -60,27 +61,52 @@ spec:
   noUpper: false
   allowRepeat: true
 ---
-# Generated in-cluster once. Dragonfly reads password; the chart takes the
-# whole connection string as REDIS_URL (glitchtip.valkey.existingSecret).
-# No symbols, so the password needs no escaping inside the URL.
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/external-secrets.io/pushsecret_v1alpha1.json
+# Seeds Infisical from the generator only while the secret does not exist there.
+# Infisical holds the value from then on, so a rebuilt cluster reads the same
+# password back.
+apiVersion: external-secrets.io/v1alpha1
+kind: PushSecret
+metadata:
+  name: glitchtip-dragonfly
+spec:
+  updatePolicy: IfNotExists
+  secretStoreRefs:
+    - kind: ClusterSecretStore
+      name: infisical
+  selector:
+    generatorRef:
+      apiVersion: generators.external-secrets.io/v1alpha1
+      kind: Password
+      name: glitchtip-dragonfly
+  data:
+    - match:
+        secretKey: password
+        remoteRef:
+          remoteKey: /k8s/GLITCHTIP_DRAGONFLY_PASSWORD
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/external-secrets.io/externalsecret_v1.json
+# Dragonfly reads password; the chart takes the whole connection string as
+# REDIS_URL (glitchtip.valkey.existingSecret). No symbols in the password, so
+# it needs no escaping inside the URL.
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
   name: glitchtip-dragonfly
 spec:
-  refreshInterval: "0"
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: infisical
   target:
     name: glitchtip-dragonfly
     template:
       data:
         password: "{{ .password }}"
         REDIS_URL: "redis://:{{ .password }}@glitchtip-dragonfly.o11y.svc.cluster.local:6379/0"
-  dataFrom:
-    - sourceRef:
-        generatorRef:
-          apiVersion: generators.external-secrets.io/v1alpha1
-          kind: Password
-          name: glitchtip-dragonfly
+  data:
+    - secretKey: password
+      remoteRef:
+        key: /k8s/GLITCHTIP_DRAGONFLY_PASSWORD
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/podmonitor_v1.json
 #
