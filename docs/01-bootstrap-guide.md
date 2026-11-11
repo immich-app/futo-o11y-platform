@@ -194,7 +194,7 @@ Run the commands from the root of the repository, with `ENVIRONMENT` set to the 
    ```
 
 3. Configure the nodes and bootstrap the cluster: run steps 5 and 6 of [Apply order](#apply-order). The bootstrap writes a new talosconfig and kubeconfig from the new bundle.
-4. When Grafana is up, the grafana-operator creates the `rootly` service account and a new token, and a PushSecret writes the token to Infisical. Install that token in Rootly, as [Alerting](06-dashboards-and-alerts-guide.md#alerting) describes. The old token was in the old Grafana database.
+4. In production, when Grafana is up, the grafana-operator creates the `rootly` service account and a new token, and a PushSecret writes the token to Infisical. Install that token in Rootly, as [Alerting](06-dashboards-and-alerts-guide.md#alerting) describes. The old token was in the old Grafana database.
 5. When GlitchTip is up, repeat the sign-in setup in [GlitchTip](04-application-architecture-guide.md#glitchtip). GlitchTip keeps its Zitadel provider in its database, which the rebuild deletes.
 6. In the NetBird dashboard, delete the old peers of the nodes. The Talos setup key is not ephemeral, so each node joins as a new peer, and its old peer stays.
 
