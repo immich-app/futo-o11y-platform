@@ -107,8 +107,7 @@ The `infisical` ClusterSecretStore reads this environment's `/tf` folder of the
 `o11y_tf` and `o11y_tf_<env>` items alike. The `infisical-shared` store reads
 this environment's `/tf` folder of the `shared` project. A shared name in the
 global folder needs the `infisical-shared-global` store. core-infra-tf allows
-the cluster to read those names in the global environment only. Terragrunt consumes the other items in the global folder of
-`observability`, and nothing inside the cluster reads them.
+the cluster to read those names in the global environment only.
 
 The key under `auths` must match the pull host of the `OCIRepository` exactly,
 including the port (`gitlab.futo.org:5050`, not `gitlab.futo.org`). A mismatch
