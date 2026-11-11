@@ -12,12 +12,12 @@ on:
       - main
     paths:
       - o11y/**
-      - .github/workflows/o11y.yml
+      - .github/workflows/o11y.yaml
       - .mise/config.toml
   pull_request:
     paths:
       - o11y/**
-      - .github/workflows/o11y.yml
+      - .github/workflows/o11y.yaml
       - .mise/config.toml
   workflow_dispatch:
 

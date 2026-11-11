@@ -2,7 +2,7 @@ min_version = "2026.11.3"
 monorepo_root = true
 
 [monorepo]
-config_roots = ["bootstrap", "deployment", "deployment/modules/*/*", "talos"]
+config_roots = ["bootstrap", "terraform", "terraform/modules/*/*", "talos"]
 
 [tools]
 lefthook = "2.2.2"
@@ -88,7 +88,7 @@ dir = "{{cwd}}"
 # Module tasks extend these; each runs in its own module directory. Caller args
 # append after the verb and land in tofu's argv (terragrunt run -- plan -target=...).
 # apply/destroy in the module files carry wait_for mirroring the terragrunt
-# dependency blocks, so wildcard fan-outs like //deployment/modules/...:apply
+# dependency blocks, so wildcard fan-outs like //terraform/modules/...:apply
 # cannot run out of dependency order.
 [task_templates."tg:init"]
 run = "{{vars.tg}} run -- init -reconfigure"
@@ -113,13 +113,13 @@ description = "Read outputs from this module"
 # Paths are explicit because oxfmt honours only .gitignore and .prettierignore,
 # not the global excludes that hide .private/.
 [tasks.fmt]
-depends = ["//deployment:fmt"]
-run = "oxfmt bootstrap deployment docs kubernetes o11y talos .github README.md renovate.json"
+depends = ["//terraform:fmt"]
+run = "oxfmt bootstrap terraform docs kubernetes o11y talos .github README.md renovate.json"
 description = "Format markdown, YAML, JSON, Terraform and Terragrunt files in place"
 
 [tasks."fmt:check"]
-depends = ["//deployment:fmt:check"]
-run = "oxfmt --check bootstrap deployment docs kubernetes o11y talos .github README.md renovate.json"
+depends = ["//terraform:fmt:check"]
+run = "oxfmt --check bootstrap terraform docs kubernetes o11y talos .github README.md renovate.json"
 description = "Verify markdown, YAML, JSON, Terraform and Terragrunt files are formatted"
 
 [tasks."o11y:render"]

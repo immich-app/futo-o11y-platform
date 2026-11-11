@@ -172,7 +172,7 @@ Contact points: each destination has one `GrafanaContactPoint`. Alerts go to [Ro
 
 `o11y-remote-heartbeat` in `alerts-fleet.yaml` fires only while metrics from that cluster arrive. If the cluster goes dark after the first ping of the heartbeat, the pings stop. Rootly then alerts the yucca topic within about 8 minutes, and it stays alerted until metrics return. A heartbeat that never got a ping stays waiting and cannot alert. The contact point sends no resolve message, because Rootly counts any POST as a ping.
 
-The `deployment/modules/rootly/cluster` Terraform module manages the alert sources, the per-project services, and their credentials. It writes the webhook URL of each source into the environment's 1Password vault and Infisical folder as `ROOTLY_ALERTS_<PROJECT>_URL`. The secret travels in the `secret` query parameter of that URL, because Rootly's Grafana endpoint reads it from no other place. An ExternalSecret materializes the Infisical secret into the Secret that the contact point reads through `receivers[].valuesFrom`. The value is never in git.
+The `terraform/modules/rootly/cluster` Terraform module manages the alert sources, the per-project services, and their credentials. It writes the webhook URL of each source into the environment's 1Password vault and Infisical folder as `ROOTLY_ALERTS_<PROJECT>_URL`. The secret travels in the `secret` query parameter of that URL, because Rootly's Grafana endpoint reads it from no other place. An ExternalSecret materializes the Infisical secret into the Secret that the contact point reads through `receivers[].valuesFrom`. The value is never in git.
 
 A resolved Grafana notification resolves the Rootly alert. Repeat notifications for a group that is still firing merge into its open Rootly alert by the Grafana group key. Thus each group posts to Zulip only twice: once at fire time and once at resolve time. Until escalation policies page someone, a high-urgency alert that stays open and unacknowledged also gets a daily reminder in its topic.
 
@@ -186,7 +186,7 @@ Contact points are in the shared Grafana Postgres, so every replica has the same
 
 Rootly's Grafana integration: in addition to the alert sources, Rootly has an account-level Grafana integration (Integrations > Grafana). The integration takes this cluster's Grafana URL and an Admin service account token. With it, Rootly can deep-link rules and snapshot dashboards into incidents. Rootly exposes no API or Terraform surface for it, so an operator installs it by hand once per env.
 
-The `deployment/modules/grafana/cluster` module owns the `rootly` service account and its token. It writes the token to the env vault as `ROOTLY_GRAFANA_SERVICE_ACCOUNT_TOKEN`. To install the integration, paste that token and `https://grafana.<env domain>` into Integrations > Grafana in Rootly. The module is separate from `rootly/cluster`, so a plan of `rootly/cluster` still works while Grafana is down.
+The `terraform/modules/grafana/cluster` module owns the `rootly` service account and its token. It writes the token to the env vault as `ROOTLY_GRAFANA_SERVICE_ACCOUNT_TOKEN`. To install the integration, paste that token and `https://grafana.<env domain>` into Integrations > Grafana in Rootly. The module is separate from `rootly/cluster`, so a plan of `rootly/cluster` still works while Grafana is down.
 
 Routing: one `GrafanaNotificationPolicy` routes by the `project` label first and by the `grafana_folder` label second. `project` is the same identity label that every shipper stamps on its series (see the [shipping guide](05-shipping-metrics-guide.md#labels)). If the rule sets it as a rule label, or if the query keeps it in its aggregation, the alert instance carries it. Grafana adds `grafana_folder` from the folder that each rule files into. Thus rules without a `project` label still route by their folder:
 
@@ -235,7 +235,7 @@ Rootly and Zulip show the `summary` and the `description` for every firing alert
 2. If your project has no folder yet, ask for one.
 3. File everything that you ship under your project's folder.
 4. Set `project: <project>` as a rule label on your rules. Folder routing is the fallback.
-5. Ask for your project to be added to the `projects` list of the Rootly module. After an operator applies `deployment/modules/rootly/cluster` in both environments, you get these items:
+5. Ask for your project to be added to the `projects` list of the Rootly module. After an operator applies `terraform/modules/rootly/cluster` in both environments, you get these items:
    - A Rootly alert source
    - A service
    - Zulip delivery to `yucca-alerts` under a `<project>-<env>` topic

@@ -120,7 +120,7 @@
     },
     {
       "description": "The OVH image version provisions nodes in both environments, so it moves with production and a new node never runs ahead of it",
-      "matchFileNames": ["deployment/**"],
+      "matchFileNames": ["terraform/**"],
       "matchDepNames": ["siderolabs/talos"],
       "additionalBranchPrefix": "production-",
       "semanticCommitScope": "production",
