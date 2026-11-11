@@ -289,15 +289,10 @@ resource "netbird_policy" "talos_to_bootstrap_opc" {
   }
 }
 
-# Infisical and its instance relay, both bootstrap-owned and mesh-only. Talos
-# nodes carry the pods' egress (External Secrets, the Infisical gateway); CI
-# plans the modules whose infisical provider reads the project.
+# Infisical, bootstrap-owned and mesh-only. Talos nodes carry the pods' egress
+# (External Secrets); CI reads every Terraform credential from it.
 data "netbird_group" "bootstrap_infisical" {
   name = "bootstrap-infisical-resources"
-}
-
-data "netbird_group" "bootstrap_infisical_relay" {
-  name = "bootstrap-infisical-relay-resources"
 }
 
 resource "netbird_policy" "talos_to_bootstrap_infisical" {
@@ -313,24 +308,6 @@ resource "netbird_policy" "talos_to_bootstrap_infisical" {
     sources       = [netbird_group.talos.id]
     destinations  = [data.netbird_group.bootstrap_infisical.id]
     ports         = ["443"]
-  }
-}
-
-# The gateway dials the relay (bootstrap-relay, tcp/2222) so Infisical can
-# review Kubernetes Auth logins without a route into the cluster.
-resource "netbird_policy" "talos_to_bootstrap_infisical_relay" {
-  name    = "o11y-${var.env}-talos-to-bootstrap-infisical-relay"
-  enabled = true
-
-  rule {
-    name          = "talos-to-bootstrap-infisical-relay"
-    action        = "accept"
-    protocol      = "tcp"
-    enabled       = true
-    bidirectional = false
-    sources       = [netbird_group.talos.id]
-    destinations  = [data.netbird_group.bootstrap_infisical_relay.id]
-    ports         = ["2222"]
   }
 }
 
