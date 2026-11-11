@@ -51,7 +51,7 @@ Both paths also need the mandatory identity labels. See [Labels](#labels).
 
 ## Option A: over the NetBird mesh
 
-The remote cluster must be a NetBird peer, and a NetBird ACL must permit its group to reach the mesh gateway of this cluster. Its `vmagent` must send its traffic out through a mesh interface. It must also resolve `vmauth.<mesh-domain>` through mesh DNS. The NetBird section of the [infrastructure guide](02-infrastructure-architecture-guide.md) describes how peers and ACLs are modeled. On this cluster, the reference pattern is how `external-secrets` reaches the bootstrap 1Password Connect: a Multus egress interface plus mesh DNS.
+The remote cluster must be a NetBird peer, and a NetBird ACL must permit its group to reach the mesh gateway of this cluster. Its `vmagent` must send its traffic out through a mesh interface. It must also resolve `vmauth.<mesh-domain>` through mesh DNS. The NetBird section of the [infrastructure guide](02-infrastructure-architecture-guide.md) describes how peers and ACLs are modeled. On this cluster, the reference pattern is how `external-secrets` reaches Infisical on the bootstrap cluster: a Multus egress interface plus mesh DNS.
 
 This path needs no token, because the mesh ACL is the only gate. The gateway still terminates TLS with a publicly trusted `*.<mesh-domain>` certificate. So `https://` works without a custom CA.
 

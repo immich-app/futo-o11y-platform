@@ -1,10 +1,5 @@
 # Publish the heartbeat ping credentials into the env vault so the
 # rootly-heartbeat ExternalSecret can deliver them to the Grafana contact point.
-locals {
-  # Mirrors the ENVIRONMENT_SHORT mapping in .mise/config.toml.
-  env_short = var.env == "production" ? "prod" : var.env == "development" ? "dev" : var.env
-}
-
 data "onepassword_vault" "env" {
   name = "o11y_tf_${local.env_short}"
 }
@@ -49,5 +44,5 @@ resource "onepassword_item" "grafana_alerts_url" {
   vault    = data.onepassword_vault.env.uuid
   title    = "ROOTLY_ALERTS_${upper(each.key)}_URL"
   category = "password"
-  password = "${local.grafana_webhooks_base}/notify/Service/${local.project_service_ids[each.key]}?secret=${rootly_alerts_source.grafana[each.key].secret}"
+  password = local.infisical_secrets["ROOTLY_ALERTS_${upper(each.key)}_URL"]
 }

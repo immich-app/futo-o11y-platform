@@ -7,18 +7,16 @@ metadata:
 spec:
   secretStoreRef:
     kind: ClusterSecretStore
-    name: onepassword
+    name: infisical
   target:
     name: bootstrap-o11y-bucket
   data:
     - secretKey: accesskey
       remoteRef:
-        key: FUTO_BOOTSTRAP_RELEASES_S3_READER
-        property: accesskey
+        key: FUTO_BOOTSTRAP_RELEASES_S3_READER__ACCESSKEY
     - secretKey: secretkey
       remoteRef:
-        key: FUTO_BOOTSTRAP_RELEASES_S3_READER
-        property: secretkey
+        key: FUTO_BOOTSTRAP_RELEASES_S3_READER__SECRETKEY
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: Bucket

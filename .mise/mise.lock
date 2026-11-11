@@ -118,6 +118,23 @@ checksum_source = "mise-versions"
 url = "https://github.com/home-operations/flate/releases/download/v0.7.3/flate_0.7.3_darwin_amd64.tar.gz"
 url_api = "https://api.github.com/repos/home-operations/flate/releases/assets/727305361"
 
+[[tools."github:netbirdio/netbird"]]
+version = "0.82.1"
+backend = "github:netbirdio/netbird"
+specifiers = ["v0.82.1"]
+
+[tools."github:netbirdio/netbird"."platforms.linux-arm64"]
+checksum = "sha256:8c6a4d4084e1746a3c9b86f0ce8be1ca05544ba08d7dbb78609c5c9d6b009e0e"
+checksum_source = "mise-versions"
+url = "https://github.com/netbirdio/netbird/releases/download/v0.82.1/netbird_0.82.1_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/netbirdio/netbird/releases/assets/730851852"
+
+[tools."github:netbirdio/netbird"."platforms.linux-x64"]
+checksum = "sha256:c8f10b89dfa01b8bcad5ec25b666a83e351be4e22eb784b822478b9326a35423"
+checksum_source = "mise-versions"
+url = "https://github.com/netbirdio/netbird/releases/download/v0.82.1/netbird_0.82.1_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/netbirdio/netbird/releases/assets/730851970"
+
 [[tools.helm]]
 version = "4.3.1"
 backend = "aqua:helm/helm"
@@ -167,6 +184,38 @@ checksum = "sha256:e99b669bb02729d5c4b0f5de9d830298d336d5968dcac76c7c01635f67095
 url = "https://github.com/helmfile/helmfile/releases/download/v1.8.2/helmfile_1.8.2_darwin_amd64.tar.gz"
 signer = "sigstore-oidc:https://github.com/helmfile/helmfile/.github/workflows/releaser.yaml"
 repository_ids = { repository = "474521466" }
+
+[[tools.infisical]]
+version = "0.45.4"
+backend = "github:Infisical/cli"
+specifiers = ["0.45.4"]
+
+[tools.infisical.options]
+asset_pattern = "cli_{{ version }}_{{ os(macos='darwin') }}_{{ arch(x64='amd64') }}.tar.gz"
+
+[tools.infisical."platforms.linux-arm64"]
+checksum = "sha256:fcfd91de70efdedc7f8c1b1d90a024b433bb185387fe32467d49625a3bf55379"
+checksum_source = "mise-versions"
+url = "https://github.com/Infisical/cli/releases/download/v0.45.4/cli_0.45.4_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/719101220"
+
+[tools.infisical."platforms.linux-x64"]
+checksum = "sha256:107389f4c9a0cc48023a834bb2a5bf1280c0a0e45ea7a98d13807d4def21b0a5"
+checksum_source = "mise-versions"
+url = "https://github.com/Infisical/cli/releases/download/v0.45.4/cli_0.45.4_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/719101301"
+
+[tools.infisical."platforms.macos-arm64"]
+checksum = "sha256:2c44c652b896d5d845abad46348b0b94af1b7be8846491a2501e92e2da43e257"
+checksum_source = "mise-versions"
+url = "https://github.com/Infisical/cli/releases/download/v0.45.4/cli_0.45.4_darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/719084031"
+
+[tools.infisical."platforms.macos-x64"]
+checksum = "sha256:d5f80a0d926c84f5875bf927152cadd193a769962af67a3d6f4ba3666f1140ae"
+checksum_source = "mise-versions"
+url = "https://github.com/Infisical/cli/releases/download/v0.45.4/cli_0.45.4_darwin_amd64.tar.gz"
+url_api = "https://api.github.com/repos/Infisical/cli/releases/assets/719084033"
 
 [[tools.jq]]
 version = "1.8.2"
@@ -306,6 +355,9 @@ version = "0.74.0"
 aube = { path = "locks/oxfmt/0.74.0", digest = "sha256:b7977a181c0e11736ab44f83b24a4b862754204c253477e29d1758b0f898aad7" }
 backend = "npm:oxfmt"
 specifiers = ["0.74.0"]
+
+[tools.oxfmt.provenance]
+repository = "github.com/oxc-project/oxc"
 
 [[tools.pipx]]
 version = "1.18.14"

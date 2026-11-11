@@ -87,7 +87,7 @@ spec:
         severity: warning
       annotations:
         summary: ExternalSecret {{ $labels.exported_namespace }}/{{ $labels.name }} in {{ $labels.cluster }} has not synced for 15m.
-        description: Workloads keep the last synced copy, but rotated or new values stop arriving. When every ExternalSecret in a cluster fails together, its secret store is unreachable (on o11y, 1Password Connect at opc.o11y.futo.network over NetBird). A single failure usually means a missing or renamed 1Password item; kubectl describe the ExternalSecret for the error.
+        description: Workloads keep the last synced copy, but rotated or new values stop arriving. When every ExternalSecret in a cluster fails together, its secret store is unreachable (on o11y, Infisical at infisical.futo.network over NetBird). A single failure usually means a missing or renamed Infisical secret; kubectl describe the ExternalSecret for the error.
       execErrState: Error
       noDataState: OK
       data:

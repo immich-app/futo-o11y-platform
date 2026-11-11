@@ -1,0 +1,22 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../base
+  # Flux owns these namespaces; //bootstrap:resources builds with
+  # --load-restrictor LoadRestrictionsNone so they are applied as-is.
+  - ../../../kubernetes/apps/staging/external-secrets/namespace.yaml
+  - ../../../kubernetes/apps/staging/flux-system/namespace.yaml
+  - ../../../kubernetes/apps/staging/netbird/namespace.yaml
+patches:
+  - target:
+      kind: Secret
+      name: infisical-universal-auth
+    patch: |-
+      - op: replace
+        path: /stringData/clientId
+        value: ${INFISICAL_K8S_CLIENT_ID_O11Y_STAGING}
+      - op: replace
+        path: /stringData/clientSecret
+        value: ${INFISICAL_K8S_CLIENT_SECRET_O11Y_STAGING}

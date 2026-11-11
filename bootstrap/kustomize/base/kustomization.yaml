@@ -1,0 +1,12 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+# The two Secrets nothing in the cluster can fetch for itself: External
+# Secrets logs in with one, and the mesh DNS it resolves Infisical through
+# needs the other. Every other Secret is an ExternalSecret. The ${...}
+# placeholders are Infisical secret names; the environment overlays set the
+# ones that carry the cluster name and add Flux's own Namespace manifests.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ./external-secrets
+  - ./netbird

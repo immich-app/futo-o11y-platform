@@ -91,19 +91,22 @@ Such a project thus needs two additions:
   builds the docker configuration around them from a template. See the
   `ExternalSecret` in `base/tenants/fmeet/bundle.yaml`.
 
-Both items go in the global `o11y_tf` vault, and the cluster reads them through
-the `onepassword` store. They do not go in `shared_tf`, because that vault is
-for credentials that more than one project consumes. This cluster is the only
-thing that pulls the bundle.
+Both items go in the global `o11y_tf` vault, which core-infra-tf mirrors into the
+`observability` Infisical project, and the cluster reads them through the
+`infisical` store. They do not go in `shared_tf`, because that vault is for
+credentials that more than one project consumes. This cluster is the only thing
+that pulls the bundle.
 
 They also do not go in a per-environment o11y vault. There is one fmeet project
 registry, so there is one token, and it is the same in every environment. The
 `o11y-manual-secrets` module in core-infra-tf declares them, and an operator
 fills them in by hand in `o11y_tf_manual`.
 
-The `onepassword` ClusterSecretStore reads the global `o11y_tf` vault. The other
-stores read `shared_tf` and the per-environment o11y vaults. Terragrunt consumes
-the other items in the global vault, and nothing inside the cluster reads them.
+The `infisical` ClusterSecretStore reads this environment's `/tf` folder of the
+`observability` project, which imports the global folder, so it sees the
+`o11y_tf` and `o11y_tf_<env>` items alike. The `infisical-shared` store reads
+the `shared` project. Terragrunt consumes the other items in the global folder,
+and nothing inside the cluster reads them.
 
 The key under `auths` must match the pull host of the `OCIRepository` exactly,
 including the port (`gitlab.futo.org:5050`, not `gitlab.futo.org`). A mismatch
@@ -168,7 +171,7 @@ Contact points: each destination has one `GrafanaContactPoint`. Alerts go to [Ro
 
 `o11y-remote-heartbeat` in `alerts-fleet.yaml` fires only while metrics from that cluster arrive. If the cluster goes dark after the first ping of the heartbeat, the pings stop. Rootly then alerts the yucca topic within about 8 minutes, and it stays alerted until metrics return. A heartbeat that never got a ping stays waiting and cannot alert. The contact point sends no resolve message, because Rootly counts any POST as a ping.
 
-The `deployment/modules/rootly/cluster` Terraform module manages the alert sources, the per-project services, and their credentials. It writes the webhook URL of each source into the env 1Password vault as `ROOTLY_ALERTS_<PROJECT>_URL`. The secret travels in the `secret` query parameter of that URL, because Rootly's Grafana endpoint reads it from no other place. An ExternalSecret materializes the vault item into the Secret that the contact point reads through `receivers[].valuesFrom`. The value is never in git.
+The `deployment/modules/rootly/cluster` Terraform module manages the alert sources, the per-project services, and their credentials. It writes the webhook URL of each source into the environment's 1Password vault and Infisical folder as `ROOTLY_ALERTS_<PROJECT>_URL`. The secret travels in the `secret` query parameter of that URL, because Rootly's Grafana endpoint reads it from no other place. An ExternalSecret materializes the Infisical secret into the Secret that the contact point reads through `receivers[].valuesFrom`. The value is never in git.
 
 A resolved Grafana notification resolves the Rootly alert. Repeat notifications for a group that is still firing merge into its open Rootly alert by the Grafana group key. Thus each group posts to Zulip only twice: once at fire time and once at resolve time. Until escalation policies page someone, a high-urgency alert that stays open and unacknowledged also gets a daily reminder in its topic.
 
@@ -235,9 +238,9 @@ Rootly and Zulip show the `summary` and the `description` for every firing alert
    - A Rootly alert source
    - A service
    - Zulip delivery to `yucca-alerts` under a `<project>-<env>` topic
-   - The `ROOTLY_ALERTS_<PROJECT>_URL` vault item
+   - The `ROOTLY_ALERTS_<PROJECT>_URL` item in the vault and in Infisical
 6. Open a second change in this repo with the `rootly-<project>` contact point, its ExternalSecret and the two routes in `base/grafana/app`.
-7. Merge that change only after the apply, because the ExternalSecret needs the vault item (bootstrap: #388, then #389).
+7. Merge that change only after the apply, because the ExternalSecret needs the Infisical secret (bootstrap: #388, then #389).
 8. Query `VictoriaMetrics Fleet`, never the default `VictoriaMetrics` datasource. The default sees only o11y's own tenant (see Datasources and tenants).
 9. In alerts, set `datasourceUid: VictoriaMetricsFleet` on every query node.
 10. In dashboards, use a `$datasource` variable with the regex `/^VictoriaMetrics Fleet$/`.

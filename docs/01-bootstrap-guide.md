@@ -100,7 +100,7 @@ export TF_VAR_env=staging
    1. `//bootstrap:etcd` bootstraps etcd on the first control plane. It connects to the private IP of that node, so your NetBird client must have the route to the vRack. If the etcd bootstrap does not complete within 20 minutes, the task stops.
    2. `//bootstrap:kubeconfig --direct` writes the kubeconfig (see [Cluster access](#cluster-access)). It points the kubeconfig at the first control plane, because the mesh gateway does not exist yet.
    3. `//bootstrap:ready` waits until every node in `topf.yaml` is registered and `Ready`. If a node does not join within 20 minutes, the task stops and names it.
-   4. `//bootstrap:resources` applies the namespaces, the `bootstrap-settings` ConfigMap and the bootstrap secrets. The secrets are the OVH DNS credentials for cert-manager, the NetBird routing-peer key and the 1Password Connect token for external-secrets.
+   4. `//bootstrap:resources` applies the namespaces, the `bootstrap-settings` ConfigMap and the bootstrap Secrets in `bootstrap/kustomize`, filled from the `observability` Infisical project. The Secrets are the NetBird routing-peer key and the Infisical client credentials for external-secrets; every other Secret is an ExternalSecret. Sign in to Infisical first (see [Cluster access](#cluster-access)).
    5. `//bootstrap:crds` creates the missing CRDs of the charts in `bootstrap/crds.yaml`: the Prometheus Operator CRDs and the grafana-operator CRDs. Apps that only use these CRDs need no Flux `dependsOn` on these charts. Existing CRDs belong to Flux, so the task does not change them.
    6. `//bootstrap:apps` installs CoreDNS, the Flux Operator and the FluxInstance with helmfile (`bootstrap/helmfile.yaml`). The chart versions and values come from the Flux apps, so Flux takes over the same releases.
 
@@ -113,6 +113,8 @@ This section gives you `kubectl` and `talosctl` access to a cluster that already
 The cluster APIs are reachable only over the NetBird network. Run the NetBird client (`netbird up`) and join the FUTO NetBird account. The account puts your peer in the `yucca` group. The access policy then gives your peer the route to the vRack CIDR of the cluster. `kubectl` and `talosctl` can then reach the private IPs of the nodes.
 
 Install the 1Password CLI (`op`) and sign in to the `team-futo.1password.com` account. The tasks below read the Talos secrets bundle from the Terraform state through the `//:tg` Terragrunt wrapper. The wrapper runs `op run` to inject the state credentials. Without a signed-in `op`, the tasks cannot read the state.
+
+The bootstrap Secrets and the modules that write to Infisical (grafana, rootly, netbird, glitchtip and victoria-metrics) need an Infisical session. Sign in once with `infisical login --domain https://infisical.futo.network` while you are on the mesh. The wrapper passes your session token to Terraform for plan, apply and destroy. In CI, the plan job signs in with its GitHub OIDC token instead.
 
 Run these tasks to write the kubeconfig and the talosconfig for the environment. Run only the one that you need:
 

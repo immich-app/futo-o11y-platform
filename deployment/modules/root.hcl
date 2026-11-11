@@ -5,7 +5,7 @@ locals {
   # Files that change how every module plans, locally or in the CI plan job.
   # Marking them read makes a git-filtered plan (CI on pull requests) select
   # every module when one changes.
-  shared_inputs = mark_glob_as_read("${get_repo_root()}/{deployment/.env,deployment/mise.toml,.mise/**,.github/workflows/deploy.yml,.github/actions/netbird-connect/**}")
+  shared_inputs = mark_glob_as_read("${get_repo_root()}/{deployment/.env,deployment/mise.toml,.mise/**,.github/workflows/deploy.yml}")
 }
 
 # Per-env working dirs, so switching ENVIRONMENT never reuses another env's

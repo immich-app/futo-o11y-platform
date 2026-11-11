@@ -1,10 +1,5 @@
 # The setup keys in the env vault, for the tools that consume them outside
 # Terraform: topf (talos/<env>/topf.yaml) and //bootstrap:resources.
-locals {
-  # Mirrors the ENVIRONMENT_SHORT mapping in .mise/config.toml.
-  env_short = var.env == "production" ? "prod" : var.env == "development" ? "dev" : var.env
-}
-
 data "onepassword_vault" "env" {
   name = "o11y_tf_${local.env_short}"
 }

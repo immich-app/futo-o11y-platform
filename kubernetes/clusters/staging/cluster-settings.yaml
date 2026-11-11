@@ -6,15 +6,14 @@ metadata:
   namespace: flux-system
 data:
   CLUSTER_APP_DOMAIN: staging.futostatus.com
-  # Bootstrap-cluster-owned opc VIP (not o11y TF, hence not in bootstrap-settings).
-  CLUSTER_OPC_VIP: 10.41.19.250
+  # The bootstrap cluster's service CIDR, which holds every VIP it serves on the mesh
+  # (Infisical, opc); owned by infra-bootstrap, hence not in bootstrap-settings.
+  CLUSTER_BOOTSTRAP_SERVICE_CIDR: 10.41.16.0/22
   CLUSTER_NAME: o11y
   # Remote cluster whose metrics ping the Rootly remote heartbeat; matches the
   # rootly module's remote_cluster heartbeat for this env.
   CLUSTER_REMOTE_HEARTBEAT: luke
   CLUSTER_ENV: staging
-  CLUSTER_OP_O11Y_VAULT: o11y_tf_staging
-  CLUSTER_OP_SHARED_VAULT: shared_tf_staging
   CLUSTER_VMLOGS_RETENTION: 30d
   CLUSTER_VMLOGS_STORAGE_CLASS: openebs-spare-disk
   CLUSTER_VMLOGS_SIZE: 200Gi

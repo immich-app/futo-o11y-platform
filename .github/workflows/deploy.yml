@@ -23,7 +23,6 @@ on:
     paths:
       - "deployment/**"
       - ".mise/**"
-      - ".github/actions/netbird-connect/**"
       - ".github/workflows/deploy.yml"
   workflow_dispatch:
 
@@ -33,6 +32,8 @@ concurrency:
 
 permissions:
   contents: read
+  # The plan job trades its GitHub OIDC token for an Infisical one.
+  id-token: write
 
 env:
   TG_NON_INTERACTIVE: "true"
@@ -68,7 +69,7 @@ jobs:
       - name: Setup Mise
         uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
         with:
-          install_args: --locked opentofu terragrunt
+          install_args: --locked opentofu terragrunt github:netbirdio/netbird
 
       - name: Init
         run: mise run //deployment:init
@@ -82,11 +83,37 @@ jobs:
           echo "::add-mask::$key"
           echo "setup-key=$key" >> "$GITHUB_OUTPUT"
 
-      - name: Connect to NetBird
-        uses: ./.github/actions/netbird-connect
+      # The daemon runs as root, whose PATH has no mise shims, so the client
+      # mise installed (github:netbirdio/netbird) is linked where sudo finds it.
+      - name: Start the NetBird service
+        run: |
+          sudo ln -sf "$(mise which netbird)" /usr/local/bin/netbird
+          sudo netbird service install
+          sudo netbird service start
+
+      # Returns once the client is connected to management; netbird reads NB_* flags.
+      - name: Join NetBird
+        env:
+          NB_SETUP_KEY: ${{ steps.nb.outputs.setup-key }}
+          NB_HOSTNAME: gha-plan-${{ matrix.environment }}-${{ github.run_id }}
+        run: sudo --preserve-env=NB_SETUP_KEY,NB_HOSTNAME netbird up
+
+      # Mesh DNS and routes land a little after the client reports connected.
+      # INFISICAL_DOMAIN comes from the mise env, which mise-action exports.
+      - name: Wait for Infisical over the mesh
+        run: curl -fsS --retry 60 --retry-delay 2 --retry-max-time 120 --retry-all-errors --max-time 5 -o /dev/null "$INFISICAL_DOMAIN/api/status"
+
+      # Trades the job's OIDC token for an Infisical access token, which the
+      # Plan step hands to the modules' infisical provider. The identity IDs
+      # are Actions variables that core-infra-tf (github/secrets) writes.
+      - name: Log in to Infisical
+        id: infisical
+        uses: Infisical/auth-action@e185aa3147cfed88a436b182fe482aef039a26a1 # v1.0.1
         with:
-          setup-key: ${{ steps.nb.outputs.setup-key }}
-          hostname: gha-plan-${{ matrix.environment }}-${{ github.run_id }}
+          method: oidc
+          identity-id: ${{ matrix.environment == 'production' && vars.INFISICAL_O11Y_CI_PLAN_PROD_ID || vars.INFISICAL_O11Y_CI_PLAN_STAGING_ID }}
+          oidc-audience: ${{ env.INFISICAL_DOMAIN }}
+          domain: ${{ env.INFISICAL_DOMAIN }}
 
       # A PR plans the modules it changes plus their dependents; root.hcl marks
       # the files every module depends on, so changing one plans them all. A
@@ -95,4 +122,5 @@ jobs:
       - name: Plan
         env:
           TG_FILTER: ${{ github.event_name == 'pull_request' && format('...[{0}...HEAD]', github.event.pull_request.base.sha) || '' }}
+          INFISICAL_TOKEN: ${{ steps.infisical.outputs.access-token }}
         run: mise run //deployment:plan

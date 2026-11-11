@@ -77,6 +77,11 @@
       "groupName": "mise tools"
     },
     {
+      "description": "One NetBird client bump per environment: the CI mesh client (mise, named github:netbirdio/netbird) and the base router image move together in staging's PR, production's router patch in its own",
+      "matchPackageNames": ["netbirdio/netbird"],
+      "groupName": "netbird"
+    },
+    {
       "description": "One Flux upgrade per environment: the flux-operator and flux-instance charts are released together",
       "matchDepNames": [
         "ghcr.io/controlplaneio-fluxcd/charts/flux-operator",
@@ -107,9 +112,9 @@
       "enabled": false
     },
     {
-      "description": "talosctl and kubectl ride with staging (base), which upgrades first",
+      "description": "talosctl, kubectl and the CI mesh client ride with staging (base), which upgrades first",
       "matchFileNames": [".mise/config.toml"],
-      "matchDepNames": ["talosctl", "kubectl"],
+      "matchDepNames": ["talosctl", "kubectl", "github:netbirdio/netbird"],
       "additionalBranchPrefix": "base-",
       "semanticCommitScope": "base"
     },
