@@ -1,22 +1,25 @@
-# `op run` conceals the NetBird key in topf's output. Args after `--` reach
-# topf, e.g. `mise run //talos:diff -- --nodes-filter cp-gra`.
-# topf writes a diff to stdout one byte at a time and its prompts and errors to
-# stderr. `op run` relays the two streams separately, so a prompt overtook the
-# diff it asks about; joining stderr to stdout inside `op run` keeps them in order.
+# The NetBird setup key (NETBIRD_TALOS_SETUP_KEY, which the netbird module
+# writes) comes from this environment's /tf in Infisical. Nothing masks it, so
+# a diff that changes the netbird patch shows the key. `infisical run` would
+# turn topf's exit code 2 (changes found) into 1, so only the key is read.
+# Args after `--` reach topf, e.g. `mise run //talos:diff -- --nodes-filter cp-gra`.
 [tasks.diff]
 description = "Show the machine-config changes topf would apply to $ENVIRONMENT (exits 2 when there are changes)"
-run = '''op run {{vars.op_account}}--env-file=.env -- sh -c 'exec topf apply --dry-run "$@" 2>&1' topf'''
+env = { INFISICAL_PROJECT_ID = "{{vars.infisical_observability}}" }
+run = 'NETBIRD_TALOS_SETUP_KEY="$(infisical secrets get NETBIRD_TALOS_SETUP_KEY --silent --log-level warn --env {{vars.env_short}} --path /tf --plain)" topf apply --dry-run'
 
 [tasks.apply]
 description = "Apply the machine configs to $ENVIRONMENT, one node at a time, confirming each diff"
-run = '''op run {{vars.op_account}}--env-file=.env -- sh -c 'exec topf apply "$@" 2>&1' topf'''
+env = { INFISICAL_PROJECT_ID = "{{vars.infisical_observability}}" }
+run = 'NETBIRD_TALOS_SETUP_KEY="$(infisical secrets get NETBIRD_TALOS_SETUP_KEY --silent --log-level warn --env {{vars.env_short}} --path /tf --plain)" topf apply'
 
 # The rendered files hold the cluster's private keys, so the output dir is
 # required (topf's default ./output is inside the repo); use a temp dir.
 [tasks.render]
 description = "Render $ENVIRONMENT's machine configs, secrets included, into <output>"
 usage = 'arg "<output>" help="Directory for the rendered configs (use a temp dir)"'
-run = 'op run {{vars.op_account}}--env-file=.env -- topf render --output "$usage_output"'
+env = { INFISICAL_PROJECT_ID = "{{vars.infisical_observability}}" }
+run = 'NETBIRD_TALOS_SETUP_KEY="$(infisical secrets get NETBIRD_TALOS_SETUP_KEY --silent --log-level warn --env {{vars.env_short}} --path /tf --plain)" topf render --output "$usage_output"'
 
 [tasks.talosconfig]
 description = "Write the talosconfig for $ENVIRONMENT to $TALOSCONFIG"

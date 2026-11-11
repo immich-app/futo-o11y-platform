@@ -5,12 +5,8 @@ variable "grafana_admin_user" {
   default = "admin"
 }
 
-variable "op_connect_host" {
-  type    = string
-  default = "https://opc.o11y.futo.network"
-}
-
-variable "op_connect_token_write" {
+# The password the cluster's grafana-admin-password ExternalSecret also reads.
+variable "grafana_admin_password" {
   type      = string
   sensitive = true
 }

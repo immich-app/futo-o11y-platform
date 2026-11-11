@@ -1,5 +1,6 @@
-# The same items as onepassword.tf, in the observability project's /tf folder
-# of this environment, until 1Password is retired.
+# Publishes the Rootly service account token to the observability project's
+# /tf folder of this environment, so the Rootly integration is configured from
+# Infisical rather than from kubectl.
 data "infisical_projects" "observability" {
   slug = "observability"
 }

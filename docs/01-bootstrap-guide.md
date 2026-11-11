@@ -1,10 +1,10 @@
 # Bootstrap guide
 
-This guide builds an environment from nothing. Terragrunt builds the infrastructure, one module at a time. You then apply the Talos machine configurations that topf renders, and the `bootstrap/` tasks hand the cluster to Flux. Run every command through `mise`, so that everyone uses the same tool versions and the same 1Password credentials. The [README](../README.md) shows where each module and manifest lives, and where the state and the secrets come from.
+This guide builds an environment from nothing. Terragrunt builds the infrastructure, one module at a time. You then apply the Talos machine configurations that topf renders, and the `bootstrap/` tasks hand the cluster to Flux. Run every command through `mise`, so that everyone uses the same tool versions and the same Infisical credentials. The [README](../README.md) shows where each module and manifest lives, and where the state and the secrets come from.
 
 ## One-time preparation for each environment
 
-1. Create the 1Password vault of the environment (`o11y_tf_staging` or `o11y_tf_prod`).
+1. Make sure that the `observability` Infisical project has the environment (`staging` or `prod`) and that you can write to it. core-infra-tf manages the project, its environments and its members.
 2. Create `.private/openstack/<env>/openrc.sh` for the OVH Public Cloud project of the environment.
 3. Upload the Talos OpenStack image to the regions of the environment. Only the control planes use this image:
 
@@ -24,11 +24,10 @@ Set the environment in your shell first:
 
 ```bash
 export ENVIRONMENT=staging
-export TF_VAR_env=staging
 ```
 
 > [!IMPORTANT]
-> Set `ENVIRONMENT` in every shell before you run a task. If it is unset, the tasks read the 1Password vault and the Terraform state of the `development` environment.
+> Set `ENVIRONMENT` in every shell before you run a task. If it is unset, the tasks read the Infisical `dev` environment and the Terraform state of the `development` environment.
 
 1. Apply the OVH module. It creates the cloud project, the vRack, the private network, the control-plane instances, the workers, the IPLB and the DNS records. The first run is slow. Each control-plane instance takes about 5 minutes, each bare-metal order takes 20 to 45 minutes, and the IPLB takes about 10 minutes.
 
@@ -43,7 +42,7 @@ export TF_VAR_env=staging
    - The network for pod egress.
    - The access policies: `yucca → resource`, `yucca → talos`, `yucca → gateway` and `talos → bootstrap opc`.
 
-   The module also writes both setup keys to the vault of the environment (`NETBIRD_TALOS_SETUP_KEY`, `NETBIRD_K8S_ROUTING_PEER_SETUP_KEY`). topf and `//bootstrap:resources` read them from there. The module connects to the 1Password Connect server of the bootstrap cluster over NetBird. For a new environment, run the first apply from your own machine.
+   The module also writes both setup keys to the environment in the `observability` Infisical project (`NETBIRD_TALOS_SETUP_KEY`, `NETBIRD_K8S_ROUTING_PEER_SETUP_KEY`). topf and `//bootstrap:resources` read them from there. For a new environment, run the first apply from your own machine.
 
    ```bash
    mise run //deployment/modules/netbird/cluster:apply
@@ -108,19 +107,16 @@ Flux then reconciles from `kubernetes/clusters/<env>/apps.yaml`. From there, it 
 
 ## Cluster access
 
-This section gives you `kubectl` and `talosctl` access to a cluster that already exists. It does not need a bootstrap. You need the NetBird client and the 1Password CLI.
+This section gives you `kubectl` and `talosctl` access to a cluster that already exists. It does not need a bootstrap. You need the NetBird client and the Infisical CLI.
 
 The cluster APIs are reachable only over the NetBird network. Run the NetBird client (`netbird up`) and join the FUTO NetBird account. The account puts your peer in the `yucca` group. The access policy then gives your peer the route to the vRack CIDR of the cluster. `kubectl` and `talosctl` can then reach the private IPs of the nodes.
 
-Install the 1Password CLI (`op`) and sign in to the `team-futo.1password.com` account. The tasks below read the Talos secrets bundle from the Terraform state through the `//:tg` Terragrunt wrapper. The wrapper runs `op run` to inject the state credentials. Without a signed-in `op`, the tasks cannot read the state.
-
-The bootstrap Secrets and the modules that write to Infisical (grafana, rootly, netbird, glitchtip and victoria-metrics) need an Infisical session. Sign in once with `infisical login --domain https://infisical.futo.network` while you are on the mesh. The wrapper passes your session token to Terraform for plan, apply and destroy. In CI, the plan job signs in with its GitHub OIDC token instead.
+The tasks below read the Talos secrets bundle from the Terraform state through the `//:tg` Terragrunt wrapper. The wrapper reads the state credentials from Infisical, so you need an Infisical session. Sign in once with `infisical login --domain https://infisical.futo.network` while you are on the mesh. The Terragrunt, Talos and bootstrap tasks all use this session. In CI, the plan job signs in with its GitHub OIDC token instead.
 
 Run these tasks to write the kubeconfig and the talosconfig for the environment. Run only the one that you need:
 
 ```bash
 export ENVIRONMENT=staging        # or production
-export TF_VAR_env=$ENVIRONMENT
 mise run //bootstrap:kubeconfig     # for kubectl
 mise run //talos:talosconfig        # for talosctl
 ```
@@ -157,7 +153,7 @@ talosctl -n 10.150.200.10 health   # any CP private IP. The talosconfig also lis
 
 ## Apply guardrails
 
-- Run `mise run //talos:diff` before every apply. If the configuration of a node will change, the task exits with code 2. topf redacts the Talos secrets in each diff, and `op run` hides the NetBird key. During a key rotation, the old key can show in the diff. A rotation replaces the key in Terraform, which deletes the old key in NetBird. So the old key in the diff no longer works.
+- Run `mise run //talos:diff` before every apply. If the configuration of a node will change, the task exits with code 2. topf redacts the Talos secrets in each diff, but not the NetBird setup key. If a diff changes the netbird patch, for example during a key rotation, the keys show in it. Do not share such a diff. A rotation replaces the key in Terraform, which deletes the old key in NetBird, so the old key no longer works.
 - `//talos:apply` changes one node at a time. topf shows the diff of each node and asks before it applies the change. It applies with `auto` and waits until the node is ready again before it continues.
 - Talos 1.14 applies most changes without a reboot, and it no longer reports whether a change needs one. If a change needs a reboot, the nodes reboot one at a time.
 - If a change needs a reboot, apply it to the elected NetBird routing peer last (`-- --nodes-filter`). A reboot of that peer drops the vRack route until NetBird elects another peer.
@@ -166,7 +162,7 @@ talosctl -n 10.150.200.10 health   # any CP private IP. The talosconfig also lis
 
 ## Rebuild an environment with a new secrets bundle
 
-This procedure rebuilds the cluster of an environment with a new Talos secrets bundle, for example after the bundle leaks. The OVH infrastructure, the NetBird setup keys and the 1Password items stay as they are.
+This procedure rebuilds the cluster of an environment with a new Talos secrets bundle, for example after the bundle leaks. The OVH infrastructure, the NetBird setup keys and the Infisical secrets stay as they are.
 
 > [!CAUTION]
 > Do not run this procedure on production unless you must rebuild it. It deletes all data in the cluster: the metrics, logs and traces, and the Grafana and GlitchTip databases. Reset the nodes only with the commands in step 1. Without `--system-labels-to-wipe`, a reset wipes the whole system disk, and the node then cannot boot Talos.
@@ -206,4 +202,4 @@ Run the commands from the root of the repository, with `ENVIRONMENT` set to the 
 
 OpenTofu and Terragrunt manage the infrastructure as code. topf renders the Talos machine configurations. helmfile installs the releases that Flux needs before it starts. mise sets the tool versions and runs the tasks. The version pins live in `.mise/config.toml` and in the lock file of each module.
 
-When a command runs, the 1Password CLI (`op run --env-file deployment/.env`) injects the API credentials.
+When a command runs, the Infisical CLI (`infisical run`) injects the API credentials and the state bucket keys. `deployment/modules/root.hcl` maps them to the module inputs and the S3 backend.

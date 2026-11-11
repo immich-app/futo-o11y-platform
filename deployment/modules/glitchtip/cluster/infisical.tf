@@ -1,5 +1,5 @@
-# The same items as onepassword.tf, in the observability project's /tf folder
-# of this environment, until 1Password is retired.
+# Publishes the S3 credentials to the observability project's /tf folder of
+# this environment, for the cluster's glitchtip-s3 ExternalSecret.
 data "infisical_projects" "observability" {
   slug = "observability"
 }

@@ -2,19 +2,18 @@ name: Infra (Terraform)
 
 # On PRs, plans the Terragrunt modules the PR changes and the modules that
 # depend on them; manual dispatch (drift check) plans every module. One
-# deployment tree drives both environments (ENVIRONMENT selects state + vault),
-# so every change plans against both. Applies stay operator-run.
+# deployment tree drives both environments (ENVIRONMENT selects the state and
+# the Infisical environment), so every change plans against both. Applies stay
+# operator-run.
 #
-# The modules with a onepassword provider reach the bootstrap 1Password Connect
-# over the NetBird mesh, so jobs join it with a CI setup key read from the
-# netbird/cluster state (o11y-<env>-ci peer).
+# Every credential, the state bucket keys included, comes from Infisical, which
+# is reachable only over the NetBird mesh. So the job joins the mesh first, with
+# the CI setup key (o11y-<env>-ci peer) that netbird/cluster mints.
 #
 # Prerequisites (out-of-band, once):
-#   - Per-env repo secrets OP_TF_O11Y_STAGING_ENV / OP_TF_O11Y_PROD_ENV: the
-#     1PASS_TF_SA_O11Y_READ service-account token for each env (stored in the
-#     o11y_tf_{staging,prod} vaults). Each needs read on o11y_tf (OVH + TF S3
-#     state), its own o11y_tf_<env>, and shared_tf (NetBird, NetBox).
-#   - netbird/cluster applied per env (mints the CI setup key).
+#   - Per-env repo secrets NETBIRD_O11Y_CI_SETUP_KEY_STAGING /
+#     NETBIRD_O11Y_CI_SETUP_KEY_PROD: the ci_setup_key output of netbird/cluster
+#     in that environment.
 #   - Re-enable the workflow: gh workflow enable deploy.yml
 
 on:
@@ -53,8 +52,6 @@ jobs:
         environment: [staging, production]
     env:
       ENVIRONMENT: ${{ matrix.environment }}
-      TF_VAR_env: ${{ matrix.environment }}
-      OP_SERVICE_ACCOUNT_TOKEN: ${{ matrix.environment == 'production' && secrets.OP_TF_O11Y_PROD_ENV || secrets.OP_TF_O11Y_STAGING_ENV }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -63,25 +60,10 @@ jobs:
           # The plan filter diffs against the base commit, which a shallow clone lacks.
           fetch-depth: 0
 
-      - name: Install 1Password CLI
-        uses: 1password/install-cli-action@1a3160d5e9de1ae0803eaa08a88746f5ae3daa50 # v4.1.0
-
       - name: Setup Mise
         uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
         with:
-          install_args: --locked opentofu terragrunt github:netbirdio/netbird
-
-      - name: Init
-        run: mise run //deployment:init
-
-      - name: Read the CI mesh setup key from state
-        id: nb
-        working-directory: ${{ github.workspace }}
-        run: |
-          set -euo pipefail
-          key=$(mise run //deployment/modules/netbird/cluster:output -- -raw ci_setup_key)
-          echo "::add-mask::$key"
-          echo "setup-key=$key" >> "$GITHUB_OUTPUT"
+          install_args: --locked opentofu terragrunt infisical github:netbirdio/netbird
 
       # The daemon runs as root, whose PATH has no mise shims, so the client
       # mise installed (github:netbirdio/netbird) is linked where sudo finds it.
@@ -92,9 +74,12 @@ jobs:
           sudo netbird service start
 
       # Returns once the client is connected to management; netbird reads NB_* flags.
+      # Without a setup key it waits for an interactive login, so an unset
+      # secret fails the step at the timeout instead of holding the job.
       - name: Join NetBird
+        timeout-minutes: 5
         env:
-          NB_SETUP_KEY: ${{ steps.nb.outputs.setup-key }}
+          NB_SETUP_KEY: ${{ matrix.environment == 'production' && secrets.NETBIRD_O11Y_CI_SETUP_KEY_PROD || secrets.NETBIRD_O11Y_CI_SETUP_KEY_STAGING }}
           NB_HOSTNAME: gha-plan-${{ matrix.environment }}-${{ github.run_id }}
         run: sudo --preserve-env=NB_SETUP_KEY,NB_HOSTNAME netbird up
 
@@ -103,9 +88,10 @@ jobs:
       - name: Wait for Infisical over the mesh
         run: curl -fsS --retry 60 --retry-delay 2 --retry-max-time 120 --retry-all-errors --max-time 5 -o /dev/null "$INFISICAL_DOMAIN/api/status"
 
-      # Trades the job's OIDC token for an Infisical access token, which the
-      # Plan step hands to the modules' infisical provider. The identity IDs
-      # are Actions variables that core-infra-tf (github/secrets) writes.
+      # Trades the job's OIDC token for an Infisical access token. The mise tg
+      # wrapper reads the credentials and the state bucket keys with it, and the
+      # modules' infisical provider uses it too. The identity IDs are Actions
+      # variables that core-infra-tf (github/secrets) writes.
       - name: Log in to Infisical
         id: infisical
         uses: Infisical/auth-action@e185aa3147cfed88a436b182fe482aef039a26a1 # v1.0.1
@@ -114,6 +100,11 @@ jobs:
           identity-id: ${{ matrix.environment == 'production' && vars.INFISICAL_O11Y_CI_PLAN_PROD_ID || vars.INFISICAL_O11Y_CI_PLAN_STAGING_ID }}
           oidc-audience: ${{ env.INFISICAL_DOMAIN }}
           domain: ${{ env.INFISICAL_DOMAIN }}
+
+      - name: Init
+        env:
+          INFISICAL_TOKEN: ${{ steps.infisical.outputs.access-token }}
+        run: mise run //deployment:init
 
       # A PR plans the modules it changes plus their dependents; root.hcl marks
       # the files every module depends on, so changing one plans them all. A
