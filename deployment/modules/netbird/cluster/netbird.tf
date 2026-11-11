@@ -303,3 +303,64 @@ resource "netbird_policy" "ci_to_bootstrap_opc" {
     ports         = ["443"]
   }
 }
+
+# Infisical and its instance relay, both bootstrap-owned and mesh-only. Talos
+# nodes carry the pods' egress (External Secrets, the Infisical gateway); CI
+# plans the modules whose infisical provider reads the project.
+data "netbird_group" "bootstrap_infisical" {
+  name = "bootstrap-infisical-resources"
+}
+
+data "netbird_group" "bootstrap_infisical_relay" {
+  name = "bootstrap-infisical-relay-resources"
+}
+
+resource "netbird_policy" "talos_to_bootstrap_infisical" {
+  name    = "o11y-${var.env}-talos-to-bootstrap-infisical"
+  enabled = true
+
+  rule {
+    name          = "talos-to-bootstrap-infisical"
+    action        = "accept"
+    protocol      = "tcp"
+    enabled       = true
+    bidirectional = false
+    sources       = [netbird_group.talos.id]
+    destinations  = [data.netbird_group.bootstrap_infisical.id]
+    ports         = ["443"]
+  }
+}
+
+# The gateway dials the relay (bootstrap-relay, tcp/2222) so Infisical can
+# review Kubernetes Auth logins without a route into the cluster.
+resource "netbird_policy" "talos_to_bootstrap_infisical_relay" {
+  name    = "o11y-${var.env}-talos-to-bootstrap-infisical-relay"
+  enabled = true
+
+  rule {
+    name          = "talos-to-bootstrap-infisical-relay"
+    action        = "accept"
+    protocol      = "tcp"
+    enabled       = true
+    bidirectional = false
+    sources       = [netbird_group.talos.id]
+    destinations  = [data.netbird_group.bootstrap_infisical_relay.id]
+    ports         = ["2222"]
+  }
+}
+
+resource "netbird_policy" "ci_to_bootstrap_infisical" {
+  name    = "o11y-${var.env}-ci-to-bootstrap-infisical"
+  enabled = true
+
+  rule {
+    name          = "ci-to-bootstrap-infisical"
+    action        = "accept"
+    protocol      = "tcp"
+    enabled       = true
+    bidirectional = false
+    sources       = [netbird_group.ci.id]
+    destinations  = [data.netbird_group.bootstrap_infisical.id]
+    ports         = ["443"]
+  }
+}
