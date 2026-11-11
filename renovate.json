@@ -82,13 +82,6 @@
       "groupName": "netbird"
     },
     {
-      "description": "The CI mesh client rides with staging (base), like talosctl and kubectl",
-      "matchFileNames": [".mise/config.toml"],
-      "matchPackageNames": ["netbirdio/netbird"],
-      "additionalBranchPrefix": "base-",
-      "semanticCommitScope": "base"
-    },
-    {
       "description": "One Talos upgrade per environment: topf's talosVersion and the tuppr TalosUpgrade move together, with talosctl in staging's PR and the OVH image in production's",
       "matchDepNames": ["siderolabs/talos", "talosctl"],
       "groupName": "talos",
@@ -107,9 +100,9 @@
       "enabled": false
     },
     {
-      "description": "talosctl and kubectl ride with staging (base), which upgrades first",
+      "description": "talosctl, kubectl and the CI mesh client ride with staging (base), which upgrades first",
       "matchFileNames": [".mise/config.toml"],
-      "matchDepNames": ["talosctl", "kubectl"],
+      "matchDepNames": ["talosctl", "kubectl", "github:netbirdio/netbird"],
       "additionalBranchPrefix": "base-",
       "semanticCommitScope": "base"
     },

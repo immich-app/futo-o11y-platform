@@ -22,8 +22,8 @@ kustomize = "5.8.3"
 oxfmt = "0.74.0"
 zizmor = "1.31.1"
 "github:home-operations/flate" = "v0.7.3"
-# The CI plan job's mesh client (.github/actions/netbird-connect); not in the registry.
-"github:netbirdio/netbird" = "v0.82.1"
+# The CI plan job's mesh client; not in the registry, and operators run their own.
+"github:netbirdio/netbird" = { version = "v0.82.1", os = ["linux"] }
 cosign = "3.1.4"
 infisical = "0.45.4"
 
@@ -35,14 +35,13 @@ _.path = ["{{config_root}}/talos/bin"]
 # Written by //bootstrap:kubeconfig and //talos:talosconfig.
 KUBECONFIG = "{{config_root}}/.private/{{ get_env(name='ENVIRONMENT', default='') }}/kubeconfig"
 TALOSCONFIG = "{{config_root}}/.private/{{ get_env(name='ENVIRONMENT', default='') }}/talosconfig"
-# The modules' infisical provider reads INFISICAL_TOKEN as a plain access token
-# (CI's OIDC login or the operator's session, see vars.infisical_env).
-INFISICAL_AUTH_METHOD = "token"
-# The infisical CLI (bootstrap, the operator's session) talks to the FUTO instance.
+# The FUTO Infisical instance, for the CLI (INFISICAL_DOMAIN) and the modules'
+# infisical provider (INFISICAL_HOST); CI's workflow reads it too.
 INFISICAL_DOMAIN = "https://infisical.futo.network"
+INFISICAL_HOST = "{{ env.INFISICAL_DOMAIN }}"
 
 # Maps long env names (development/staging/production) to the short suffixes
-# used by 1Password vault paths (dev/staging/prod).
+# used by 1Password vault paths and Infisical environment slugs (dev/staging/prod).
 ENVIRONMENT_SHORT = "{% set e = get_env(name='ENVIRONMENT', default='development') %}{% if e == 'development' or e == '' %}dev{% elif e == 'production' %}prod{% else %}{{ e }}{% endif %}"
 
 # Rendered at the root, so {{config_root}} here is the repo root from any subproject.
@@ -69,12 +68,13 @@ tg = "op run {{vars.op_account}}'--env-file={{config_root}}/deployment/.env' -- 
 # (and starts the login when there is none). Only plan/apply/destroy configure
 # providers, so init and output run without it.
 infisical_env = "{% if get_env(name='INFISICAL_TOKEN', default='') == '' %}INFISICAL_TOKEN=\"$(infisical user get token --plain)\" {% endif %}"
-tg_rw = "op run {{vars.op_account}}'--env-file={{config_root}}/deployment/.env' -- env -u OP_SERVICE_ACCOUNT_TOKEN {{vars.infisical_env}}terragrunt"
+tg_rw = "{{vars.infisical_env}}{{vars.tg}}"
 
 # Escape hatch for terragrunt subcommands the tasks below don't cover
 # (state rm/import/force-unlock, ...); operates on the caller's directory.
+# import configures providers, so it gets the Infisical token too.
 [tasks.tg]
-run = "{{vars.tg}}"
+run = "{{vars.tg_rw}}"
 description = "Wrapper for terragrunt"
 dir = "{{cwd}}"
 

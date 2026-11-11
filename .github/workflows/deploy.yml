@@ -91,16 +91,17 @@ jobs:
           sudo netbird service install
           sudo netbird service start
 
-      # Returns once the client is connected to management.
+      # Returns once the client is connected to management; netbird reads NB_* flags.
       - name: Join NetBird
         env:
           NB_SETUP_KEY: ${{ steps.nb.outputs.setup-key }}
           NB_HOSTNAME: gha-plan-${{ matrix.environment }}-${{ github.run_id }}
-        run: sudo --preserve-env=NB_SETUP_KEY netbird up --management-url https://api.netbird.io --hostname "$NB_HOSTNAME"
+        run: sudo --preserve-env=NB_SETUP_KEY,NB_HOSTNAME netbird up
 
       # Mesh DNS and routes land a little after the client reports connected.
+      # INFISICAL_DOMAIN comes from the mise env, which mise-action exports.
       - name: Wait for Infisical over the mesh
-        run: curl -fsS --retry 60 --retry-delay 2 --retry-all-errors --max-time 5 -o /dev/null https://infisical.futo.network/api/status
+        run: curl -fsS --retry 60 --retry-delay 2 --retry-max-time 120 --retry-all-errors --max-time 5 -o /dev/null "$INFISICAL_DOMAIN/api/status"
 
       # Trades the job's OIDC token for an Infisical access token, which the
       # Plan step hands to the modules' infisical provider. The identity IDs
@@ -111,8 +112,8 @@ jobs:
         with:
           method: oidc
           identity-id: ${{ matrix.environment == 'production' && vars.INFISICAL_O11Y_CI_PLAN_PROD_ID || vars.INFISICAL_O11Y_CI_PLAN_STAGING_ID }}
-          oidc-audience: https://infisical.futo.network
-          domain: https://infisical.futo.network
+          oidc-audience: ${{ env.INFISICAL_DOMAIN }}
+          domain: ${{ env.INFISICAL_DOMAIN }}
 
       # A PR plans the modules it changes plus their dependents; root.hcl marks
       # the files every module depends on, so changing one plans them all. A

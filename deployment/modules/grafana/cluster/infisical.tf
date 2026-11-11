@@ -5,6 +5,9 @@ data "infisical_projects" "observability" {
 }
 
 locals {
+  # Mirrors the ENVIRONMENT_SHORT mapping in .mise/config.toml.
+  env_short = var.env == "production" ? "prod" : var.env == "development" ? "dev" : var.env
+
   infisical_secrets = {
     ROOTLY_GRAFANA_SERVICE_ACCOUNT_TOKEN = grafana_service_account_token.rootly.key
   }

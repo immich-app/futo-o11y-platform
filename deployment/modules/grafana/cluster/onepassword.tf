@@ -1,11 +1,6 @@
 # Reads the Grafana admin password the cluster's ExternalSecret also consumes,
 # and publishes the Rootly service account token next to it so the Rootly
 # integration can be configured from the vault rather than from kubectl.
-locals {
-  # Mirrors the ENVIRONMENT_SHORT mapping in .mise/config.toml.
-  env_short = var.env == "production" ? "prod" : var.env == "development" ? "dev" : var.env
-}
-
 data "onepassword_vault" "env" {
   name = "o11y_tf_${local.env_short}"
 }

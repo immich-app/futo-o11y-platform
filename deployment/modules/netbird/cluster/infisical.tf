@@ -5,6 +5,9 @@ data "infisical_projects" "observability" {
 }
 
 locals {
+  # Mirrors the ENVIRONMENT_SHORT mapping in .mise/config.toml.
+  env_short = var.env == "production" ? "prod" : var.env == "development" ? "dev" : var.env
+
   infisical_secrets = {
     NETBIRD_TALOS_SETUP_KEY            = netbird_setup_key.talos.key
     NETBIRD_K8S_ROUTING_PEER_SETUP_KEY = netbird_setup_key.k8s_routing_peer.key

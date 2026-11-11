@@ -1,9 +1,4 @@
 # The cluster's glitchtip-s3 ExternalSecret reads these from the env vault.
-locals {
-  # Mirrors the ENVIRONMENT_SHORT mapping in .mise/config.toml.
-  env_short = var.env == "production" ? "prod" : var.env == "development" ? "dev" : var.env
-}
-
 data "onepassword_vault" "env" {
   name = "o11y_tf_${local.env_short}"
 }

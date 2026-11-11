@@ -4,6 +4,11 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../base
+  # Flux owns these namespaces; //bootstrap:resources builds with
+  # --load-restrictor LoadRestrictionsNone so they are applied as-is.
+  - ../../../kubernetes/apps/staging/external-secrets/namespace.yaml
+  - ../../../kubernetes/apps/staging/flux-system/namespace.yaml
+  - ../../../kubernetes/apps/staging/netbird/namespace.yaml
 patches:
   - target:
       kind: Secret

@@ -6,11 +6,9 @@ metadata:
   namespace: flux-system
 data:
   CLUSTER_APP_DOMAIN: staging.futostatus.com
-  # Bootstrap-cluster-owned opc VIP (not o11y TF, hence not in bootstrap-settings).
-  CLUSTER_OPC_VIP: 10.41.19.250
-  # Bootstrap's per-service VIP range (Infisical, its relay, the per-service opc), routed
-  # over the mesh egress like the legacy opc VIP.
-  CLUSTER_BOOTSTRAP_VIP_CIDR: 10.41.16.32/27
+  # The bootstrap cluster's service CIDR, which holds every VIP it serves on the mesh
+  # (Infisical, opc); owned by infra-bootstrap, hence not in bootstrap-settings.
+  CLUSTER_BOOTSTRAP_SERVICE_CIDR: 10.41.16.0/22
   CLUSTER_NAME: o11y
   # Remote cluster whose metrics ping the Rootly remote heartbeat; matches the
   # rootly module's remote_cluster heartbeat for this env.

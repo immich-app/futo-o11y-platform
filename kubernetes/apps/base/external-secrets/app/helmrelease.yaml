@@ -15,7 +15,7 @@ spec:
     # annotation and a change to it rolls the pods.
     podAnnotations:
       k8s.v1.cni.cncf.io/networks: kube-system/netbird-egress
-      o11y.futo.network/mesh-egress-routes: ${CLUSTER_OPC_VIP}/32,${CLUSTER_BOOTSTRAP_VIP_CIDR}
+      o11y.futo.network/mesh-egress-routes: ${CLUSTER_BOOTSTRAP_SERVICE_CIDR}
     serviceMonitor:
       enabled: true
     # The validating webhook gates every ExternalSecret/SecretStore apply. With one replica a

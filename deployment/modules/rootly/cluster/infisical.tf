@@ -5,6 +5,9 @@ data "infisical_projects" "observability" {
 }
 
 locals {
+  # Mirrors the ENVIRONMENT_SHORT mapping in .mise/config.toml.
+  env_short = var.env == "production" ? "prod" : var.env == "development" ? "dev" : var.env
+
   infisical_secrets = merge(
     {
       ROOTLY_HEARTBEAT_PING_URL    = rootly_heartbeat.grafana_alerting.ping_url

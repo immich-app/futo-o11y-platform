@@ -86,22 +86,19 @@ done
 kubectl wait nodes --all --for=condition=Ready --timeout=15m
 '''
 
+# Needs an `infisical login` session on the mesh. <env>:/tf imports the
+# project's global folder.
 [tasks.resources]
 description = "Apply the namespaces, Secrets and bootstrap-settings ConfigMap Flux needs to $ENVIRONMENT"
+# The observability project (core-infra-tf infisical/instance).
+env = { INFISICAL_PROJECT_ID = "12d6474a-148e-4170-ae08-e24e1232a116" }
 run = [
   '''
 #!/usr/bin/env bash
-# kustomize/<env> holds the manifests with ${...} placeholders named like the
-# Infisical secrets. infisical run puts the observability project's <env>:/tf
-# (which imports global) and <env>:/ci into the environment and flux envsubst
-# fills them in, failing on a missing one. Needs an `infisical login` session
-# on the mesh.
 set -euo pipefail
 : "${ENVIRONMENT:?set ENVIRONMENT=staging (or production) first}"
-
-project_id="$(infisical secrets-manager projects get observability -o json --silent | jq -er .id)"
-kustomize build "kustomize/$ENVIRONMENT" \
-  | infisical run --silent --projectId "$project_id" --env "$ENVIRONMENT_SHORT" --path /tf --path /ci -- flux envsubst --strict \
+kustomize build --load-restrictor LoadRestrictionsNone "kustomize/$ENVIRONMENT" \
+  | infisical run --silent --env "$ENVIRONMENT_SHORT" --path /tf --path /ci -- flux envsubst --strict \
   | kubectl apply --server-side --force-conflicts --filename -
 ''',
   "mise run //deployment/modules/netbird/cluster:output -- -raw bootstrap_settings | kubectl apply --server-side --force-conflicts --filename -",

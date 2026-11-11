@@ -6,6 +6,12 @@ data "infisical_projects" "shared" {
 }
 
 locals {
+  # Mirrors the ENVIRONMENT_SHORT mapping in .mise/config.toml.
+  env_short = var.env == "production" ? "prod" : var.env == "development" ? "dev" : var.env
+
+  app_domain  = var.env == "production" ? "futostatus.com" : "${var.env}.futostatus.com"
+  mesh_domain = var.env == "production" ? "o11y.futo.network" : "${var.env}.o11y.futo.network"
+
   infisical_secrets = {
     O11Y_VICTORIAMETRICS_VMAUTH_MESH_URL   = "https://vmauth.${local.mesh_domain}"
     O11Y_VICTORIAMETRICS_VMAUTH_PUBLIC_URL = "https://vmauth.${local.app_domain}"
