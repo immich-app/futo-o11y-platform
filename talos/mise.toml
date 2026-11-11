@@ -1,7 +1,7 @@
 # The NetBird setup key (NETBIRD_TALOS_SETUP_KEY, which the netbird module
-# writes) comes from this environment's /tf in Infisical. Nothing masks it, so
-# a diff that changes the netbird patch shows the key. `infisical run` would
-# turn topf's exit code 2 (changes found) into 1, so only the key is read.
+# writes) comes from this environment's /tf in Infisical; topf.yaml resolves it
+# through vals, so topf redacts it. `infisical run` would turn topf's exit
+# code 2 (changes found) into 1, so only the key is read.
 # Args after `--` reach topf, e.g. `mise run //talos:diff -- --nodes-filter cp-gra`.
 [tasks.diff]
 description = "Show the machine-config changes topf would apply to $ENVIRONMENT (exits 2 when there are changes)"
