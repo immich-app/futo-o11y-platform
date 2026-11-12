@@ -6,9 +6,5 @@ terraform {
       source  = "ovh/ovh"
       version = "2.24.0"
     }
-    talos = {
-      source  = "siderolabs/talos"
-      version = "0.12.0"
-    }
   }
 }

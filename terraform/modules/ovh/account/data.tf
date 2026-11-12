@@ -5,17 +5,13 @@ data "ovh_order_cart" "mycart" {
   ovh_subsidiary = data.ovh_me.account.ovh_subsidiary
 }
 
-data "talos_image_factory_urls" "metal" {
-  talos_version = var.talos_version
-  schematic_id  = var.talos_worker_schematic_id
-  platform      = "metal"
+# Image must be pre-uploaded via `mise run //bootstrap:image` before apply; the OVH
+# provider doesn't upload custom images. The name comes from the version and the
+# schematic, so a new image never reuses the name of an older one.
+locals {
+  cp_image_name = "talos-${var.talos_version}-${substr(var.talos_schematic_id, 0, 8)}"
 }
 
-# The OpenStack installer URL is built manually in outputs.tf — the talos
-# provider's data source returns null for platform = "openstack".
-
-# Image must be pre-uploaded via `mise run //terraform/modules/ovh/account:image:upload` before apply; the OVH
-# provider doesn't upload custom images.
 data "ovh_cloud_project_images" "talos" {
   for_each = var.controlplane_nodes
 

@@ -63,7 +63,7 @@ resource "ovh_dedicated_server" "worker" {
     # OVH fetches this raw straight from the Talos Factory at order time (no
     # OVH-side upload). The URL resolves the netbird-only worker schematic;
     # qemu-guest-agent here would reboot-loop the bare-metal node.
-    image_url  = replace(data.talos_image_factory_urls.metal.urls.iso, ".iso", ".raw")
+    image_url  = "https://factory.talos.dev/image/${var.talos_worker_schematic_id}/${var.talos_version}/metal-amd64.raw"
     image_type = "raw"
   }
 

@@ -15,3 +15,12 @@ resource "ovh_cloud_project" "this" {
     pricing_mode = data.ovh_order_cart_product_plan.cloud_project.selected_price.0.pricing_mode
   }
 }
+
+# The OpenStack user that `mise run //bootstrap:image` uploads the
+# control-plane image with. OVH returns the password only when it creates the
+# user, so the state holds the only copy.
+resource "ovh_cloud_project_user" "image" {
+  service_name = ovh_cloud_project.this.project_id
+  description  = "o11y-${var.env} image upload"
+  role_name    = "image_operator"
+}
