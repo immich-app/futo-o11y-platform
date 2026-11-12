@@ -114,6 +114,7 @@ locals {
   }
 
   topology = local.topology_by_env[local.env]
+
 }
 
 dependency "rootly" {

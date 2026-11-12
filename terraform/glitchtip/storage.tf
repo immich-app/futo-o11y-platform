@@ -57,21 +57,26 @@ resource "ovh_cloud_project_user_s3_policy" "glitchtip" {
   })
 }
 
-resource "ovh_cloud_project_storage" "glitchtip" {
-  service_name = local.cloud_project_id
-  region_name  = "GRA"
-  name         = local.bucket_name
-  owner_id     = tonumber(ovh_cloud_project_user.glitchtip_owner.id)
+resource "ovh_cloud_storage_object_bucket" "glitchtip" {
+  service_name  = local.cloud_project_id
+  region        = "GRA"
+  name          = local.bucket_name
+  owner_user_id = ovh_cloud_project_user.glitchtip_owner.id
 
   encryption = {
-    sse_algorithm = "AES256"
+    algorithm = "AES256"
   }
 
-  # The object listing would otherwise land in state and grow with every upload.
-  hide_objects = true
+  versioning = {
+    status = "DISABLED"
+  }
 
   # Destroying or replacing the bucket deletes every object in it first.
   lifecycle {
     prevent_destroy = true
+    # Both only matter at creation, and both would otherwise replace the
+    # bucket: the API reports a disabled object lock as an empty block, and it
+    # does not report the owner at all.
+    ignore_changes = [object_lock, owner_user_id]
   }
 }
