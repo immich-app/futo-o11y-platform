@@ -47,7 +47,9 @@ spec:
       - name: nblink-setup-key
         secret:
           secretName: nblink-setup-key
-          defaultMode: 0440
+          # nblink gets "permission denied" at 0440: the pod sets no fsGroup, so the file is
+          # not readable through a group. Only the nblink container mounts this volume.
+          defaultMode: 0444
     serviceMonitor:
       enabled: true
     # The validating webhook gates every ExternalSecret/SecretStore apply. With one replica a
