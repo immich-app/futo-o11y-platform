@@ -8,7 +8,7 @@ This guide describes the workloads that run on the cluster: the ingress edge, th
 
 Envoy Gateway is the only ingress from outside the cluster. The OVH load balancer (the IPLB) does TCP passthrough to the NodePort of Envoy, and TLS terminates at Envoy. Envoy runs one replica on each worker, with a topology-spread constraint on the hostname. Thus every IPLB backend has a local endpoint under `externalTrafficPolicy: Local`.
 
-The IPLB prepends PROXY protocol v2. A client traffic policy tells Envoy to parse PROXY protocol v2 as optional. Thus Envoy does not reset the bare-TCP health probe of the IPLB, and real client connections still show the true source IP. Platform services (Grafana, vmauth, the echo test app) attach to the gateway through HTTPRoutes.
+The IPLB prepends PROXY protocol v2. A client traffic policy tells Envoy to parse PROXY protocol v2 as optional. Thus Envoy does not reset the bare-TCP health probe of the IPLB, and real client connections still show the true source IP. Platform services (Grafana, vmauth, the echo test app) attach to the gateway through HTTPRoutes. external-dns publishes the host of each route; see [DNS records](#dns-records).
 
 ### Mesh gateway
 
@@ -17,6 +17,15 @@ A second Envoy Gateway (`mesh`, in `envoy-system`) serves NetBird peers, not the
 For mesh-facing HTTPRoutes, the gateway terminates TLS with a `*.<mesh-domain>` wildcard certificate. The certificate comes from the same cert-manager pipeline as the public gateway. One of these routes is an unauthenticated vmauth at `vmauth.<mesh-domain>`. It gives other FUTO clusters a remote-write path that never leaves the mesh.
 
 The gateway also has a TLS-passthrough listener on `:6443` in front of the kube-apiserver, as `kube.<mesh-domain>`. The listener routes by SNI to the `kubernetes` Service and load-balances across all three control planes. The apiserver presents its own certificate end to end.
+
+### DNS records
+
+external-dns (`external-dns`) keeps one DNS record for each route host, in two instances. Each instance reads only the routes of its own Gateway (`--gateway-name`) and points them at that Gateway's `external-dns.alpha.kubernetes.io/target` annotation:
+
+- `external-dns-ovh` reads the HTTPRoutes of the public gateway. It writes a CNAME in the OVH zone `futostatus.com` for each host, pointing at the name of the environment, which the OVH module points at the IPLB. Both clusters write to this zone. Each one marks its records with TXT records under its own owner ID (`o11y-<env>`), so it never changes the records of the other.
+- `external-dns-netbird` reads the HTTPRoutes and the `kube` TLSRoute of the mesh gateway. Through the NetBird webhook provider, it writes an A record in the NetBird zone `<mesh-domain>` for each host, pointing at the gateway VIP. NetBird zones hold no TXT records, so this instance treats every record in the zone as its own. With `policy: sync`, it deletes every record in the zone that has no route.
+
+The NetBird instance uses the token of the `o11y-<env>-external-dns` service user, which the netbird module creates. NetBird gives the token an expiry of one year. Replace it before it expires, as the comment in `terraform/modules/netbird/cluster/netbird.tf` describes. Reloader restarts both instances when their Secrets change.
 
 ### TLS certificates
 

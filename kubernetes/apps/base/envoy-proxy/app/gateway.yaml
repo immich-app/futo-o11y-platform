@@ -5,6 +5,9 @@ kind: Gateway
 metadata:
   name: envoy
   annotations:
+    # external-dns points each route host at this name, which the OVH module
+    # points at the IPLB.
+    external-dns.alpha.kubernetes.io/target: ${CLUSTER_APP_DOMAIN}
     gatus.home-operations.com/endpoint: |-
       group: external
 spec:
