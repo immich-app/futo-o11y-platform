@@ -80,22 +80,3 @@ resource "ovh_cloud_storage_object_bucket" "glitchtip" {
     ignore_changes = [object_lock, owner_user_id]
   }
 }
-
-# One-shot migration from the deprecated ovh_cloud_project_storage: the import
-# hands the bucket to the new resource, the removed block forgets the legacy
-# address without destroying it. While they exist, a new environment cannot be
-# created, because the import of a missing bucket fails the plan. Delete both
-# once both environments are migrated.
-import {
-  to = ovh_cloud_storage_object_bucket.glitchtip
-  # The bucket ID is <REGION>_<name> on OVH's multi-region deployment.
-  id = "${local.cloud_project_id}/GRA_${local.bucket_name}"
-}
-
-removed {
-  from = ovh_cloud_project_storage.glitchtip
-
-  lifecycle {
-    destroy = false
-  }
-}

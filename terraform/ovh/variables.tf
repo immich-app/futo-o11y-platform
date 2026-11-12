@@ -94,14 +94,3 @@ variable "status_page_cname_records" {
   type    = map(string)
   default = {}
 }
-
-# Import IDs of the legacy ovh_cloud_project_* objects for the migration to
-# ovh_cloud_* (migration.tf). Delete it together with that file.
-variable "legacy" {
-  type = object({
-    project_id = string
-    networks   = map(string) # region => regional OpenStack network UUID
-    subnets    = map(string) # control-plane key => "<network UUID>/<subnet UUID>"
-    instances  = map(string) # control-plane key => instance UUID
-  })
-}
