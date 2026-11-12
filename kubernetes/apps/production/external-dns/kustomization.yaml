@@ -8,3 +8,6 @@ resources:
   - ./namespace.yaml
 components:
   - ../../../components/replacements
+patches:
+  - path: patches/external-dns-netbird.yaml
+  - path: patches/external-dns-ovh.yaml
