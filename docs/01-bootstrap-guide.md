@@ -6,7 +6,7 @@ This guide builds an environment from nothing: no servers, no Terraform state an
 
 You need these tools and sessions on your machine:
 
-1. Install the tools: run `mise install` in the repository. mise pins every tool, among them OpenTofu, Terragrunt, topf, talosctl, kubectl, helmfile and the Infisical CLI. The image task in step 2 of [Apply order](#apply-order) also needs curl 7.84 or newer and `xz`, which mise does not install. Current Linux distributions and macOS include such a curl. On macOS, install `xz` with Homebrew.
+1. Install the tools: run `mise install` in the repository. mise pins every tool, among them OpenTofu, Terragrunt, topf, talosctl, kubectl, helmfile and the Infisical CLI.
 2. Join the NetBird mesh: run the NetBird client (`netbird up`) and join the FUTO NetBird account. Infisical and the cluster APIs are reachable only over the mesh. See [Cluster access](#cluster-access).
 3. Sign in to Infisical once, while you are on the mesh: `infisical login --domain https://infisical.futo.network`. Every task reads its credentials with this session.
 4. Make sure that you can read and write the `observability` Infisical project in the environment. core-infra-tf manages the project, its environments, its folders and its members.
@@ -34,10 +34,9 @@ Set the environment in your shell first:
 export ENVIRONMENT=staging
 ```
 
-> [!IMPORTANT]
-> Set `ENVIRONMENT` in every shell before you run a task. If it is unset, the tasks read the Infisical `dev` environment and the Terraform state of the `development` environment.
+If `ENVIRONMENT` is unset, the Terraform, Talos and bootstrap tasks stop with an error.
 
-Steps 1 to 5 apply the Terraform modules in their dependency order. If the OVH project already has the Talos image (step 2), `mise run //terraform:apply` applies all five modules in the same order.
+Steps 1 to 5 apply the Terraform modules in their dependency order. If the OpenStack upload user of step 2 already exists, `mise run //terraform:apply` applies all five modules in the same order.
 
 1. Apply the Rootly module. It creates the alert sources, the services, the heartbeats, the Zulip workflows and the status page. It writes the alert and heartbeat URLs to Infisical. The OVH module reads the DNS records of the status page from it.
 
@@ -45,29 +44,22 @@ Steps 1 to 5 apply the Terraform modules in their dependency order. If the OVH p
    mise run //terraform/rootly:apply
    ```
 
-2. Apply the OVH module. It creates the cloud project, the vRack, the private network, the control-plane instances, the workers, the IPLB and the DNS records. In production, delete the apex DNS records in the OVH dashboard before the first apply.
+2. Apply the OVH module. It creates the cloud project, the vRack, the private network, the control-plane image, the control-plane instances, the workers, the IPLB and the DNS records. In production, delete the apex DNS records in the OVH dashboard before the first apply.
 
-   The control planes boot from a Talos OpenStack image that you upload to the cloud project. In a new environment, the project does not exist yet, so do these steps in order:
-   1. Create only the cloud project and the OpenStack user that uploads the image, then save the outputs of the module. The image task reads the `cp_image` output. The refresh-only apply saves the outputs and creates nothing.
+   The control planes boot from a Talos OpenStack image that the module uploads to each control-plane region. The OpenStack user that uploads it is part of the module, and its password exists only after that user exists. So a new environment applies in two steps:
+   1. Create only the cloud project and the OpenStack user:
 
       ```bash
       mise run //terraform/ovh:apply -- -target=ovh_cloud_project_user.image
-      mise run //terraform/ovh:apply -- -refresh-only
       ```
 
-   2. Upload the image to the regions of the control planes. The image contains the `qemu-guest-agent` and `netbird` extensions. The task uploads only to the regions that do not have an active image yet, and it uploads to them at the same time. Each upload can take an hour. If an upload fails, run the task again. It deletes the unfinished image and uploads again. If a region has an upload in progress, the task stops.
-
-      ```bash
-      mise run //bootstrap:image
-      ```
-
-   3. Apply the whole module. The first run is slow. Each control-plane instance takes about 5 minutes, each bare-metal order takes 20 to 45 minutes, and the IPLB takes about 10 minutes.
+   2. Apply the whole module. It downloads the image from the Talos Factory, decompresses it, and uploads 4.4 GiB to each region from your machine. Each upload can take an hour, and the regions upload at the same time. The decompressed image stays in `.terraform/image_cache` in the Terragrunt working directory of the module. If an apply stops during the download, delete that directory before you run the apply again, because the provider reuses a partial file. The rest of the first run is slow too. Each control-plane instance takes about 5 minutes, each bare-metal order takes 20 to 45 minutes, and the IPLB takes about 10 minutes.
 
       ```bash
       mise run //terraform/ovh:apply
       ```
 
-   The image name comes from `talos_version` and `talos_schematic_id` in the OVH module. If the project already has the image, run only the last command. The task reads the name from the saved outputs. After a change to either value, save the new outputs with `mise run //terraform/ovh:apply -- -refresh-only`. Then run `mise run //bootstrap:image` before you create a new control plane. The workers need no upload. They are OVH BYOI (bring your own image) servers, and OVH pulls their bare-metal image from the Talos Factory when you order them. Keep only `netbird` in the worker schematic. On bare metal, `qemu-guest-agent` waits for a virtio port that never appears, and the node reboots in a loop.
+   The image name comes from `talos_version` and `talos_schematic_id` in the OVH module. Renovate does not bump them, because a bump uploads the image again. Bump `talos_version` by hand at least once per Talos minor, so that tuppr can upgrade a new node to the cluster version. After a change to either value, the next apply uploads the new image, and then it deletes the old one. The workers need no upload. They are OVH BYOI (bring your own image) servers, and OVH pulls their bare-metal image from the Talos Factory when you order them. Keep only `netbird` in the worker schematic. On bare metal, `qemu-guest-agent` waits for a virtio port that never appears, and the node reboots in a loop.
 
 3. Apply the NetBird module. It creates the mesh objects of the environment, all named `o11y-<env>-*`:
    - The groups and the setup keys for the Talos nodes, for the routing peers in the cluster, and for CI.
@@ -102,37 +94,9 @@ Steps 1 to 5 apply the Terraform modules in their dependency order. If the OVH p
    mise run //terraform/glitchtip:apply
    ```
 
-6. Nothing to apply for the Talos secrets bundle: the cluster CAs, keys and tokens. It lives in Infisical as `TALOS_SECRETS` in the `observability <env>:/talos` folder. In a new environment, the first render in step 7 finds no bundle. topf then asks whether to generate one, and `talos/bin/talos-secrets` stores it in Infisical. Answer yes only in a new environment.
+6. Nothing to apply for the Talos secrets bundle: the cluster CAs, keys and tokens. It lives in Infisical as `TALOS_SECRETS` in the `observability <env>:/talos` folder. In a new environment, the first stage of step 8 finds no bundle when it writes the talosconfig. topf then asks whether to generate one, and `talos/bin/talos-secrets` stores it in Infisical. Answer yes only in a new environment.
 
-7. Apply the machine configurations to the new nodes. A new node boots into maintenance mode, and it accepts an unauthenticated configuration only on its public IP, because NetBird does not run yet.
-
-   1. Render the machine configurations into a temporary directory. The files contain the private keys of the cluster.
-
-      ```bash
-      dir="$(mktemp -d)"
-      mise run //talos:render "$dir"
-      ```
-
-   2. Apply each configuration over the public IP of its node. The OVH module outputs the public IPs.
-
-      ```bash
-      mise run //terraform/ovh:output -- -json \
-        | jq -r '[.controlplane_nodes.value, .worker_nodes.value][][] | "\(.name) \(.public_ip)"' \
-        | while read -r name ip; do
-            talosctl apply-config --insecure --nodes "$ip" --file "$dir/$name.yaml" </dev/null \
-              || echo "FAILED: $name ($ip)" >&2
-          done
-      ```
-
-      The loop continues after a failed node and prints `FAILED:` with the name of the node. Read the `talosctl` error above that line.
-
-   3. Delete the rendered files:
-
-      ```bash
-      rm -rf "$dir"
-      ```
-
-   Each node installs Talos, reboots and joins the NetBird mesh. The host firewall then closes the public network interface, except port `30443` on the workers. If `talosctl` reports `certificate required`, the node already has a configuration. If `talosctl` cannot connect, the node already has a configuration and its firewall drops the traffic, or the node is down. To change a configured node, use `mise run //talos:apply <node>`.
+7. Nothing to run by hand for the machine configurations: the first stage of the bootstrap in step 8 applies them. A new node boots into maintenance mode, and it accepts an unauthenticated configuration only on its public IP, because NetBird does not run yet. The stage reads the public IPs from the outputs of the OVH module. It renders the configurations into a temporary directory, and it deletes them again, because the files contain the private keys of the cluster. Each node then installs Talos, reboots and joins the NetBird mesh. The host firewall then closes the public network interface, except port `30443` on the workers. A configured node answers on its private IP, so the stage skips it. The node names in `talos/<env>/topf.yaml` and in the OVH outputs must match, or the stage stops. To change a configured node, use `mise run //talos:apply <node>`.
 
 8. Bootstrap the cluster. The task runs the stages below in order. Each stage is also a task of its own, and you can run each stage again without harm.
 
@@ -140,14 +104,17 @@ Steps 1 to 5 apply the Terraform modules in their dependency order. If the OVH p
    mise run //bootstrap:cluster
    ```
 
-   1. `//bootstrap:etcd` bootstraps etcd on the first control plane. It connects to the private IP of that node, so your NetBird client must have the route to the vRack. If the etcd bootstrap does not complete within 20 minutes, the task stops.
-   2. `//bootstrap:kubeconfig --direct` writes the kubeconfig (see [Cluster access](#cluster-access)). It points the kubeconfig at the first control plane, because the mesh gateway does not exist yet.
-   3. `//bootstrap:ready` waits until every node in `topf.yaml` is registered and `Ready`. If a node does not join within 20 minutes, the task stops and names it.
-   4. `//bootstrap:resources` applies the namespaces, the `bootstrap-settings` ConfigMap and the bootstrap Secrets in `bootstrap/kustomize`, filled from the `observability` Infisical project. The Secrets are the NetBird routing-peer key and the Infisical client credentials for external-secrets. Every other Secret comes from an ExternalSecret, except the ones an operator creates, such as the `grafana-rootly-token` of the grafana-operator.
-   5. `//bootstrap:crds` creates the missing CRDs of the charts in `bootstrap/crds.yaml`: the Prometheus Operator CRDs and the grafana-operator CRDs. Apps that only use these CRDs need no Flux `dependsOn` on these charts. Existing CRDs belong to Flux, so the task does not change them.
-   6. `//bootstrap:apps` installs CoreDNS, the Flux Operator and the FluxInstance with helmfile (`bootstrap/helmfile.yaml`). The chart versions and values come from the Flux apps, so Flux takes over the same releases.
+   1. `//bootstrap:nodes` applies the machine configurations to the nodes in maintenance mode, as step 7 describes. The stage tries every pending node, and then it stops the bootstrap if one failed. A node that failed a moment after its apply is not on the mesh yet. A node that cannot be reached is down. Resolve the failures, then run `mise run //bootstrap:cluster` again.
+   2. `//bootstrap:etcd` bootstraps etcd on the first control plane. It connects to the private IP of that node, so your NetBird client must have the route to the vRack. If the etcd bootstrap does not complete within 20 minutes, the task stops.
+   3. `//bootstrap:kubeconfig --direct` writes the kubeconfig (see [Cluster access](#cluster-access)). It points the kubeconfig at the first control plane, because the mesh gateway does not exist yet.
+   4. `//bootstrap:ready` waits until every node in `topf.yaml` is registered and `Ready`. If a node does not join within 20 minutes, the task stops and names it.
+   5. `//bootstrap:resources` applies the namespaces, the `bootstrap-settings` ConfigMap and the bootstrap Secrets in `bootstrap/kustomize`, filled from the `observability` Infisical project. The Secrets are the NetBird routing-peer key and the Infisical client credentials for external-secrets. Every other Secret comes from an ExternalSecret, except the ones an operator creates, such as the `grafana-rootly-token` of the grafana-operator.
+   6. `//bootstrap:crds` creates the missing CRDs of the charts in `bootstrap/crds.yaml`: the Prometheus Operator CRDs and the grafana-operator CRDs. Apps that only use these CRDs need no Flux `dependsOn` on these charts. Existing CRDs belong to Flux, so the task does not change them.
+   7. `//bootstrap:apps` installs CoreDNS, the Flux Operator and the FluxInstance with helmfile (`bootstrap/helmfile.yaml`). The chart versions and values come from the Flux apps, so Flux takes over the same releases.
+   8. `//bootstrap:mesh` waits until `kube.<mesh-zone>:6443` answers. Flux brings that endpoint up with the mesh gateway. If it does not answer within 30 minutes, the task stops.
+   9. `//bootstrap:kubeconfig` points the kubeconfig at the mesh endpoint.
 
-   Flux then reconciles from `kubernetes/clusters/<env>/apps.yaml`. From there, it applies the Kustomization of each app in dependency order. On its first sync, the cluster generates its passwords and stores them in `observability <env>:/k8s`. When the mesh gateway is up, run `mise run //bootstrap:kubeconfig` to point the kubeconfig at the mesh endpoint.
+   Flux reconciles from `kubernetes/clusters/<env>/apps.yaml` as soon as stage 7 completes. From there, it applies the Kustomization of each app in dependency order. On its first sync, the cluster generates its passwords and stores them in `observability <env>:/k8s`.
 
 9. Finish the parts that have no API:
    1. When Grafana is up in production, install the token of the `rootly` service account in Rootly, as [Alerting](06-dashboards-and-alerts-guide.md#alerting) describes. Rootly holds one Grafana integration, and it points at production.
@@ -243,7 +210,7 @@ Run the commands from the root of the repository, with `ENVIRONMENT` set to the 
 
    In production, use `--env prod`. `mise exec` sets the Infisical instance and the `observability` project.
 
-3. Configure the nodes and bootstrap the cluster: run steps 7 and 8 of [Apply order](#apply-order). The bootstrap writes a new talosconfig and kubeconfig from the new bundle.
+3. Configure the nodes and bootstrap the cluster: run step 8 of [Apply order](#apply-order). The bootstrap writes a new talosconfig and kubeconfig from the new bundle.
 4. When Grafana is up in production, the grafana-operator creates the `rootly` service account and a new token, and a PushSecret writes the token to Infisical. Install that token in Rootly, as [Alerting](06-dashboards-and-alerts-guide.md#alerting) describes. The old token was in the old Grafana database.
 5. When GlitchTip is up, repeat the sign-in setup in [GlitchTip](04-application-architecture-guide.md#glitchtip). GlitchTip keeps its Zitadel provider in its database, which the rebuild deletes.
 6. In the NetBird dashboard, delete the old peers of the nodes. The Talos setup key is not ephemeral, so each node joins as a new peer, and its old peer stays.

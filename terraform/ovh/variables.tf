@@ -41,9 +41,10 @@ variable "vrack_name" {
 
 variable "talos_version" {
   type = string
-  # Image for newly provisioned nodes in both environments. Renovate bumps it
-  # with production, and tuppr then upgrades a new staging node to staging's version.
-  # renovate: datasource=github-releases depName=siderolabs/talos
+  # Image for newly provisioned nodes in both environments; tuppr then upgrades
+  # a new node to its cluster's version. Bumped by hand, not by Renovate: a
+  # bump uploads the control-plane image to every region (images.tf). Keep it
+  # within one Talos minor of the clusters, the supported upgrade path.
   default = "v1.14.5"
 }
 

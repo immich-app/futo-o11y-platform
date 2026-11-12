@@ -42,7 +42,7 @@ mise.local.toml
 
 .claude/
 
-# Rendered by `mise run //:o11y:render`; CI renders and publishes, nothing generated is committed
+# Rendered by `mise run //o11y:render`; CI renders and publishes, nothing generated is committed
 o11y/manifests/dashboards.yaml
 
 # topf's default render dir; rendered machine configs contain the cluster's private keys

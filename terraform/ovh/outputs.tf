@@ -23,21 +23,3 @@ output "worker_nodes" {
 output "private_network_cidr" {
   value = var.private_network_cidr
 }
-
-# Consumed by `mise run //bootstrap:image`, so the CP image facts (schematic,
-# version, glance name, regions) live only in this module. Sensitive: openstack
-# holds the password of the upload user.
-output "cp_image" {
-  sensitive = true
-  value = {
-    download_url = "https://factory.talos.dev/image/${var.talos_schematic_id}/${var.talos_version}/openstack-amd64.raw.xz"
-    glance_name  = local.cp_image_name
-    regions      = distinct([for n in var.controlplane_nodes : n.region])
-    openstack = {
-      auth_url   = ovh_cloud_project_user.image.openstack_rc["OS_AUTH_URL"]
-      project_id = ovh_cloud_project_user.image.openstack_rc["OS_TENANT_ID"]
-      username   = ovh_cloud_project_user.image.username
-      password   = ovh_cloud_project_user.image.password
-    }
-  }
-}

@@ -2,7 +2,7 @@ min_version = "2026.11.3"
 monorepo_root = true
 
 [monorepo]
-config_roots = ["bootstrap", "terraform", "terraform/*", "talos"]
+config_roots = ["bootstrap", "o11y", "terraform", "terraform/*", "talos"]
 
 [tools]
 lefthook = "2.2.2"
@@ -45,12 +45,12 @@ INFISICAL_PROJECT_ID = "{{ vars.infisical_observability }}"
 # The Infisical environment slug of $ENVIRONMENT, for task scripts.
 ENVIRONMENT_SHORT = "{{ vars.env_short }}"
 # The modules' env variable and root.hcl's state key and working directory.
-TF_VAR_env = "{% set e = get_env(name='ENVIRONMENT', default='') %}{% if e == '' %}development{% else %}{{ e }}{% endif %}"
+TF_VAR_env = "{{ get_env(name='ENVIRONMENT', default='') }}"
 
 [vars]
-# Maps long env names (development/staging/production) to the short suffixes
-# used by the Infisical environment slugs (dev/staging/prod).
-env_short = "{% set e = get_env(name='ENVIRONMENT', default='development') %}{% if e == 'development' or e == '' %}dev{% elif e == 'production' %}prod{% else %}{{ e }}{% endif %}"
+# Maps the env names (staging/production) to the Infisical environment slugs
+# (staging/prod).
+env_short = "{% set e = get_env(name='ENVIRONMENT', default='') %}{% if e == 'production' %}prod{% else %}{{ e }}{% endif %}"
 # Infisical project IDs (core-infra-tf infisical/instance).
 infisical_observability = "12d6474a-148e-4170-ae08-e24e1232a116"
 infisical_shared = "fe818c25-3e88-4d62-914e-df845b95c535"
@@ -58,6 +58,9 @@ infisical_shared = "fe818c25-3e88-4d62-914e-df845b95c535"
 # exports it from its OIDC login; otherwise the operator's `infisical login`
 # session supplies it (and starts the login when there is none).
 infisical_env = "{% if get_env(name='INFISICAL_TOKEN', default='') == '' %}INFISICAL_TOKEN=\"$(infisical user get token --plain)\" {% endif %}"
+# Without ENVIRONMENT there is no Infisical environment and no state key, so
+# every terragrunt task fails first instead.
+environment_guard = ": \"${ENVIRONMENT:?set ENVIRONMENT=staging (or production) first}\"; "
 # Terragrunt gets the shared project's global /tf first, then this
 # environment's /tf of the observability project (which imports its global
 # /tf and wins on a name both hold). core-infra-tf lets the o11y identities read
@@ -66,7 +69,7 @@ infisical_env = "{% if get_env(name='INFISICAL_TOKEN', default='') == '' %}INFIS
 # --log-level keeps a LOG_LEVEL=debug meant for another tool from making
 # infisical log every secret it injects. infisical run exits 1 for any failed
 # command, so terragrunt's other exit codes (plan -detailed-exitcode) are lost.
-tg = "{{vars.infisical_env}}infisical run --silent --log-level warn --projectId {{vars.infisical_shared}} --env global --path /tf -- infisical run --silent --log-level warn --projectId {{vars.infisical_observability}} --env {{vars.env_short}} --path /tf -- terragrunt"
+tg = "{{vars.environment_guard}}{{vars.infisical_env}}infisical run --silent --log-level warn --projectId {{vars.infisical_shared}} --env global --path /tf -- infisical run --silent --log-level warn --projectId {{vars.infisical_observability}} --env {{vars.env_short}} --path /tf -- terragrunt"
 
 # Escape hatch for terragrunt subcommands the tasks below don't cover
 # (state rm/import/force-unlock, ...); operates on the caller's directory.

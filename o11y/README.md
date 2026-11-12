@@ -18,7 +18,7 @@ Then a `yq` step pins every datasource-type variable to the Fleet datasource. Th
 In CI, `.github/workflows/o11y.yaml` runs the same mise tasks. For a pull request, CI renders the bundle and runs `kustomize build` on it. For each push to `main` that changes `o11y/`, CI renders the bundle again. CI then publishes `manifests/` as the signed OCI artifact `ghcr.io/immich-app/futo-o11y-platform/o11y-manifests:main` (`flux push artifact` plus keyless cosign). The tenant bundles use the same shape and naming. Upstream changes reach the clusters on the next publish. To get them without a configuration change, run the workflow again by hand. The central cluster consumes the artifact and the `Shared` folder in `manifests/folder.yaml` through `kubernetes/apps/base/tenants/shared/bundle.yaml`.
 
 ```fish
-mise run //:o11y:render   # render manifests/dashboards.yaml locally for review (git-ignored)
+mise run //o11y:render   # render manifests/dashboards.yaml locally for review (git-ignored)
 ```
 
 Two upstream dashboards use a variable named `cluster` for something other than the Kubernetes cluster. In `sync-job.yaml`, each one has a `variables` override that adds a `k8s_cluster` variable as the cluster picker:

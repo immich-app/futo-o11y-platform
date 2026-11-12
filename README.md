@@ -48,5 +48,4 @@ kubernetes/
 
 The Terraform state is in S3 under `yucca/o11y/v3/<module>/<env>`. Each environment has its own Terragrunt working directory. When you change `ENVIRONMENT`, you do not have to run init again. The secrets, the state bucket keys and the API tokens come from Infisical. The `//:tg` wrapper runs Terragrunt inside `infisical run`, and `terraform/root.hcl` maps the Infisical names to the module inputs.
 
-> [!IMPORTANT]
-> Set `ENVIRONMENT` to `staging` or `production` before you run a task. If it is unset, the tasks read the Infisical `dev` environment and the Terraform state of the `development` environment.
+Set `ENVIRONMENT` to `staging` or `production` before you run a task. If it is unset, the Terraform, Talos and bootstrap tasks stop with an error.

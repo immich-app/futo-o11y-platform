@@ -24,13 +24,19 @@ resource "ovh_vrack_cloudproject" "this" {
 
 # Iterate the resource map (not var.worker_nodes) so -target=one-DC applies
 # work — keys are still statically derivable through the worker for_each.
+# Only the service name is taken: the whole object carries the deprecated
+# `properties` attribute, and every use of it would warn.
+locals {
+  worker_service_names = { for k, v in ovh_dedicated_server.worker : k => v.service_name }
+}
+
 data "ovh_dedicated_server" "workers" {
-  for_each     = ovh_dedicated_server.worker
-  service_name = each.value.service_name
+  for_each     = local.worker_service_names
+  service_name = each.value
 }
 
 resource "ovh_vrack_dedicated_server_interface" "workers" {
-  for_each = ovh_dedicated_server.worker
+  for_each = local.worker_service_names
 
   service_name = ovh_vrack.this.service_name
   interface_id = data.ovh_dedicated_server.workers[each.key].enabled_vrack_vnis[0]

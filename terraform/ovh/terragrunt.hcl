@@ -111,19 +111,6 @@ locals {
       private_network_cidr = "10.150.100.0/24"
       loadbalancer_zones   = ["gra", "rbx", "sbg"]
     }
-
-    development = {
-      controlplane_nodes = {
-        rbx = {
-          region      = "RBX-A"
-          flavor_name = "d2-8"
-          private_ip  = "10.150.50.10"
-        }
-      }
-      worker_nodes         = {}
-      private_network_cidr = "10.150.50.0/24"
-      loadbalancer_zones   = ["gra"]
-    }
   }
 
   topology = local.topology_by_env[local.env]
