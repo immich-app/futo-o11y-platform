@@ -31,7 +31,7 @@ resource "ovh_cloud_network_private_vrack_subnet" "cluster" {
 
   lifecycle {
     postcondition {
-      condition     = self.gateway_ip == null
+      condition     = self.current_state.gateway_ip == null
       error_message = "The subnet ${self.name} got a gateway IP; the control planes must not get a private default route."
     }
   }
