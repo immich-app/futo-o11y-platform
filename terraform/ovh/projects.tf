@@ -16,8 +16,8 @@ resource "ovh_cloud_project" "this" {
   }
 }
 
-# The OpenStack user that `mise run //bootstrap:image` uploads the
-# control-plane image with. OVH returns the password only when it creates the
+# The OpenStack user that the openstack provider uploads the control-plane
+# image with (images.tf). OVH returns the password only when it creates the
 # user, so the state holds the only copy.
 resource "ovh_cloud_project_user" "image" {
   service_name = ovh_cloud_project.this.project_id

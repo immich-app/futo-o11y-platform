@@ -1,19 +1,21 @@
-# Run it after the nodes have their machine configuration
-# (docs/01-bootstrap-guide.md). The kubeconfig stays on the first control
-# plane: Flux brings up the mesh gateway later, and
-# `mise run //bootstrap:kubeconfig` then switches to the mesh endpoint.
+# Run it after the OVH module is applied (docs/01-bootstrap-guide.md). The
+# kubeconfig points at the first control plane until Flux brings up the mesh
+# gateway; the last two stages then switch it to the mesh endpoint.
 [tasks.cluster]
-description = "Bootstrap $ENVIRONMENT after the nodes are configured: etcd, kubeconfig, Flux prerequisites, Flux"
+description = "Bootstrap $ENVIRONMENT after the OVH module is applied: machine configurations, etcd, kubeconfig, Flux prerequisites, Flux, mesh endpoint"
 confirm = "Bootstrap o11y-{{ get_env(name='ENVIRONMENT', default='') }}?"
 run = [
+  { task = "nodes" },
   { task = "etcd" },
   { task = "kubeconfig", args = ["--direct"] },
   { task = "ready" },
   { task = "resources" },
   { task = "crds" },
   { task = "apps" },
+  { task = "mesh" },
+  { task = "kubeconfig" },
 ]
 
 [tasks.apps]
 description = "Install CoreDNS, the Flux Operator and the FluxInstance on $ENVIRONMENT (helmfile sync)"
-run = 'helmfile --environment "$ENVIRONMENT" sync --hide-notes'
+run = 'helmfile --environment "${ENVIRONMENT:?set ENVIRONMENT=staging (or production) first}" sync --hide-notes'

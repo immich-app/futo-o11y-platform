@@ -37,12 +37,6 @@
       "semanticCommitScope": "base"
     },
     {
-      "description": "Split development Kubernetes updates into their own PRs",
-      "matchFileNames": ["kubernetes/apps/development/**"],
-      "additionalBranchPrefix": "development-",
-      "semanticCommitScope": "development"
-    },
-    {
       "description": "Split staging Kubernetes updates into their own PRs",
       "matchFileNames": ["kubernetes/apps/staging/**"],
       "additionalBranchPrefix": "staging-",
@@ -57,11 +51,7 @@
     },
     {
       "description": "Digests in env overlay patches are managed by the custom manager",
-      "matchFileNames": [
-        "kubernetes/apps/development/**",
-        "kubernetes/apps/staging/**",
-        "kubernetes/apps/production/**"
-      ],
+      "matchFileNames": ["kubernetes/apps/staging/**", "kubernetes/apps/production/**"],
       "matchUpdateTypes": ["pinDigest"],
       "enabled": false
     },
@@ -95,7 +85,7 @@
       "minimumGroupSize": 2
     },
     {
-      "description": "One Talos upgrade per environment: topf's talosVersion and the tuppr TalosUpgrade move together, with talosctl in staging's PR and the OVH image in production's",
+      "description": "One Talos upgrade per environment: topf's talosVersion and the tuppr TalosUpgrade move together, with talosctl in staging's PR",
       "matchDepNames": ["siderolabs/talos", "talosctl"],
       "groupName": "talos",
       "separateMinorPatch": true
@@ -118,14 +108,6 @@
       "matchDepNames": ["talosctl", "kubectl", "github:netbirdio/netbird"],
       "additionalBranchPrefix": "base-",
       "semanticCommitScope": "base"
-    },
-    {
-      "description": "The OVH image version provisions nodes in both environments, so it moves with production and a new node never runs ahead of it",
-      "matchFileNames": ["terraform/**"],
-      "matchDepNames": ["siderolabs/talos"],
-      "additionalBranchPrefix": "production-",
-      "semanticCommitScope": "production",
-      "dependencyDashboardApproval": true
     }
   ]
 }

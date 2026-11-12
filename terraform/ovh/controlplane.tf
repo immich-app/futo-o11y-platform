@@ -7,10 +7,7 @@ resource "ovh_cloud_project_instance" "controlplane" {
   name           = "o11y-${var.env}-cp-${each.key}"
 
   boot_from {
-    image_id = one([
-      for img in data.ovh_cloud_project_images.talos[each.key].images :
-      img.id if img.name == local.cp_image_name
-    ])
+    image_id = openstack_images_image_v2.controlplane[each.value.region].id
   }
 
   flavor {

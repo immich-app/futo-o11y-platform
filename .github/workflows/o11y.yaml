@@ -14,13 +14,11 @@ on:
       - o11y/**
       - .github/workflows/o11y.yaml
       - .mise/config.toml
-      - .mise/tasks/o11y/**
   pull_request:
     paths:
       - o11y/**
       - .github/workflows/o11y.yaml
       - .mise/config.toml
-      - .mise/tasks/o11y/**
   workflow_dispatch:
 
 permissions: {}
@@ -52,7 +50,7 @@ jobs:
           cache: false
 
       - name: Render
-        run: mise run //:o11y:render
+        run: mise run //o11y:render
 
       - name: Bundle builds
         run: kustomize build o11y/manifests > /dev/null
@@ -81,7 +79,7 @@ jobs:
           cache: false
 
       - name: Render
-        run: mise run //:o11y:render
+        run: mise run //o11y:render
 
       - name: Log in to GHCR
         uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0

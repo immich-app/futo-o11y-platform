@@ -20,6 +20,8 @@ download_dir = "${get_terragrunt_dir()}/.terragrunt-cache/${local.env}${local.st
 # Every module gets every input; OpenTofu ignores the ones a module does not
 # declare.
 inputs = {
+  env_short = get_env("ENVIRONMENT_SHORT")
+
   ovh_application_key    = get_env("OVH_APPLICATION_KEY")
   ovh_application_secret = get_env("OVH_APPLICATION_SECRET")
   ovh_consumer_key       = get_env("OVH_CONSUMER_KEY")
