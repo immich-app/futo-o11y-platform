@@ -18,7 +18,7 @@ stage_fixed = true
 
 [[pre-commit.jobs.group.jobs]]
 name = "lock-mise"
-run = 'mise lock && git add -A -- .mise ":(exclude).mise/*.toml"'
+run = "mise lock && git add -A -- .mise/mise.lock .mise/locks"
 
 # oxfmt exits non-zero when every path it was given is ignored by
 # .prettierignore, which would fail a commit of only ignored files.
@@ -34,6 +34,11 @@ stage_fixed = true
 glob = ["*.md"]
 run = "oxfmt --no-error-on-unmatched-pattern {staged_files}"
 stage_fixed = true
+
+# The mise file tasks, and the topf secrets provider, which has no extension.
+[pre-commit.commands.shellcheck]
+glob = ["*.sh", "talos/bin/*"]
+run = "shellcheck {staged_files}"
 
 # oxfmt rewrites staged workflows in place, and a linter that reads one
 # mid-rewrite sees a truncated file, so the linters run after it.

@@ -31,9 +31,10 @@ talos/
 ├── <env>/topf.yaml           # nodes, versions and network values per environment
 ├── patches/                  # machine-config patches: all/, control-plane/, worker/
 ├── schematics/               # Talos Factory schematics (control plane, worker)
+├── mise-tasks/               # apply, render and talosconfig tasks
 └── bin/talos-secrets         # topf secrets provider: reads the bundle from Terraform state
 
-bootstrap/                    # bring-up stages (mise.toml), kustomize/ (bootstrap Secrets), helmfiles for CRDs, CoreDNS + Flux
+bootstrap/                    # bring-up stages (mise.toml, mise-tasks/), kustomize/ (bootstrap Secrets), helmfiles for CRDs, CoreDNS + Flux
 
 kubernetes/
 ├── apps/

@@ -14,11 +14,13 @@ on:
       - o11y/**
       - .github/workflows/o11y.yaml
       - .mise/config.toml
+      - .mise/tasks/o11y/**
   pull_request:
     paths:
       - o11y/**
       - .github/workflows/o11y.yaml
       - .mise/config.toml
+      - .mise/tasks/o11y/**
   workflow_dispatch:
 
 permissions: {}
