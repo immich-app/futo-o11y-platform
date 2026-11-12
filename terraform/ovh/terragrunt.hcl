@@ -4,10 +4,6 @@ include "root" {
 
 terraform {
   source = "."
-
-  extra_arguments custom_vars {
-    commands = get_terraform_commands_that_need_vars()
-  }
 }
 
 locals {
@@ -134,7 +130,7 @@ locals {
 }
 
 dependency "rootly" {
-  config_path = "../../rootly/cluster"
+  config_path = "../rootly"
 
   mock_outputs = {
     status_page_cname_records = {}

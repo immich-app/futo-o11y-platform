@@ -18,12 +18,13 @@ Status: both environments, `o11y-staging` and `o11y-production`, are built and r
 ## Repository layout
 
 ```text
-terraform/modules/
+terraform/
 ├── root.hcl                  # included by every module: S3 backend + per-env .terragrunt-cache/<env>
-├── ovh/account/              # cloud project, vRack, private network, CPs, workers, IPLB, DNS
-├── netbird/cluster/          # per-env mesh: vRack route, mesh-gateway VIP + DNS, pod egress, policies
-├── rootly/cluster/           # Rootly service, heartbeats, alert sources, Zulip workflows, status page
-└── netbox/cluster/           # IPAM registration of the ranges the other modules allocate
+├── ovh/                      # cloud project, vRack, private network, CPs, workers, IPLB, DNS
+├── netbird/                  # per-env mesh: vRack route, mesh-gateway VIP + DNS, pod egress, policies
+├── rootly/                   # Rootly service, heartbeats, alert sources, Zulip workflows, status page
+├── netbox/                   # IPAM registration of the ranges the other modules allocate
+└── glitchtip/                # GlitchTip upload bucket, its owner and writer users, writer keys in Infisical
 
 talos/
 ├── <env>/topf.yaml           # nodes, versions and network values per environment
@@ -45,7 +46,7 @@ kubernetes/
         └── cluster-settings.yaml # per-env CLUSTER_* ConfigMap (BOOTSTRAP_* comes from Terraform)
 ```
 
-The Terraform state is in S3 under `yucca/o11y/v3/<module>/<env>`. Each environment has its own Terragrunt working directory. When you change `ENVIRONMENT`, you do not have to run init again. The secrets, the state bucket keys and the API tokens come from Infisical. The `//:tg` wrapper runs Terragrunt inside `infisical run`, and `terraform/modules/root.hcl` maps the Infisical names to the module inputs.
+The Terraform state is in S3 under `yucca/o11y/v3/<module>/<env>`. Each environment has its own Terragrunt working directory. When you change `ENVIRONMENT`, you do not have to run init again. The secrets, the state bucket keys and the API tokens come from Infisical. The `//:tg` wrapper runs Terragrunt inside `infisical run`, and `terraform/root.hcl` maps the Infisical names to the module inputs.
 
 > [!IMPORTANT]
 > Set `ENVIRONMENT` to `staging` or `production` before you run a task. If it is unset, the tasks read the Infisical `dev` environment and the Terraform state of the `development` environment.

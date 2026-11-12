@@ -8,11 +8,11 @@ name: Terraform
 #
 # Every credential, the state bucket keys included, comes from Infisical, which
 # is reachable only over the NetBird mesh. So the job joins the mesh first, with
-# the CI setup key (o11y-<env>-ci peer) that netbird/cluster mints.
+# the CI setup key (o11y-<env>-ci peer) that terraform/netbird mints.
 #
 # Prerequisites (out-of-band, once):
 #   - Per-env repo secrets NETBIRD_O11Y_CI_SETUP_KEY_STAGING /
-#     NETBIRD_O11Y_CI_SETUP_KEY_PROD: the ci_setup_key output of netbird/cluster
+#     NETBIRD_O11Y_CI_SETUP_KEY_PROD: the ci_setup_key output of terraform/netbird
 #     in that environment.
 #   - Re-enable the workflow: gh workflow enable terraform.yaml
 

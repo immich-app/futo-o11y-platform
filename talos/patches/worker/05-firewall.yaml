@@ -1,7 +1,7 @@
 ---
 # Envoy data-plane NodePort, reached by the OVH IPLB on the worker's PUBLIC IP
 # (the lb1 order is vrackEligibility=false, so the LB cannot ride the vRack;
-# see ovh/account/iplb.tf). Restricted to the IPLB's NAT/source range (OVH
+# see terraform/ovh/iplb.tf). Restricted to the IPLB's NAT/source range (OVH
 # /ipLoadbalancing/{svc}/natIp = 10.108.0.0/14; confirmed by packet capture:
 # the LB connects from 10.110.x.x in that block). Those are OVH-internal
 # private IPs, so the public internet cannot reach 30443 directly and cannot

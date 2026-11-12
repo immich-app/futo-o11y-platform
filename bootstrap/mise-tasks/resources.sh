@@ -8,5 +8,5 @@ set -euo pipefail
 kustomize build --load-restrictor LoadRestrictionsNone "kustomize/$ENVIRONMENT" |
     infisical run --silent --log-level warn --env "$ENVIRONMENT_SHORT" --path /tf --path /ci -- flux envsubst --strict |
     kubectl apply --server-side --force-conflicts --filename -
-mise run //terraform/modules/netbird/cluster:output -- -raw bootstrap_settings |
+mise run //terraform/netbird:output -- -raw bootstrap_settings |
     kubectl apply --server-side --force-conflicts --filename -

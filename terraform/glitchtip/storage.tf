@@ -5,7 +5,7 @@
 data "ovh_cloud_projects" "all" {}
 
 locals {
-  # ovh/account describes each env's public cloud project as o11y-<env>; this
+  # terraform/ovh describes each env's public cloud project as o11y-<env>; this
   # data source leaves project_id empty and carries the ID in service_name.
   # one() errors on several matches, and no match leaves service_name unset,
   # so either way the plan fails rather than guessing.

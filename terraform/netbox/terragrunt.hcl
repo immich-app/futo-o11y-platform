@@ -4,14 +4,10 @@ include "root" {
 
 terraform {
   source = "."
-
-  extra_arguments custom_vars {
-    commands = get_terraform_commands_that_need_vars()
-  }
 }
 
 dependency "ovh" {
-  config_path = "../../ovh/account"
+  config_path = "../ovh"
 
   mock_outputs = {
     private_network_cidr = "10.150.200.0/24"
@@ -21,7 +17,7 @@ dependency "ovh" {
 }
 
 dependency "netbird" {
-  config_path = "../../netbird/cluster"
+  config_path = "../netbird"
 
   mock_outputs = {
     service_cidr = "10.0.0.0/24"

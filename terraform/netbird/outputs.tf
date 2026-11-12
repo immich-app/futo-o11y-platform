@@ -25,7 +25,7 @@ output "bootstrap_settings" {
   })
 }
 
-# Registered in IPAM by netbox/cluster.
+# Registered in IPAM by terraform/netbox.
 output "service_cidr" {
   value = local.netbird_service_cidr
 }
