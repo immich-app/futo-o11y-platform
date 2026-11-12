@@ -12,7 +12,6 @@ locals {
   infisical_secrets = {
     NETBIRD_TALOS_SETUP_KEY            = netbird_setup_key.talos.key
     NETBIRD_K8S_ROUTING_PEER_SETUP_KEY = netbird_setup_key.k8s_routing_peer.key
-    NETBIRD_EXTERNAL_SECRETS_SETUP_KEY = netbird_setup_key.external_secrets.key
     NETBIRD_EXTERNAL_DNS_API_TOKEN     = netbird_token.external_dns.token
   }
 }

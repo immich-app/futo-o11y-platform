@@ -192,18 +192,6 @@ data "netbird_group" "fap_k8s_routing_peers" {
   name     = "fap-prod-ovh-${each.key}-k8s-routing-peers"
 }
 
-# external-dns (the external-dns-netbird HelmRelease) owns every record in the
-# zone: one A record per route host on the mesh gateway, pointing at the VIP.
-# It deletes the wildcard that this module used to keep, so Terraform only
-# forgets that record.
-removed {
-  from = netbird_dns_record.mesh_wildcard
-
-  lifecycle {
-    destroy = false
-  }
-}
-
 resource "netbird_user" "external_dns" {
   name            = "o11y-${var.env}-external-dns"
   is_service_user = true
@@ -312,39 +300,6 @@ resource "netbird_policy" "talos_to_bootstrap_opc" {
 # (External Secrets); CI reads every Terraform credential from it.
 data "netbird_group" "bootstrap_infisical" {
   name = "bootstrap-infisical-resources"
-}
-
-# The nblink sidecar of the External Secrets controller. Its own group and key:
-# the routing-peer key's group selects the ingress network's routers, so the
-# sidecar would become an ingress router. Ephemeral, because nblink keeps its
-# identity in memory and every restart enrolls a new peer.
-resource "netbird_group" "external_secrets" {
-  name = "o11y-${var.env}-external-secrets"
-}
-
-resource "netbird_setup_key" "external_secrets" {
-  name           = "o11y-${var.env}-external-secrets"
-  type           = "reusable"
-  ephemeral      = true
-  auto_groups    = [netbird_group.external_secrets.id]
-  expiry_seconds = 0
-  usage_limit    = 0
-}
-
-resource "netbird_policy" "external_secrets_to_bootstrap_infisical" {
-  name    = "o11y-${var.env}-external-secrets-to-bootstrap-infisical"
-  enabled = true
-
-  rule {
-    name          = "external-secrets-to-bootstrap-infisical"
-    action        = "accept"
-    protocol      = "tcp"
-    enabled       = true
-    bidirectional = false
-    sources       = [netbird_group.external_secrets.id]
-    destinations  = [data.netbird_group.bootstrap_infisical.id]
-    ports         = ["443"]
-  }
 }
 
 resource "netbird_policy" "talos_to_bootstrap_infisical" {
