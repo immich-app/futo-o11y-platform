@@ -1,6 +1,6 @@
 # Publishes the setup keys to the observability project's /tf folder of this
 # environment, for the tools that use them outside Terraform: topf
-# (//talos tasks) and //bootstrap:resources.
+# (//talos tasks), //bootstrap:resources and external-dns.
 data "infisical_projects" "observability" {
   slug = "observability"
 }
@@ -13,6 +13,7 @@ locals {
     NETBIRD_TALOS_SETUP_KEY            = netbird_setup_key.talos.key
     NETBIRD_K8S_ROUTING_PEER_SETUP_KEY = netbird_setup_key.k8s_routing_peer.key
     NETBIRD_EXTERNAL_SECRETS_SETUP_KEY = netbird_setup_key.external_secrets.key
+    NETBIRD_EXTERNAL_DNS_API_TOKEN     = netbird_token.external_dns.token
   }
 }
 

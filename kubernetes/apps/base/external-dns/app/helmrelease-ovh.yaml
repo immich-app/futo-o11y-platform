@@ -1,0 +1,51 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/helm.toolkit.fluxcd.io/helmrelease_v2.json
+# One CNAME for each HTTPRoute host on the public gateway, pointing at the
+# environment's own name (the envoy Gateway's target annotation), which the
+# OVH module points at the IPLB. Both clusters write to the futostatus.com
+# zone, so each owns its records through TXT records with its own owner ID,
+# and never changes the other's.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: external-dns-ovh
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: external-dns
+  interval: 1h
+  values:
+    fullnameOverride: external-dns-ovh
+    # The OVH credentials reach the container through the environment.
+    deploymentAnnotations:
+      reloader.stakater.com/auto: "true"
+    provider:
+      name: ovh
+    env:
+      - name: OVH_APPLICATION_KEY
+        valueFrom:
+          secretKeyRef:
+            name: external-dns-ovh
+            key: OVH_APPLICATION_KEY
+      - name: OVH_APPLICATION_SECRET
+        valueFrom:
+          secretKeyRef:
+            name: external-dns-ovh
+            key: OVH_APPLICATION_SECRET
+      - name: OVH_CONSUMER_KEY
+        valueFrom:
+          secretKeyRef:
+            name: external-dns-ovh
+            key: OVH_CONSUMER_KEY
+    policy: sync
+    txtOwnerId: o11y-${CLUSTER_ENV}
+    sources:
+      - gateway-httproute
+    extraArgs:
+      - --gateway-name=envoy
+    # The zone, not the environment's subdomain: the OVH provider keeps a zone
+    # only when the filter matches the zone name itself or a parent of it.
+    domainFilters:
+      - futostatus.com
+    serviceMonitor:
+      enabled: true

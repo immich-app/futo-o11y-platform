@@ -72,7 +72,8 @@ Steps 1 to 5 apply the Terraform modules in their dependency order. If the OVH p
 3. Apply the NetBird module. It creates the mesh objects of the environment, all named `o11y-<env>-*`:
    - The groups and the setup keys for the Talos nodes, for the routing peers in the cluster, for the nblink sidecar of external-secrets, and for CI.
    - The network route to the vRack.
-   - The VIP resource and the DNS zone of the mesh gateway.
+   - The VIP resource and the DNS zone of the mesh gateway. external-dns fills the zone with the records of the mesh routes.
+   - The service user and the token that external-dns uses to write those records.
    - The network for pod egress.
    - The access policies, among them `yucca → resource`, `yucca → talos`, `yucca → gateway` and `talos → bootstrap`.
 

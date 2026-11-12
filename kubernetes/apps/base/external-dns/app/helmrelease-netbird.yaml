@@ -1,0 +1,52 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/helm.toolkit.fluxcd.io/helmrelease_v2.json
+# One A record for each HTTPRoute and TLSRoute host on the mesh gateway, in the
+# NetBird zone of this environment, pointing at the gateway VIP (the mesh
+# Gateway's target annotation). NetBird zones hold no TXT records, so the
+# registry is noop: this instance treats every record in the zone as its own.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: external-dns-netbird
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: external-dns
+  interval: 1h
+  values:
+    fullnameOverride: external-dns-netbird
+    # The webhook reads its token from the environment at start.
+    deploymentAnnotations:
+      reloader.stakater.com/auto: "true"
+    provider:
+      name: webhook
+      webhook:
+        image:
+          repository: ghcr.io/futo-org/external-dns-netbird-webhook
+          tag: 0.1.0@sha256:506c48eb45a487b2674e9363cd2d6b3ac2f5838cf7122333b36f65ea14c63881
+        env:
+          - name: NETBIRD_API_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: external-dns-netbird
+                key: NETBIRD_API_TOKEN
+          - name: NETBIRD_ZONES
+            value: ${BOOTSTRAP_MESH_DOMAIN}
+        readinessProbe:
+          httpGet:
+            path: /readyz
+    registry: noop
+    # upsert-only until every route host has its own record: the webhook runs
+    # all deletes before all creates, so a first sync would remove the old
+    # wildcard before the records that replace it exist. With sync, the
+    # instance deletes the wildcard and every later record without a route.
+    policy: upsert-only
+    sources:
+      - gateway-httproute
+      - gateway-tlsroute
+    extraArgs:
+      - --gateway-name=mesh
+    domainFilters:
+      - ${BOOTSTRAP_MESH_DOMAIN}
+    serviceMonitor:
+      enabled: true

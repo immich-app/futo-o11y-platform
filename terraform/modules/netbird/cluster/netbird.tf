@@ -154,8 +154,8 @@ resource "netbird_setup_key" "k8s_routing_peer" {
 }
 
 # Yucca's spice ceph nodes (prod only). They ship host logs to the mesh vmauth
-# and need to resolve its name; the zone holds a single wildcard pointing at the
-# gateway VIP, and reaching it is still gated by the yucca-side
+# and need to resolve its name; external-dns keeps one record per route host in
+# the zone, pointing at the gateway VIP, and reaching it is still gated by the yucca-side
 # ceph-to-o11y-gateway policy, so distribution grants no access on its own.
 # Created by yucca's prod/htz-fsn1 netbird stack.
 data "netbird_group" "yucca_ceph" {
@@ -192,13 +192,32 @@ data "netbird_group" "fap_k8s_routing_peers" {
   name     = "fap-prod-ovh-${each.key}-k8s-routing-peers"
 }
 
-# Wildcard A -> the gateway VIP (HA is the >=2 routing Pods, not multiple records).
-resource "netbird_dns_record" "mesh_wildcard" {
-  zone_id = netbird_dns_zone.mesh.id
-  name    = "*.${local.mesh_dns_zone}"
-  type    = "A"
-  content = local.netbird_gateway_vip
-  ttl     = 300
+# external-dns (the external-dns-netbird HelmRelease) owns every record in the
+# zone: one A record per route host on the mesh gateway, pointing at the VIP.
+# It deletes the wildcard that this module used to keep, so Terraform only
+# forgets that record.
+removed {
+  from = netbird_dns_record.mesh_wildcard
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+resource "netbird_user" "external_dns" {
+  name            = "o11y-${var.env}-external-dns"
+  is_service_user = true
+  role            = "network_admin"
+}
+
+# NetBird requires an expiry. To rotate, replace the token
+# (-replace=netbird_token.external_dns) before it expires. The ExternalSecret
+# picks up the new value at its next refresh, and Reloader restarts
+# external-dns-netbird with it.
+resource "netbird_token" "external_dns" {
+  user_id         = netbird_user.external_dns.id
+  name            = "external-dns"
+  expiration_days = 365
 }
 
 # Allow yucca peers to reach the gateway VIP: 443 for workloads, 6443 for the HA

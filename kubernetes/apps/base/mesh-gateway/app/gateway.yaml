@@ -5,6 +5,8 @@ kind: Gateway
 metadata:
   name: mesh
   annotations:
+    # external-dns points each route host at the gateway VIP in the NetBird zone.
+    external-dns.alpha.kubernetes.io/target: ${BOOTSTRAP_NETBIRD_GATEWAY_VIP}
     gatus.home-operations.com/endpoint: |-
       group: internal
 spec:
