@@ -9,7 +9,7 @@ resource "ovh_cloud_project_instance" "controlplane" {
   boot_from {
     image_id = one([
       for img in data.ovh_cloud_project_images.talos[each.key].images :
-      img.id if img.name == var.talos_public_cloud_image_name
+      img.id if img.name == local.cp_image_name
     ])
   }
 

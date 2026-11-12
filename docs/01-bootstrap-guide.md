@@ -6,7 +6,7 @@ This guide builds an environment from nothing: no servers, no Terraform state an
 
 You need these tools and sessions on your machine:
 
-1. Install the tools: run `mise install` in the repository. mise pins every tool, among them OpenTofu, Terragrunt, topf, talosctl, kubectl, helmfile and the Infisical CLI.
+1. Install the tools: run `mise install` in the repository. mise pins every tool, among them OpenTofu, Terragrunt, topf, talosctl, kubectl, helmfile and the Infisical CLI. The image task in step 2 of [Apply order](#apply-order) also needs curl 7.84 or newer and `xz`, which mise does not install. Current Linux distributions and macOS include such a curl. On macOS, install `xz` with Homebrew.
 2. Join the NetBird mesh: run the NetBird client (`netbird up`) and join the FUTO NetBird account. Infisical and the cluster APIs are reachable only over the mesh. See [Cluster access](#cluster-access).
 3. Sign in to Infisical once, while you are on the mesh: `infisical login --domain https://infisical.futo.network`. Every task reads its credentials with this session.
 4. Make sure that you can read and write the `observability` Infisical project in the environment. core-infra-tf manages the project, its environments, its folders and its members.
@@ -48,27 +48,26 @@ Steps 1 to 5 apply the Terraform modules in their dependency order. If the OVH p
 2. Apply the OVH module. It creates the cloud project, the vRack, the private network, the control-plane instances, the workers, the IPLB and the DNS records. In production, delete the apex DNS records in the OVH dashboard before the first apply.
 
    The control planes boot from a Talos OpenStack image that you upload to the cloud project. In a new environment, the project does not exist yet, so do these steps in order:
-   1. Create only the cloud project, then save the outputs of the module. The image tasks read the `cp_image` output. The refresh-only apply saves the outputs and creates nothing.
+   1. Create only the cloud project and the OpenStack user that uploads the image, then save the outputs of the module. The image task reads the `cp_image` output. The refresh-only apply saves the outputs and creates nothing.
 
       ```bash
-      mise run //terraform/modules/ovh/account:apply -- -target=ovh_cloud_project.this
+      mise run //terraform/modules/ovh/account:apply -- -target=ovh_cloud_project_user.image
       mise run //terraform/modules/ovh/account:apply -- -refresh-only
       ```
 
-   2. In the OVH Control Panel, create an OpenStack user in the new project. Save its OpenRC file as `.private/openstack/$ENVIRONMENT/openrc.sh`.
-   3. Upload the image to the regions of the control planes. The image contains the `qemu-guest-agent` and `netbird` extensions.
+   2. Upload the image to the regions of the control planes. The image contains the `qemu-guest-agent` and `netbird` extensions. The task uploads only to the regions that do not have an active image yet, and it uploads to them at the same time. Each upload can take an hour. If an upload fails, run the task again. It deletes the unfinished image and uploads again. If a region has an upload in progress, the task stops.
 
       ```bash
-      mise run //terraform/modules/ovh/account:image:download && mise run //terraform/modules/ovh/account:image:upload
+      mise run //bootstrap:image
       ```
 
-   4. Apply the whole module. The first run is slow. Each control-plane instance takes about 5 minutes, each bare-metal order takes 20 to 45 minutes, and the IPLB takes about 10 minutes.
+   3. Apply the whole module. The first run is slow. Each control-plane instance takes about 5 minutes, each bare-metal order takes 20 to 45 minutes, and the IPLB takes about 10 minutes.
 
       ```bash
       mise run //terraform/modules/ovh/account:apply
       ```
 
-   If the project already has the image, run only the last command. The workers need no upload. They are OVH BYOI (bring your own image) servers, and OVH pulls their bare-metal image from the Talos Factory when you order them. Keep only `netbird` in the worker schematic. On bare metal, `qemu-guest-agent` waits for a virtio port that never appears, and the node reboots in a loop.
+   The image name comes from `talos_version` and `talos_schematic_id` in the OVH module. If the project already has the image, run only the last command. The task reads the name from the saved outputs. After a change to either value, save the new outputs with `mise run //terraform/modules/ovh/account:apply -- -refresh-only`. Then run `mise run //bootstrap:image` before you create a new control plane. The workers need no upload. They are OVH BYOI (bring your own image) servers, and OVH pulls their bare-metal image from the Talos Factory when you order them. Keep only `netbird` in the worker schematic. On bare metal, `qemu-guest-agent` waits for a virtio port that never appears, and the node reboots in a loop.
 
 3. Apply the NetBird module. It creates the mesh objects of the environment, all named `o11y-<env>-*`:
    - The groups and the setup keys for the Talos nodes, for the routing peers in the cluster, and for CI.

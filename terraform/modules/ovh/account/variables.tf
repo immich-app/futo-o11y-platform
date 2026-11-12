@@ -61,13 +61,6 @@ variable "talos_worker_schematic_id" {
   default = "7326f0cbca7a0e700ac1efa3f32e88df9ebe5010e6e842a8ed36fdc99ee98ead"
 }
 
-# Image must be pre-uploaded out-of-band (this module's image:download + image:upload mise tasks) —
-# the OVH provider doesn't upload custom images.
-variable "talos_public_cloud_image_name" {
-  type    = string
-  default = "talos-1.13.5-qemu-netbird"
-}
-
 # IPLB tier and geographic zone (public-IP location). The LB reaches the workers
 # cross-DC over the vRack regardless of zone.
 variable "loadbalancer_plan_code" {
