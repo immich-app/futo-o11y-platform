@@ -3,6 +3,7 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ./vmuser-remote-clusters.yaml
+  - ./pushsecret-vmauth-urls.yaml
   - ./vmuser-client-logs.yaml
   - ./httproute-client-logs.yaml
   - ./vmauth-mesh-unauth.yaml
