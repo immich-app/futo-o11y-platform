@@ -5,7 +5,7 @@
 # upload: they are OVH BYOI servers, and OVH pulls their image from the Talos
 # Factory when it installs them. The image facts (schematic, version, glance
 # name, regions) and the OpenStack upload user come from the cp_image output of
-# ovh/account, so nothing here has to match the module.
+# terraform/ovh, so nothing here has to match the module.
 # The task talks to the Keystone and Glance APIs with curl. The token stays in a
 # shell variable and reaches curl through process substitution, so it is never
 # in a file or on a command line. Glance allows two images with one name,
@@ -19,7 +19,7 @@
 set -euo pipefail
 : "${ENVIRONMENT:?set ENVIRONMENT=staging (or production) first}"
 
-cp_image="$(mise run //terraform/modules/ovh/account:output -- -json cp_image)"
+cp_image="$(mise run //terraform/ovh:output -- -json cp_image)"
 name="$(jq -er .glance_name <<<"$cp_image")"
 url="$(jq -er .download_url <<<"$cp_image")"
 regions="$(jq -er '.regions[]' <<<"$cp_image")"

@@ -7,8 +7,8 @@ extends = "tg:plan"
 [tasks.apply]
 extends = "tg:apply"
 wait_for = [
-  "//terraform/modules/ovh/account:apply",
-  "//terraform/modules/netbird/cluster:apply",
+  "//terraform/ovh:apply",
+  "//terraform/netbird:apply",
 ]
 
 [tasks.destroy]

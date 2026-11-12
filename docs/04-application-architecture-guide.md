@@ -25,7 +25,7 @@ external-dns (`external-dns`) keeps one DNS record for each route host, in two i
 - `external-dns-ovh` reads the HTTPRoutes of the public gateway. It writes a CNAME in the OVH zone `futostatus.com` for each host, pointing at the name of the environment, which the OVH module points at the IPLB. Both clusters write to this zone. Each one marks its records with TXT records under its own owner ID (`o11y-<env>`), so it never changes the records of the other.
 - `external-dns-netbird` reads the HTTPRoutes and the `kube` TLSRoute of the mesh gateway. Through the NetBird webhook provider, it writes an A record in the NetBird zone `<mesh-domain>` for each host, pointing at the gateway VIP. NetBird zones hold no TXT records, so this instance keeps no record of what it owns. It runs with `policy: upsert-only` and never deletes a record. The `sync` policy deletes every record in the zone that has no route at that moment, also the records of other writers. If the source briefly returns no routes, `sync` deletes every record. When a route goes away, delete its record in NetBird by hand.
 
-The NetBird instance uses the token of the `o11y-<env>-external-dns` service user, which the netbird module creates. NetBird gives the token an expiry of one year. Replace it before it expires, as the comment in `terraform/modules/netbird/cluster/netbird.tf` describes. Reloader restarts both instances when their Secrets change.
+The NetBird instance uses the token of the `o11y-<env>-external-dns` service user, which the netbird module creates. NetBird gives the token an expiry of one year. Replace it before it expires, as the comment in `terraform/netbird/netbird.tf` describes. Reloader restarts both instances when their Secrets change.
 
 ### TLS certificates
 
@@ -174,7 +174,7 @@ The database is the `glitchtip-postgres` CloudNativePG cluster (`kubernetes/apps
 
 The cache, the sessions and the task queue live in a Dragonfly (`glitchtip-dragonfly`), not in the Valkey of the chart. The `dragonfly-operator` in `dragonfly-system` runs this Dragonfly. Ingest accepts an event as soon as the event is in the queue. If both Dragonfly replicas are lost, the events queued since the last 15-minute snapshot are lost too.
 
-Uploads, for example sourcemaps, go to the OVH bucket for each environment, named in `CLUSTER_GLITCHTIP_S3_BUCKET`. `terraform/modules/glitchtip/cluster` creates the bucket with the same user split as the backup buckets. A keyless owner user owns the bucket. GlitchTip writes as a second user, whose S3 policy reaches only this bucket. The split is there because an owner ignores its policy, and the project also holds the backups. The module writes the keys of the writer user to `GLITCHTIP_S3_ACCESS_KEY_ID` / `GLITCHTIP_S3_SECRET_ACCESS_KEY` in `o11y_tf_<env>`.
+Uploads, for example sourcemaps, go to the OVH bucket for each environment, named in `CLUSTER_GLITCHTIP_S3_BUCKET`. `terraform/glitchtip` creates the bucket with the same user split as the backup buckets. A keyless owner user owns the bucket. GlitchTip writes as a second user, whose S3 policy reaches only this bucket. The split is there because an owner ignores its policy, and the project also holds the backups. The module writes the keys of the writer user to `GLITCHTIP_S3_ACCESS_KEY_ID` / `GLITCHTIP_S3_SECRET_ACCESS_KEY` in `o11y_tf_<env>`.
 
 GlitchTip keeps its own `/metrics` off, because the endpoint has no authentication on the public route.
 

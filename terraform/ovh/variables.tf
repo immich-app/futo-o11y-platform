@@ -86,7 +86,7 @@ variable "envoy_node_port" {
 }
 
 # Rootly status-page CNAME targets (host => *.external-sp.rootly.com), from the
-# rootly/cluster dependency. Rootly fills these in asynchronously after the
+# terraform/rootly dependency. Rootly fills these in asynchronously after the
 # status page is created, so the map is empty until a later refresh of that
 # module's state persists them.
 variable "status_page_cname_records" {

@@ -42,7 +42,7 @@ Steps 1 to 5 apply the Terraform modules in their dependency order. If the OVH p
 1. Apply the Rootly module. It creates the alert sources, the services, the heartbeats, the Zulip workflows and the status page. It writes the alert and heartbeat URLs to Infisical. The OVH module reads the DNS records of the status page from it.
 
    ```bash
-   mise run //terraform/modules/rootly/cluster:apply
+   mise run //terraform/rootly:apply
    ```
 
 2. Apply the OVH module. It creates the cloud project, the vRack, the private network, the control-plane instances, the workers, the IPLB and the DNS records. In production, delete the apex DNS records in the OVH dashboard before the first apply.
@@ -51,8 +51,8 @@ Steps 1 to 5 apply the Terraform modules in their dependency order. If the OVH p
    1. Create only the cloud project and the OpenStack user that uploads the image, then save the outputs of the module. The image task reads the `cp_image` output. The refresh-only apply saves the outputs and creates nothing.
 
       ```bash
-      mise run //terraform/modules/ovh/account:apply -- -target=ovh_cloud_project_user.image
-      mise run //terraform/modules/ovh/account:apply -- -refresh-only
+      mise run //terraform/ovh:apply -- -target=ovh_cloud_project_user.image
+      mise run //terraform/ovh:apply -- -refresh-only
       ```
 
    2. Upload the image to the regions of the control planes. The image contains the `qemu-guest-agent` and `netbird` extensions. The task uploads only to the regions that do not have an active image yet, and it uploads to them at the same time. Each upload can take an hour. If an upload fails, run the task again. It deletes the unfinished image and uploads again. If a region has an upload in progress, the task stops.
@@ -64,10 +64,10 @@ Steps 1 to 5 apply the Terraform modules in their dependency order. If the OVH p
    3. Apply the whole module. The first run is slow. Each control-plane instance takes about 5 minutes, each bare-metal order takes 20 to 45 minutes, and the IPLB takes about 10 minutes.
 
       ```bash
-      mise run //terraform/modules/ovh/account:apply
+      mise run //terraform/ovh:apply
       ```
 
-   The image name comes from `talos_version` and `talos_schematic_id` in the OVH module. If the project already has the image, run only the last command. The task reads the name from the saved outputs. After a change to either value, save the new outputs with `mise run //terraform/modules/ovh/account:apply -- -refresh-only`. Then run `mise run //bootstrap:image` before you create a new control plane. The workers need no upload. They are OVH BYOI (bring your own image) servers, and OVH pulls their bare-metal image from the Talos Factory when you order them. Keep only `netbird` in the worker schematic. On bare metal, `qemu-guest-agent` waits for a virtio port that never appears, and the node reboots in a loop.
+   The image name comes from `talos_version` and `talos_schematic_id` in the OVH module. If the project already has the image, run only the last command. The task reads the name from the saved outputs. After a change to either value, save the new outputs with `mise run //terraform/ovh:apply -- -refresh-only`. Then run `mise run //bootstrap:image` before you create a new control plane. The workers need no upload. They are OVH BYOI (bring your own image) servers, and OVH pulls their bare-metal image from the Talos Factory when you order them. Keep only `netbird` in the worker schematic. On bare metal, `qemu-guest-agent` waits for a virtio port that never appears, and the node reboots in a loop.
 
 3. Apply the NetBird module. It creates the mesh objects of the environment, all named `o11y-<env>-*`:
    - The groups and the setup keys for the Talos nodes, for the routing peers in the cluster, and for CI.
@@ -80,26 +80,26 @@ Steps 1 to 5 apply the Terraform modules in their dependency order. If the OVH p
    The module also writes the Talos and routing-peer setup keys to the environment in the `observability` Infisical project (`NETBIRD_TALOS_SETUP_KEY`, `NETBIRD_K8S_ROUTING_PEER_SETUP_KEY`). topf and `//bootstrap:resources` read them from there. For a new environment, run the first apply from your own machine.
 
    ```bash
-   mise run //terraform/modules/netbird/cluster:apply
+   mise run //terraform/netbird:apply
    ```
 
    Then give CI its setup key, so that the plan workflow can join the mesh. Use `PROD` or `STAGING` in the name:
 
    ```bash
-   mise run //terraform/modules/netbird/cluster:output -- -raw ci_setup_key \
+   mise run //terraform/netbird:output -- -raw ci_setup_key \
      | gh secret set NETBIRD_O11Y_CI_SETUP_KEY_STAGING --repo immich-app/futo-o11y-platform
    ```
 
 4. Apply the NetBox module. It registers the ranges of the environment in IPAM: the vRack, the gateway ServiceCIDR and the CIDR for pod egress. It uses the same values that the other modules allocate.
 
    ```bash
-   mise run //terraform/modules/netbox/cluster:apply
+   mise run //terraform/netbox:apply
    ```
 
 5. Apply the GlitchTip module. It creates the S3 bucket for uploads and its credentials, and it writes them to Infisical.
 
    ```bash
-   mise run //terraform/modules/glitchtip/cluster:apply
+   mise run //terraform/glitchtip:apply
    ```
 
 6. Nothing to apply for the Talos secrets bundle: the cluster CAs, keys and tokens. It lives in Infisical as `TALOS_SECRETS` in the `observability <env>:/talos` folder. In a new environment, the first render in step 7 finds no bundle. topf then asks whether to generate one, and `talos/bin/talos-secrets` stores it in Infisical. Answer yes only in a new environment.
@@ -116,7 +116,7 @@ Steps 1 to 5 apply the Terraform modules in their dependency order. If the OVH p
    2. Apply each configuration over the public IP of its node. The OVH module outputs the public IPs.
 
       ```bash
-      mise run //terraform/modules/ovh/account:output -- -json \
+      mise run //terraform/ovh:output -- -json \
         | jq -r '[.controlplane_nodes.value, .worker_nodes.value][][] | "\(.name) \(.public_ip)"' \
         | while read -r name ip; do
             talosctl apply-config --insecure --nodes "$ip" --file "$dir/$name.yaml" </dev/null \
@@ -189,7 +189,7 @@ talosctl -n 10.150.200.10 health   # any CP private IP. The talosconfig also lis
 
 | Task                             | Command                                                                                                                                             |
 | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Plan/apply one module            | `mise run //terraform/modules/<m>:plan` / `mise run //terraform/modules/<m>:apply` (or `mise run :plan` from inside the module)                     |
+| Plan/apply one module            | `mise run //terraform/<m>:plan` / `mise run //terraform/<m>:apply` (or `mise run :plan` from inside the module)                                     |
 | Plan/apply all in dep order      | `mise run //terraform:plan` / `mise run //terraform:apply`                                                                                          |
 | Re-init backends                 | `mise run //terraform:init`                                                                                                                         |
 | Any other terragrunt subcommand  | `mise run //:tg <args>` (runs in the current directory, for example `state rm`, `import`, `force-unlock`)                                           |
@@ -252,4 +252,4 @@ Run the commands from the root of the repository, with `ENVIRONMENT` set to the 
 
 OpenTofu and Terragrunt manage the infrastructure as code. topf renders the Talos machine configurations. helmfile installs the releases that Flux needs before it starts. mise sets the tool versions and runs the tasks. The version pins live in `.mise/config.toml` and in the lock file of each module.
 
-When a command runs, the Infisical CLI (`infisical run`) injects the API credentials and the state bucket keys. `terraform/modules/root.hcl` maps them to the module inputs and the S3 backend.
+When a command runs, the Infisical CLI (`infisical run`) injects the API credentials and the state bucket keys. `terraform/root.hcl` maps them to the module inputs and the S3 backend.

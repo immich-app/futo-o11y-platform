@@ -50,7 +50,7 @@ See the cluster architecture guide for these details.
 
 ## NetBird mesh
 
-NetBird connects operators, other FUTO clusters and the bootstrap cluster to this environment, and it exposes nothing publicly. Terraform manages all of it (`netbird/cluster`, objects named `o11y-<env>-*`). Each environment has its own groups, networks and policies, so access to staging cannot pivot into production. The mesh has four building blocks:
+NetBird connects operators, other FUTO clusters and the bootstrap cluster to this environment, and it exposes nothing publicly. Terraform manages all of it (`terraform/netbird`, objects named `o11y-<env>-*`). Each environment has its own groups, networks and policies, so access to staging cannot pivot into production. The mesh has four building blocks:
 
 - Node mesh (operator access): NetBird runs as a Talos system extension on every node. NetBird advertises the vRack subnet as a network route, with the Talos nodes as routing peers. Any node can route, so the route is HA (highly available). Operator traffic to the other nodes arrives masqueraded: its source address is the vRack IP of the routing peer. The elected router delivers traffic for its own IP locally, without masquerade. So the host firewall also trusts the NetBird peer range on the management ports. Two policies give the shared `yucca` operator group the management ports only (apid `50000`, kube-apiserver `6443`):
   - `yucca → resource` covers the routed subnet.
@@ -64,7 +64,7 @@ NetBird connects operators, other FUTO clusters and the bootstrap cluster to thi
   - gatus probes `opc.<project>.futo.network/heartbeat` of the other projects, behind the same VIP.
 - Mesh DNS: the router pods also serve NetBird DNS to the cluster. CoreDNS forwards the `futo.network` zone to a pinned `netbird-dns` Service in front of the router pods. So any pod resolves mesh names (opc, mesh gateways) through normal cluster DNS, with no configuration for each pod.
 
-The `netbox/cluster` module registers all of these ranges in NetBox: the vRack, the gateway ServiceCIDR and the egress CIDR. It uses the same Terraform values that allocate the ranges.
+The `terraform/netbox` module registers all of these ranges in NetBox: the vRack, the gateway ServiceCIDR and the egress CIDR. It uses the same Terraform values that allocate the ranges.
 
 Operators point `talosctl` at the static private IP of a control plane over the node mesh. They do not use the floating VIP, because ARP for the VIP across data centers is not reliable over the route. The VIP stays the apiserver endpoint inside the cluster. By default, `kubectl` uses `kube.<mesh-domain>` through the mesh gateway. For a bootstrap or a recovery, `kubectl --server https://<cp-private-ip>:6443` connects to a control plane directly.
 
