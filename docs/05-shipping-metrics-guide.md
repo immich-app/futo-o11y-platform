@@ -33,7 +33,7 @@ The `shared` Infisical project also holds both gateway URLs, in the `/tf` folder
 | `O11Y_VICTORIAMETRICS_VMAUTH_MESH_URL`   | `https://vmauth.<mesh-domain>` |
 | `O11Y_VICTORIAMETRICS_VMAUTH_PUBLIC_URL` | `https://vmauth.<app-domain>`  |
 
-Each secret holds the bare origin: the scheme and the host, with no path. Append the insert path or the select path for your shipper. The Terraform module `terraform/modules/victoria-metrics/cluster` writes these secrets. Terraform also generates the token, in the `shared-generated-secrets` module of core-infra-tf (`deployment/live/shared/1password/futo-account/shared-secrets.tf`). That module makes a separate random value in each of `shared_tf_prod`, `shared_tf_staging` and `shared_tf_dev`, and writes each value to the `shared` Infisical project too.
+Each secret holds the bare origin: the scheme and the host, with no path. Append the insert path or the select path for your shipper. The o11y cluster writes these secrets with a PushSecret (`kubernetes/apps/base/victoria-metrics-users/app/pushsecret-vmauth-urls.yaml`). Terraform also generates the token, in the `shared-generated-secrets` module of core-infra-tf (`deployment/live/shared/1password/futo-account/shared-secrets.tf`). That module makes a separate random value in each of `shared_tf_prod`, `shared_tf_staging` and `shared_tf_dev`, and writes each value to the `shared` Infisical project too.
 
 The metrics remote-write path is the same on every host:
 
