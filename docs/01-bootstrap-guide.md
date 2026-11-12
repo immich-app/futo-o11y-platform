@@ -88,7 +88,7 @@ export ENVIRONMENT=staging
       rm -rf "$dir"
       ```
 
-   Each node installs Talos, reboots and joins the NetBird mesh. The host firewall then closes the public network interface, except port `30443` on the workers. If `talosctl` reports `certificate required`, the node already has a configuration. If `talosctl` cannot connect, the node already has a configuration and its firewall drops the traffic, or the node is down. To change a configured node, use `mise run //talos:apply`.
+   Each node installs Talos, reboots and joins the NetBird mesh. The host firewall then closes the public network interface, except port `30443` on the workers. If `talosctl` reports `certificate required`, the node already has a configuration. If `talosctl` cannot connect, the node already has a configuration and its firewall drops the traffic, or the node is down. To change a configured node, use `mise run //talos:apply <node>`.
 
 6. Bootstrap the cluster. The task runs the stages below in order. Each stage is also a task of its own, and you can run each stage again without harm.
 
@@ -148,15 +148,16 @@ talosctl -n 10.150.200.10 health   # any CP private IP. The talosconfig also lis
 | Format HCL / Terraform           | `mise run //terraform:fmt` (`//terraform:fmt:check` reports without a change)                                                                       |
 | Format everything                | `mise run //:fmt`, which also runs `//terraform:fmt` (`//:fmt:check` reports without a change. lefthook formats docs and manifests on each commit.) |
 | Fetch kubeconfig / talosconfig   | `mise run //bootstrap:kubeconfig` / `mise run //talos:talosconfig` (see [Cluster access](#cluster-access))                                          |
-| Diff / apply Talos configuration | `mise run //talos:diff` / `mise run //talos:apply` (append `-- --nodes-filter <regex>` for some nodes)                                              |
+| Diff / apply Talos configuration | `mise run //talos:apply --dry-run <node>...` / `mise run //talos:apply <node>...` (each `<node>` is a host in `talos/$ENVIRONMENT/topf.yaml`)       |
 | Upgrade Talos or Kubernetes      | Merge the grouped Renovate PR, or bump the versions in `talos/<env>/topf.yaml` and in the tuppr upgrades together. tuppr then upgrades the nodes.   |
 
 ## Apply guardrails
 
-- Run `mise run //talos:diff` before every apply. If the configuration of a node will change, the task exits with code 2. topf redacts the Talos secrets in each diff, but not the NetBird setup key. If a diff changes the netbird patch, for example during a key rotation, the keys show in it. Do not share such a diff. A rotation replaces the key in Terraform, which deletes the old key in NetBird, so the old key no longer works.
+- `//talos:apply` takes one or more node names, the hosts in `talos/$ENVIRONMENT/topf.yaml`. It never selects every node by default. Tab completion lists the hosts.
+- Run `mise run //talos:apply --dry-run <node>...` for the same nodes before every apply. The dry run only shows the diff of each node. If the configuration of a node will change, it exits with code 2. topf redacts the Talos secrets in each diff, but not the NetBird setup key. If a diff changes the netbird patch, for example during a key rotation, the keys show in it. Do not share such a diff. A rotation replaces the key in Terraform, which deletes the old key in NetBird, so the old key no longer works.
 - `//talos:apply` changes one node at a time. topf shows the diff of each node and asks before it applies the change. It applies with `auto` and waits until the node is ready again before it continues.
 - Talos 1.14 applies most changes without a reboot, and it no longer reports whether a change needs one. If a change needs a reboot, the nodes reboot one at a time.
-- If a change needs a reboot, apply it to the elected NetBird routing peer last (`-- --nodes-filter`). A reboot of that peer drops the vRack route until NetBird elects another peer.
+- If a change needs a reboot, apply it to the elected NetBird routing peer last, in a run of its own. A reboot of that peer drops the vRack route until NetBird elects another peer.
 - Apply each change to staging first.
 - An apply cannot destroy a server. The OVH control-plane instances, the bare-metal workers and the Talos machine secrets carry `prevent_destroy`. If a plan replaces or deletes one of them, the plan fails. To tear one down, remove that lifecycle rule in the same change.
 

@@ -21,6 +21,7 @@ yq = "4.54.2"
 kustomize = "5.8.3"
 oxfmt = "0.74.0"
 zizmor = "1.32.0"
+shellcheck = "0.11.0"
 "github:home-operations/flate" = "v0.7.3"
 # The CI plan job's mesh client; not in the registry, and operators run their own.
 "github:netbirdio/netbird" = { version = "v0.82.1", os = ["linux"] }
@@ -39,25 +40,16 @@ TALOSCONFIG = "{{config_root}}/.private/{{ get_env(name='ENVIRONMENT', default='
 # infisical provider (INFISICAL_HOST); CI's workflow reads it too.
 INFISICAL_DOMAIN = "https://infisical.futo.network"
 INFISICAL_HOST = "{{ env.INFISICAL_DOMAIN }}"
+# The infisical CLI's default project: observability. Reads of the shared
+# project pass --projectId.
+INFISICAL_PROJECT_ID = "{{ vars.infisical_observability }}"
 
 # The Infisical environment slug of $ENVIRONMENT, for task scripts.
 ENVIRONMENT_SHORT = "{{ vars.env_short }}"
 # The modules' env variable and root.hcl's state key and working directory.
 TF_VAR_env = "{% set e = get_env(name='ENVIRONMENT', default='') %}{% if e == '' %}development{% else %}{{ e }}{% endif %}"
 
-# Rendered at the root, so {{config_root}} here is the repo root from any subproject.
 [vars]
-# Shared Grafana dashboards: fetched from upstream and patched for the fleet
-# (cluster variable + filters, Fleet datasource, shared folder) by the
-# VictoriaMetrics sync-job in generate mode; CI publishes the output.
-sync_job = "docker run --rm -e OUTPUT=- -e CONFIG=/config/sync-job.yaml -e NAMESPACE=o11y -e RELEASE=shared -e OWNER_REFERENCES=false -v {{config_root}}/o11y:/config:ro ghcr.io/victoriametrics/sync-job:v0.0.18"
-# Pin every datasource-type template variable to the Fleet datasource: the
-# sync-job leaves them free, and Grafana would otherwise open a shared board
-# on the default (tenant-scoped) datasource and show only this cluster.
-pin_fleet = "yq '(select(.kind == \"GrafanaDashboard\") | .spec.json) |= (fromjson | .templating.list[] |= (select(.type == \"datasource\") |= (.regex = \"/^VictoriaMetrics Fleet$/\" | .current = {\"text\": \"VictoriaMetrics Fleet\", \"value\": \"VictoriaMetricsFleet\"})) | tojson)'"
-# The sync-job emits the kube-prometheus bundle in map order; sort documents so an unchanged
-# upstream renders byte-identical and the artifact's content layer keeps its digest.
-sort_docs = "yq eval-all '[.] | sort_by(.metadata.name) | .[] | splitDoc'"
 # Maps long env names (development/staging/production) to the short suffixes
 # used by the Infisical environment slugs (dev/staging/prod).
 env_short = "{% set e = get_env(name='ENVIRONMENT', default='development') %}{% if e == 'development' or e == '' %}dev{% elif e == 'production' %}prod{% else %}{{ e }}{% endif %}"
@@ -121,10 +113,6 @@ description = "Format markdown, YAML, JSON, Terraform and Terragrunt files in pl
 depends = ["//terraform:fmt:check"]
 run = "oxfmt --check bootstrap terraform docs kubernetes o11y talos .github README.md renovate.json"
 description = "Verify markdown, YAML, JSON, Terraform and Terragrunt files are formatted"
-
-[tasks."o11y:render"]
-run = "{{vars.sync_job}} | {{vars.pin_fleet}} | {{vars.sort_docs}} > {{config_root}}/o11y/manifests/dashboards.yaml"
-description = "Render o11y/manifests/dashboards.yaml (git-ignored) from the upstream sources in o11y/sync-job.yaml"
 
 [settings]
 idiomatic_version_file_enable_tools = []
