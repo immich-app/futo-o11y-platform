@@ -12,10 +12,9 @@ metadata:
 spec:
   chartRef:
     kind: OCIRepository
-    name: external-dns
+    name: external-dns-ovh
   interval: 1h
   values:
-    fullnameOverride: external-dns-ovh
     # The OVH credentials reach the container through the environment.
     deploymentAnnotations:
       reloader.stakater.com/auto: "true"

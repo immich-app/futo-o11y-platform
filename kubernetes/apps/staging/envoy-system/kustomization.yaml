@@ -5,7 +5,6 @@ kind: Kustomization
 resources:
   - ../../base/envoy-gateway
   - ../../base/envoy-proxy
-  - ../../base/external-dns
   - ../../base/mesh-gateway-network
   - ../../base/mesh-gateway
   - ./namespace.yaml

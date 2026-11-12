@@ -20,7 +20,7 @@ The gateway also has a TLS-passthrough listener on `:6443` in front of the kube-
 
 ### DNS records
 
-external-dns (`envoy-system`) keeps one DNS record for each route host, in two instances. Each instance reads only the routes of its own Gateway (`--gateway-name`) and points them at that Gateway's `external-dns.alpha.kubernetes.io/target` annotation:
+external-dns (`external-dns`) keeps one DNS record for each route host, in two instances. Each instance reads only the routes of its own Gateway (`--gateway-name`) and points them at that Gateway's `external-dns.alpha.kubernetes.io/target` annotation:
 
 - `external-dns-ovh` reads the HTTPRoutes of the public gateway. It writes a CNAME in the OVH zone `futostatus.com` for each host, pointing at the name of the environment, which the OVH module points at the IPLB. Both clusters write to this zone. Each one marks its records with TXT records under its own owner ID (`o11y-<env>`), so it never changes the records of the other.
 - `external-dns-netbird` reads the HTTPRoutes and the `kube` TLSRoute of the mesh gateway. Through the NetBird webhook provider, it writes an A record in the NetBird zone `<mesh-domain>` for each host, pointing at the gateway VIP. NetBird zones hold no TXT records, so this instance treats every record in the zone as its own. With `policy: sync`, it deletes every record in the zone that has no route.

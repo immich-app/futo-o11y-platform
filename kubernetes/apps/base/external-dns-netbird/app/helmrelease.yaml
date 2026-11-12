@@ -11,10 +11,9 @@ metadata:
 spec:
   chartRef:
     kind: OCIRepository
-    name: external-dns
+    name: external-dns-netbird
   interval: 1h
   values:
-    fullnameOverride: external-dns-netbird
     # The webhook reads its token from the environment at start.
     deploymentAnnotations:
       reloader.stakater.com/auto: "true"
