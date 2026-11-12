@@ -16,6 +16,38 @@ spec:
     podAnnotations:
       k8s.v1.cni.cncf.io/networks: kube-system/netbird-egress
       o11y.futo.network/mesh-egress-routes: ${CLUSTER_BOOTSTRAP_SERVICE_CIDR}
+    # A NetBird peer in the controller pod forwards 127.0.0.1:18080 to Infisical
+    # over the mesh, for the ClusterSecretStores (the chart's metrics use 8080). nblink runs in userspace and
+    # keeps its state in memory, and its setup key is ephemeral, so a restart
+    # leaves no peer behind. The key comes from //bootstrap:resources, because
+    # External Secrets cannot fetch the key it needs to reach Infisical.
+    extraContainers:
+      - name: nblink
+        # renovate: datasource=docker depName=netbirdio/nblink
+        image: netbirdio/nblink:0.82.1@sha256:9ef603e0a6fcb26bdaf4015150c03967fba1834683adc556fc6cad08fd0060dd
+        env:
+          - name: NB_FORWARD
+            value: http://18080=https://infisical.futo.network
+          - name: NB_SETUP_KEY
+            value: file:/run/secrets/nblink/setup-key
+          - name: NB_HOSTNAME
+            value: o11y-${CLUSTER_ENV}-external-secrets
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+        volumeMounts:
+          - name: nblink-setup-key
+            mountPath: /run/secrets/nblink
+            readOnly: true
+    extraVolumes:
+      - name: nblink-setup-key
+        secret:
+          secretName: nblink-setup-key
+          defaultMode: 0440
     serviceMonitor:
       enabled: true
     # The validating webhook gates every ExternalSecret/SecretStore apply. With one replica a

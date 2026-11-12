@@ -14,6 +14,8 @@
 # is deleted, and any other image with the name stops the task. Each upload can
 # take an hour, so the regions upload at the same time. Each run downloads into
 # its own directory, so two environments can upload at once.
+# Every curl starts with --disable, so a personal .curlrc (a max-time, retries)
+# cannot cut off an hour-long upload or send a create request twice.
 set -euo pipefail
 : "${ENVIRONMENT:?set ENVIRONMENT=staging (or production) first}"
 
@@ -27,11 +29,11 @@ mkdir -p "$MISE_MONOREPO_ROOT/.private/dist"
 dir="$(mktemp -d "$MISE_MONOREPO_ROOT/.private/dist/image.XXXXXX")"
 trap 'kill $(jobs -p) 2>/dev/null || true; rm -rf "$dir"' EXIT
 token="$(jq '{auth: {identity: {methods: ["password"], password: {user: {name: .openstack.username, domain: {name: "Default"}, password: .openstack.password}}}, scope: {project: {id: .openstack.project_id}}}}' <<<"$cp_image" |
-    curl --fail-with-body --silent --show-error --json @- --output "$dir/catalog.json" \
+    curl --disable --fail-with-body --silent --show-error --json @- --output "$dir/catalog.json" \
         --write-out '%header{x-subject-token}' "$auth_url/auth/tokens")"
 
 api() {
-    curl --fail-with-body --silent --show-error --header @<(printf 'X-Auth-Token: %s\n' "$token") "$@"
+    curl --disable --fail-with-body --silent --show-error --header @<(printf 'X-Auth-Token: %s\n' "$token") "$@"
 }
 images_url() {
     jq -er --arg region "$1" '[.token.catalog[] | select(.type == "image") | .endpoints[] | select(.interface == "public" and .region == $region) | .url][0] | rtrimstr("/") + "/v2/images"' "$dir/catalog.json"
@@ -63,7 +65,7 @@ if [[ -z "$missing" ]]; then
 fi
 
 file="$dir/$name.raw"
-curl --fail --location --silent --show-error "$url" | xz --decompress >"$file"
+curl --disable --fail --location --silent --show-error "$url" | xz --decompress >"$file"
 
 uploads=""
 for region in $missing; do
@@ -71,7 +73,7 @@ for region in $missing; do
     id="$(jq -n --arg name "$name" '{name: $name, disk_format: "raw", container_format: "bare", visibility: "shared", hw_qemu_guest_agent: "yes", img_config_drive: "mandatory"}' |
         api --json @- "$base" | jq -er .id)"
     echo "Uploading $name to $region"
-    curl --fail-with-body --silent --show-error --header @<(printf 'X-Auth-Token: %s\n' "$token") \
+    curl --disable --fail-with-body --silent --show-error --header @<(printf 'X-Auth-Token: %s\n' "$token") \
         --header "Content-Type: application/octet-stream" --upload-file "$file" "$base/$id/file" &
     uploads="$uploads $region=$!"
 done

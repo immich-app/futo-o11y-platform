@@ -18,11 +18,12 @@
   "customManagers": [
     {
       "customType": "regex",
-      "description": "OCIRepository Tags and Digests",
+      "description": "OCIRepository Tags and Digests, and image pins in JSON patches",
       "managerFilePatterns": ["/(^|/)kubernetes/apps/.+\\.ya?ml$/"],
       "matchStrings": [
         "datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?\\s*\\n\\s*tag:\\s*\"?(?<currentValue>[^\"\\s]+)\"?\\s*\\n\\s*digest:\\s*\"?(?<currentDigest>sha256:[a-f0-9]{64})\"?",
-        "datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?\\s*\\n\\s*(?:-\\s+)?image: \\S+?:(?<currentValue>[^@\\s]+)@(?<currentDigest>sha256:[a-f0-9]{64})"
+        "datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?\\s*\\n\\s*(?:-\\s+)?image: \\S+?:(?<currentValue>[^@\\s]+)@(?<currentDigest>sha256:[a-f0-9]{64})",
+        "datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?\\s*\\n\\s*value: \\S+?:(?<currentValue>[^@\\s]+)@(?<currentDigest>sha256:[a-f0-9]{64})"
       ],
       "datasourceTemplate": "{{#if datasource}}{{{datasource}}}{{else}}github-releases{{/if}}",
       "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}"
@@ -77,8 +78,8 @@
       "groupName": "mise tools"
     },
     {
-      "description": "One NetBird client bump per environment: the CI mesh client (mise, named github:netbirdio/netbird) and the base router image move together in staging's PR, production's router patch in its own",
-      "matchPackageNames": ["netbirdio/netbird"],
+      "description": "One NetBird client bump per environment: the CI mesh client (mise, named github:netbirdio/netbird), the base router image and the External Secrets nblink sidecar move together in staging's PR, production's patch in its own",
+      "matchPackageNames": ["netbirdio/netbird", "netbirdio/nblink"],
       "groupName": "netbird"
     },
     {

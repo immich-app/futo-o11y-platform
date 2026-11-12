@@ -295,6 +295,39 @@ data "netbird_group" "bootstrap_infisical" {
   name = "bootstrap-infisical-resources"
 }
 
+# The nblink sidecar of the External Secrets controller. Its own group and key:
+# the routing-peer key's group selects the ingress network's routers, so the
+# sidecar would become an ingress router. Ephemeral, because nblink keeps its
+# identity in memory and every restart enrolls a new peer.
+resource "netbird_group" "external_secrets" {
+  name = "o11y-${var.env}-external-secrets"
+}
+
+resource "netbird_setup_key" "external_secrets" {
+  name           = "o11y-${var.env}-external-secrets"
+  type           = "reusable"
+  ephemeral      = true
+  auto_groups    = [netbird_group.external_secrets.id]
+  expiry_seconds = 0
+  usage_limit    = 0
+}
+
+resource "netbird_policy" "external_secrets_to_bootstrap_infisical" {
+  name    = "o11y-${var.env}-external-secrets-to-bootstrap-infisical"
+  enabled = true
+
+  rule {
+    name          = "external-secrets-to-bootstrap-infisical"
+    action        = "accept"
+    protocol      = "tcp"
+    enabled       = true
+    bidirectional = false
+    sources       = [netbird_group.external_secrets.id]
+    destinations  = [data.netbird_group.bootstrap_infisical.id]
+    ports         = ["443"]
+  }
+}
+
 resource "netbird_policy" "talos_to_bootstrap_infisical" {
   name    = "o11y-${var.env}-talos-to-bootstrap-infisical"
   enabled = true
