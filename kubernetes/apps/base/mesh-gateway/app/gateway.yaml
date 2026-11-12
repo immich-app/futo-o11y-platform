@@ -6,7 +6,9 @@ metadata:
   name: mesh
   annotations:
     # external-dns points each route host at the gateway VIP in the NetBird zone.
-    external-dns.alpha.kubernetes.io/target: ${BOOTSTRAP_NETBIRD_GATEWAY_VIP}
+    # external-dns 0.22 and later ignore the old external-dns.alpha.kubernetes.io/
+    # prefix and fall back to the Gateway's status address, a ClusterIP.
+    external-dns.kubernetes.io/target: ${BOOTSTRAP_NETBIRD_GATEWAY_VIP}
     gatus.home-operations.com/endpoint: |-
       group: internal
 spec:
