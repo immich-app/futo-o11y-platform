@@ -70,13 +70,13 @@ Steps 1 to 5 apply the Terraform modules in their dependency order. If the OVH p
    The image name comes from `talos_version` and `talos_schematic_id` in the OVH module. If the project already has the image, run only the last command. The task reads the name from the saved outputs. After a change to either value, save the new outputs with `mise run //terraform/modules/ovh/account:apply -- -refresh-only`. Then run `mise run //bootstrap:image` before you create a new control plane. The workers need no upload. They are OVH BYOI (bring your own image) servers, and OVH pulls their bare-metal image from the Talos Factory when you order them. Keep only `netbird` in the worker schematic. On bare metal, `qemu-guest-agent` waits for a virtio port that never appears, and the node reboots in a loop.
 
 3. Apply the NetBird module. It creates the mesh objects of the environment, all named `o11y-<env>-*`:
-   - The groups and the setup keys for the Talos nodes, for the routing peers in the cluster, and for CI.
+   - The groups and the setup keys for the Talos nodes, for the routing peers in the cluster, for the nblink sidecar of external-secrets, and for CI.
    - The network route to the vRack.
    - The VIP resource and the DNS zone of the mesh gateway.
    - The network for pod egress.
    - The access policies, among them `yucca → resource`, `yucca → talos`, `yucca → gateway` and `talos → bootstrap`.
 
-   The module also writes the Talos and routing-peer setup keys to the environment in the `observability` Infisical project (`NETBIRD_TALOS_SETUP_KEY`, `NETBIRD_K8S_ROUTING_PEER_SETUP_KEY`). topf and `//bootstrap:resources` read them from there. For a new environment, run the first apply from your own machine.
+   The module also writes the Talos, routing-peer and external-secrets setup keys to the environment in the `observability` Infisical project (`NETBIRD_TALOS_SETUP_KEY`, `NETBIRD_K8S_ROUTING_PEER_SETUP_KEY`, `NETBIRD_EXTERNAL_SECRETS_SETUP_KEY`). topf and `//bootstrap:resources` read them from there. For a new environment, run the first apply from your own machine.
 
    ```bash
    mise run //terraform/modules/netbird/cluster:apply
@@ -142,7 +142,7 @@ Steps 1 to 5 apply the Terraform modules in their dependency order. If the OVH p
    1. `//bootstrap:etcd` bootstraps etcd on the first control plane. It connects to the private IP of that node, so your NetBird client must have the route to the vRack. If the etcd bootstrap does not complete within 20 minutes, the task stops.
    2. `//bootstrap:kubeconfig --direct` writes the kubeconfig (see [Cluster access](#cluster-access)). It points the kubeconfig at the first control plane, because the mesh gateway does not exist yet.
    3. `//bootstrap:ready` waits until every node in `topf.yaml` is registered and `Ready`. If a node does not join within 20 minutes, the task stops and names it.
-   4. `//bootstrap:resources` applies the namespaces, the `bootstrap-settings` ConfigMap and the bootstrap Secrets in `bootstrap/kustomize`, filled from the `observability` Infisical project. The Secrets are the NetBird routing-peer key and the Infisical client credentials for external-secrets. Every other Secret comes from an ExternalSecret, except the ones an operator creates, such as the `grafana-rootly-token` of the grafana-operator.
+   4. `//bootstrap:resources` applies the namespaces, the `bootstrap-settings` ConfigMap and the bootstrap Secrets in `bootstrap/kustomize`, filled from the `observability` Infisical project. The Secrets are the NetBird routing-peer key, the Infisical client credentials for external-secrets, and the setup key of its nblink sidecar (`nblink-setup-key`). External Secrets reaches Infisical through that sidecar, so it cannot fetch these three itself. Every other Secret comes from an ExternalSecret, except the ones an operator creates, such as the `grafana-rootly-token` of the grafana-operator.
    5. `//bootstrap:crds` creates the missing CRDs of the charts in `bootstrap/crds.yaml`: the Prometheus Operator CRDs and the grafana-operator CRDs. Apps that only use these CRDs need no Flux `dependsOn` on these charts. Existing CRDs belong to Flux, so the task does not change them.
    6. `//bootstrap:apps` installs CoreDNS, the Flux Operator and the FluxInstance with helmfile (`bootstrap/helmfile.yaml`). The chart versions and values come from the Flux apps, so Flux takes over the same releases.
 
