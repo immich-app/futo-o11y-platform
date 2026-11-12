@@ -23,15 +23,14 @@ terraform/modules/
 ├── ovh/account/              # cloud project, vRack, private network, CPs, workers, IPLB, DNS
 ├── netbird/cluster/          # per-env mesh: vRack route, mesh-gateway VIP + DNS, pod egress, policies
 ├── rootly/cluster/           # Rootly service, heartbeats, alert sources, Zulip workflows, status page
-├── netbox/cluster/           # IPAM registration of the ranges the other modules allocate
-└── talos/cluster/            # Talos secrets bundle (state only), read by topf
+└── netbox/cluster/           # IPAM registration of the ranges the other modules allocate
 
 talos/
 ├── <env>/topf.yaml           # nodes, versions and network values per environment
 ├── patches/                  # machine-config patches: all/, control-plane/, worker/
 ├── schematics/               # Talos Factory schematics (control plane, worker)
 ├── mise-tasks/               # apply, render and talosconfig tasks
-└── bin/talos-secrets         # topf secrets provider: reads the bundle from Terraform state
+└── bin/talos-secrets         # topf secrets provider: the bundle in Infisical (<env>:/talos)
 
 bootstrap/                    # bring-up stages (mise.toml, mise-tasks/), kustomize/ (bootstrap Secrets), helmfiles for CRDs, CoreDNS + Flux
 
