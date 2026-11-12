@@ -1,9 +1,9 @@
 output "controlplane_nodes" {
   value = {
-    for k, v in ovh_cloud_project_instance.controlplane : k => {
+    for k, v in ovh_cloud_instance.controlplane : k => {
       name       = v.name
       region     = var.controlplane_nodes[k].region
-      public_ip  = one([for a in v.addresses : a.ip if a.version == 4 && a.ip != var.controlplane_nodes[k].private_ip])
+      public_ip  = one([for a in flatten([for n in v.current_state.networks : n.addresses]) : a.ip if a.version == 4 && a.ip != var.controlplane_nodes[k].private_ip])
       private_ip = var.controlplane_nodes[k].private_ip
     }
   }
