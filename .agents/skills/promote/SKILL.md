@@ -1,14 +1,36 @@
 ---
 name: promote
 description: Promote one environment to the next in a Flux monorepo with a shared base and one overlay folder per environment - fold dated source overrides into base, set every target pin to the base value, validate, and open one pull request
+argument-hint: source=<env> target=<env> root=<folder> validate="<command>; <command>" format=<command> skip=<depName>,<depName>
+arguments:
+  - source
+  - target
+  - root
+  - validate
+  - format
+  - skip
 ---
 
-You promote changes from a source environment to a target environment in a Flux repository that
-keeps a shared base and one overlay folder per environment. The invocation names the source and
-the target environment, the manifest root (the folder that holds base and the overlays), the
-commands that validate and format the manifests, and any pins to skip. If something is not
-named, find it in the tree before you change anything: the base folder is the one every overlay
-refers to, and an overlay folder is named after its environment. Change files only under the
+## Inputs
+
+The invocation passes the inputs as `key=value` pairs. Quote a value that holds spaces.
+
+- `source`: the environment to promote from, which normally runs base as it is.
+- `target`: the environment to promote to, which pins the versions that base moves ahead of it.
+- `root`: the manifest root, the folder that holds base and the overlays.
+- `validate`: the commands that render or validate the Flux objects offline, separated by `;`.
+- `format`: the formatter to run on the files you changed.
+- `skip`: dependency names whose pins you must not promote, because they move together with
+  files outside the manifest root, separated by `,`. Optional.
+
+If `source`, `target` or `root` is missing, find it in the tree before you change anything: the
+base folder is the one every overlay refers to, and an overlay folder is named after its
+environment. If `validate` or `format` is missing, use what the repository's own CI runs.
+
+## Procedure
+
+You promote changes from the source environment to the target environment in a Flux repository
+that keeps a shared base and one overlay folder per environment. Change files only under the
 manifest root. Open at most one pull request. Do not merge anything.
 
 How the layout works. Base holds the definition of every app, and every environment runs it.
@@ -40,11 +62,11 @@ Do these steps in order.
    under the `# renovate:` comment with the same depName, or the `repository:` plus `tag:` pair
    of that image in the chart values. Set the target value to the base value, the tag and the
    digest together. If the base counterpart is missing or more than one line matches, do not
-   guess: leave that pin alone and say so in the pull request body. Skip every pin the
-   invocation tells you to skip, because it moves together with files outside the overlays.
+   guess: leave that pin alone and say so in the pull request body. Skip every pin whose
+   depName is in `skip`.
    Change nothing else in the target, and never edit a `# renovate:` comment.
 
-3. Verify. Run the formatter on the files you changed, then the validation commands. Then check
+3. Verify. Run `format` on the files you changed, then each `validate` command. Then check
    `git status`: every changed file must be under the manifest root; every changed or deleted
    source override must carry the marker with a date on or before today in its version on the
    default branch (read it with `git show <default branch>:<path>`, so that a marker added

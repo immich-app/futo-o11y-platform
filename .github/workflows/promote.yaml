@@ -61,8 +61,6 @@ jobs:
             --disallowedTools "Bash(gh pr merge:*)"
           # The procedure lives in the repository, so that an agent on a local checkout runs the same steps.
           prompt: |
-            Follow the procedure in .agents/skills/promote/SKILL.md. The source environment is staging, the
-            target environment is production, and the manifest root is kubernetes/apps. Validate
-            with `flate test helmrelease` and `flate test kustomization`, format with `oxfmt`. Skip the pins
-            of siderolabs/talos and ghcr.io/siderolabs/kubelet: Renovate moves them together with the node
-            configuration.
+            Follow the procedure in .agents/skills/promote/SKILL.md with source=staging target=production
+            root=kubernetes/apps validate="flate test helmrelease; flate test kustomization" format=oxfmt
+            skip=siderolabs/talos,ghcr.io/siderolabs/kubelet
