@@ -69,12 +69,15 @@ Do these steps in order.
    `git status`: every changed file must be under the manifest root; every changed or deleted
    source override must carry the marker with a date on or before today in its version on the
    default branch (read it with `git show <default branch>:<path>`, so that a marker added
-   during this run does not count); and an overlay kustomization may change only by losing the
-   entries of those overrides; and no file under the target overlay may change except a version
-   pin and a document a fold made redundant. If validation fails or the check fails, print what failed, change
-   nothing further, and stop without opening a pull request.
+   during this run does not count); an overlay kustomization may change only by losing the
+   entries of those source overrides and of the target overrides that step 1 removed; and in the
+   target overlay, only version pins change and only fields, documents and overrides that a fold
+   made redundant go away. If validation fails or the check fails, print what failed, change nothing
+   further, and stop without opening a pull request.
 
-4. If `git status` shows no change, stop. Otherwise create the branch `promote/<target>` from the
+4. If `git status` shows no change, find the open promotion pull request as described below. If
+   there is one, close it with `gh pr close <number> --comment` and a comment that says the
+   default branch has nothing left to promote. Then stop. Otherwise create the branch `promote/<target>` from the
    checked-out default branch, commit everything as one signed-off commit (`git commit -s`) with
    the message `chore(<target>): promote <source> to <target>`, and push it with
    `git push --force-with-lease origin promote/<target>`. The branch name is fixed, so a run

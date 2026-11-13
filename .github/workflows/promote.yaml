@@ -16,15 +16,28 @@ on:
 
 permissions: {}
 
-# One run at a time: two runs would race for the same branch and pull request.
-concurrency:
-  group: promote
-
 jobs:
+  # The promotion action rejects push events, so a push dispatches the workflow instead.
+  dispatch:
+    name: Dispatch the promotion
+    # Merging a promotion that folded an override pushes a staging change; that alone needs no new run.
+    if: "github.event_name == 'push' && !startsWith(github.event.head_commit.message, 'chore(production): promote')"
+    runs-on: ubuntu-26.04
+    permissions:
+      actions: write
+    steps:
+      - name: Dispatch
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run promote.yaml --ref main
+
   promote:
     name: Promote staging to production
-    # Merging a promotion that folded an override pushes a staging change; that alone needs no new run.
-    if: "github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore(production): promote')"
+    if: github.event_name != 'push'
+    # One run at a time: two runs would race for the same branch and pull request.
+    concurrency:
+      group: promote
     runs-on: ubuntu-26.04
     # Caps the API spend of a stuck run.
     timeout-minutes: 60
