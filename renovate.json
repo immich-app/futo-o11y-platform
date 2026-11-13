@@ -50,6 +50,12 @@
       "dependencyDashboardApproval": true
     },
     {
+      "description": "The weekly Promote workflow sets the production pins to the base values, so Renovate proposes nothing for them; the Talos and Kubernetes versions stay with Renovate because they move together with talos/production/topf.yaml",
+      "matchFileNames": ["kubernetes/apps/production/**"],
+      "matchDepNames": ["!siderolabs/talos", "!ghcr.io/siderolabs/kubelet"],
+      "enabled": false
+    },
+    {
       "description": "Digests in env overlay patches are managed by the custom manager, and a digest-only refresh of an overlay pin (upstream re-pushed the tag) is noise: a version bump rewrites the digest",
       "matchFileNames": ["kubernetes/apps/staging/**", "kubernetes/apps/production/**"],
       "matchUpdateTypes": ["pinDigest", "digest"],

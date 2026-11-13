@@ -30,6 +30,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: main
           persist-credentials: false
           # The pull request body cites the commit that put each change into staging.
           fetch-depth: 0
@@ -44,54 +45,71 @@ jobs:
         env:
           FLATE_PATH: .
           FLATE_CACHE_DIR: ${{ runner.temp }}/flate
+          # Changed-only mode keeps the unchanged ghcr bundles (anonymous pulls, 429-prone) out of the run.
+          FLATE_BASE: main
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ steps.app-token.outputs.token }}
           claude_args: |
             --model claude-opus-5-5
-            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(git:*),Bash(gh pr:*),Bash(flate:*),Bash(oxfmt:*),Bash(yq:*)"
+            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git switch:*),Bash(git add:*),Bash(git rm:*),Bash(git commit:*),Bash(git push --force-with-lease origin promote/production),Bash(gh pr list:*),Bash(gh pr view:*),Bash(gh pr create:*),Bash(gh pr edit:*),Bash(flate test helmrelease),Bash(flate test kustomization),Bash(oxfmt:*),Bash(yq:*)"
           prompt: |
             You promote staging to production in this repository. Read docs/03-cluster-architecture-guide.md
             first, in particular the sections "Environment overrides" and "Promotion". Change files only
             under kubernetes/apps. Open at most one pull request. Do not merge anything.
 
-            How the overlays work: kubernetes/apps/base is the definition both clusters share. Staging runs
-            base as it is. Production pins versions in its overlay under kubernetes/apps/production, one
-            override per app, and each pin sits under a `# renovate:` comment that names the dependency.
+            How the overlays work: kubernetes/apps/base/<app>/app holds the manifests of an app, and both
+            clusters run them. Staging runs base as it is. Production overrides an app in
+            kubernetes/apps/production/<ns>/patches/<app>.yaml: a Flux Kustomization patch whose
+            `spec.patches` entries each hold one inner document as a literal block, with the kind and name
+            of the resource it changes. The staging overlay has the same shape under kubernetes/apps/staging.
+            The base counterpart of an override is always the app directory with the same name as the
+            override file.
 
             Do these steps in order.
 
-            1. Promote versions. For every production pin, find the pin of the same dependency in base
-               (the base file whose `# renovate:` comment has the same depName, or the OCIRepository whose
-               url ends in that depName) and set the production value to the base value: the tag and the
-               digest together, or the image reference, or the version. Change nothing else in production,
-               and never edit a `# renovate:` comment.
+            1. Promote versions. A version pin in production is a `# renovate:` comment followed by the
+               pinned line or lines: `tag:` plus `digest:`, `tag: <version>@sha256:...`, `image:` or
+               `imageName:` with `<repository>:<version>@sha256:...`, or `version:`. For each pin, find the
+               same dependency in the base directory of that app: the OCIRepository whose url ends in the
+               depName, the line under the `# renovate:` comment with the same depName, or the
+               `repository:` plus `tag:` pair of that image in the HelmRelease values. Set the production
+               value to the base value, the tag and the digest together. If the base counterpart is missing
+               or more than one line matches, do not guess: leave that pin alone and say so in the pull
+               request body. Skip the pins of siderolabs/talos and ghcr.io/siderolabs/kubelet: they move
+               together with talos/production/topf.yaml through Renovate, not here. Change nothing else
+               in production, and never edit a `# renovate:` comment.
 
-            2. Fold staging overrides into base. A staging override is a file under kubernetes/apps/staging
-               that patches an app. It is a candidate only if its header carries a comment of the form
-               `# promote-after: YYYY-MM-DD` with a date on or before today. Files without that comment are
-               permanent differences between the environments. Never touch them. For each candidate, merge
-               the fields it sets into the base document of the same kind and name, in the place where
-               those fields belong, and carry over the rationale comments from the staging file. Then
-               delete the staging file and its entry in the staging kustomization.yaml. If a production
-               override now sets a field to the same value as base, remove that field from the override,
-               and remove the override file and its kustomization entry when nothing is left in it.
+            2. Fold staging overrides into base. A staging override file is a candidate only if its header
+               carries a comment of the form `# promote-after: YYYY-MM-DD` with a date on or before today.
+               Files without that comment are permanent differences between the environments. Never touch
+               them. For each candidate, take each inner document from its `spec.patches` and merge the
+               fields it sets into the base manifest of that resource, the file under
+               kubernetes/apps/base/<app>/app whose kind and name match the inner document, in the place
+               where those fields belong. Never edit the base ks.yaml. Carry over the rationale comments
+               from the staging file. Then delete the staging file and its entry in the staging
+               kustomization.yaml. If an inner document in the production override of the same app now sets
+               a field to the same value as base, remove that field; remove the whole entry when nothing is
+               left in it, and the override file and its kustomization entry when no entry is left.
                Version pins stay in production.
 
-            3. Verify. Run `flate test helmrelease` and `flate test kustomization` and then
-               `oxfmt kubernetes`. If a flate test fails, print the failure, change nothing further, and
-               stop without opening a pull request.
+            3. Verify. Run `oxfmt` on the files you changed, then `flate test helmrelease` and
+               `flate test kustomization`. Then check `git status`: every changed file must be under
+               kubernetes/apps, and no staging file without the marker may have changed. If a flate test
+               fails or the check fails, print what failed, change nothing further, and stop without
+               opening a pull request.
 
-            4. If `git status` shows no change, stop. Otherwise commit everything as one signed-off
-               commit (`git commit -s`) with the message `chore(production): promote staging to
-               production`, on the branch `promote/production` from the current main. If a pull request
-               from that branch is already open, push to it with `--force-with-lease` and update its body;
-               otherwise push the branch and open the pull request with `gh pr create` against main. Title
-               `chore(production): promote staging to production (YYYY-MM-DD)` with today's date. Write the
-               body in plain English: one short line per version change with the old and the new value,
-               and one short paragraph per folded override that names the app, what moved into base, and
-               the commit that put it into staging (`git log` on the deleted staging file). Do not mention
-               the tooling or the model in the commit message or the body.
+            4. If `git status` shows no change, stop. Otherwise create the branch `promote/production` from
+               the checked-out main, commit everything as one signed-off commit (`git commit -s`) with the
+               message `chore(production): promote staging to production`, and push it with
+               `git push --force-with-lease origin promote/production`. If a pull request from that branch
+               is already open, update its title and body with `gh pr edit`; otherwise open one with
+               `gh pr create` against main. Title `chore(production): promote staging to production
+               (YYYY-MM-DD)` with today's date. Write the body in plain English: one short line per version
+               change with the old and the new value, one short paragraph per folded override that names
+               the app, what moved into base, and the commit that put it into staging (`git log` on the
+               deleted staging file), and one line per pin you left alone and why. Do not mention the
+               tooling or the model in the commit message or the body.
 
             Rules. Keep the YAML style of the files you edit: no anchors, comments only where they explain
             a constraint, and no rewriting of lines you do not need to change. Do not create files outside

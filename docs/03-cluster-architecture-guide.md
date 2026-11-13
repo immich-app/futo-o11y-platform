@@ -106,9 +106,9 @@ OCI chart refs pin a tag and its digest. Flux gives the digest precedence. If a 
 
 ### Promotion
 
-A change that must run in staging before production goes into base when it is a plain change, because staging runs base. A change that must not reach production yet goes into a staging override instead, with a header comment of the form `# promote-after: YYYY-MM-DD`. A staging override without that comment is a permanent difference between the environments, and nothing promotes it.
+A plain change to `base/` reaches both environments at once, except where production overrides it, which today means the version pins. A change that must run in staging first goes into a staging override instead, with a header comment of the form `# promote-after: YYYY-MM-DD`. A staging override without that comment is a permanent difference between the environments, and nothing promotes it.
 
-The `Promote` workflow (`.github/workflows/promote.yaml`) runs every Monday and on demand. It sets every production pin to the value in base, folds each staging override whose date passed into base and deletes the override, runs the flate tests, and opens one pull request from the branch `promote/production`. A failed flate test stops the run before the pull request. The pull request goes through the normal review, and nothing merges on its own. The workflow needs the `ANTHROPIC_API_KEY` secret and the app secrets that mint the pull request token.
+The `Promote` workflow (`.github/workflows/promote.yaml`) runs every Monday and on demand. It sets every production pin to the value in base, except the Talos and Kubernetes versions, which Renovate moves together with `talos/<env>/topf.yaml`. It folds each staging override whose date passed into base and deletes the override, runs the flate tests, and opens one pull request from the branch `promote/production`. Renovate does not propose production updates for the pins the workflow owns. A failed flate test stops the run before the pull request. The pull request goes through the normal review, and nothing merges on its own. The workflow needs the `ANTHROPIC_API_KEY` secret and the app secrets that mint the pull request token.
 
 This guide does not list component versions, because they change all the time. The manifests are the source of truth.
 
