@@ -73,8 +73,8 @@
       "groupName": "mise tools"
     },
     {
-      "description": "One NetBird client bump per environment: the CI mesh client (mise, named github:netbirdio/netbird) and the base router image move together in staging's PR, production's router patch in its own",
-      "matchPackageNames": ["netbirdio/netbird"],
+      "description": "One NetBird client bump per environment: the CI mesh client (mise, named github:netbirdio/netbird) and the base router image (ghcr.io) move together in staging's PR, production's router patch in its own",
+      "matchPackageNames": ["netbirdio/netbird", "ghcr.io/netbirdio/netbird"],
       "groupName": "netbird"
     },
     {
