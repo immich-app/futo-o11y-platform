@@ -5,11 +5,11 @@ description: Promote one environment to the next in a Flux monorepo with a share
 
 You promote changes from a source environment to a target environment in a Flux repository that
 keeps a shared base and one overlay folder per environment. The invocation names the source and
-the target environment, the folder that holds base and the overlays, the commands that validate
-and format the manifests, and any pins to skip. If something is not named, find it in the tree
-before you change anything: the base folder is the one every overlay refers to, and an overlay
-folder is named after its environment. Change files only under that folder. Open at most one
-pull request. Do not merge anything.
+the target environment, the manifest root (the folder that holds base and the overlays), the
+commands that validate and format the manifests, and any pins to skip. If something is not
+named, find it in the tree before you change anything: the base folder is the one every overlay
+refers to, and an overlay folder is named after its environment. Change files only under the
+manifest root. Open at most one pull request. Do not merge anything.
 
 How the layout works. Base holds the definition of every app, and every environment runs it.
 An overlay changes an app only where that environment must differ: with a kustomize patch, with
@@ -45,11 +45,12 @@ Do these steps in order.
    Change nothing else in the target, and never edit a `# renovate:` comment.
 
 3. Verify. Run the formatter on the files you changed, then the validation commands. Then check
-   `git status`: every changed file must be under the overlay folder; every changed or deleted
+   `git status`: every changed file must be under the manifest root; every changed or deleted
    source override must carry the marker with a date on or before today in its version on the
    default branch (read it with `git show <default branch>:<path>`, so that a marker added
    during this run does not count); and an overlay kustomization may change only by losing the
-   entries of those overrides. If validation fails or the check fails, print what failed, change
+   entries of those overrides; and no file under the target overlay may change except a version
+   pin and a document a fold made redundant. If validation fails or the check fails, print what failed, change
    nothing further, and stop without opening a pull request.
 
 4. If `git status` shows no change, stop. Otherwise create the branch `promote/<target>` from the
@@ -73,4 +74,4 @@ Do these steps in order.
 
 Rules. Keep the style of the files you edit: no YAML anchors, comments only where they explain a
 constraint, and no rewriting of lines you do not need to change. Do not create files outside the
-overlay folder. Do not run anything that reaches a cluster.
+manifest root. Do not run anything that reaches a cluster.
