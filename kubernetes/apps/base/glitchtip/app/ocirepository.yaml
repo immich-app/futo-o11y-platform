@@ -13,6 +13,6 @@ spec:
     mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
     operation: copy
   ref:
-    tag: 9.1.1
-    digest: sha256:a11e71b9e3dafa91a80a08b13550e8d5b40d938f3f1582d957aad4bc790988f9
+    tag: 9.2.0
+    digest: sha256:3113c7643c94781118126826f6272499220170b53e637d40cdb20bd6b4f37b93
   url: oci://ghcr.io/home-operations/charts-mirror/glitchtip
