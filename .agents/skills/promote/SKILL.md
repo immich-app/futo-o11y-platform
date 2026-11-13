@@ -3,17 +3,16 @@ name: promote
 description: Promote staging to production - fold dated staging overrides into base, set every production pin to the base value, verify with flate, and open one pull request
 ---
 
-You promote staging to production in this repository. Read docs/03-cluster-architecture-guide.md
-first, in particular the sections "Environment overrides" and "Promotion". Change files only
-under kubernetes/apps. Open at most one pull request. Do not merge anything.
+You promote staging to production in this repository. Change files only under kubernetes/apps.
+Open at most one pull request. Do not merge anything.
 
-How the overlays work: kubernetes/apps/base/<app>/app holds the manifests of an app, and both
-clusters run them. Staging runs base as it is. Production overrides an app in
-kubernetes/apps/production/<ns>/patches/<app>.yaml: a Flux Kustomization patch whose
-`spec.patches` entries each hold one inner document as a literal block, with the kind and name
-of the resource it changes. The staging overlay has the same shape under kubernetes/apps/staging.
-The base counterpart of an override is always the app directory with the same name as the
-override file.
+How the overlays work: the base overlay under kubernetes/apps holds one directory per app, with
+the manifests in its app subdirectory, and both clusters run them. Staging runs base as it is.
+The production overlay holds one directory per namespace, and in its patches subdirectory one
+override file per app, named after the app: a Flux Kustomization patch whose `spec.patches`
+entries each hold one inner document as a literal block, with the kind and name of the
+resource it changes. The staging overlay has the same shape. The base counterpart of an
+override is always the base app directory with the same name as the override file.
 
 Do these steps in order.
 
@@ -21,9 +20,9 @@ Do these steps in order.
    carries a comment of the form `# promote-after: YYYY-MM-DD` with a date on or before today.
    Files without that comment are permanent differences between the environments. Never touch
    them. For each candidate, take each inner document from its `spec.patches` and merge the
-   fields it sets into the base manifest of that resource, the file under
-   kubernetes/apps/base/<app>/app whose kind and name match the inner document, in the place
-   where those fields belong. Never edit the base ks.yaml. Carry over the rationale comments
+   fields it sets into the base manifest of that resource, the file in the base app directory
+   whose kind and name match the inner document, in the place
+   where those fields belong. Never edit the Flux Kustomization of the app. Carry over the rationale comments
    from the staging file. Then delete the staging file and its entry in the staging
    kustomization.yaml. If an inner document in the production override of the same app now sets
    a field to the same value as base, remove that field; remove the whole entry when nothing is
@@ -40,7 +39,7 @@ Do these steps in order.
    value to the base value, the tag and the digest together. If the base counterpart is missing
    or more than one line matches, do not guess: leave that pin alone and say so in the pull
    request body. Skip the pins of siderolabs/talos and ghcr.io/siderolabs/kubelet: they move
-   together with talos/production/topf.yaml through Renovate, not here. Change nothing else
+   together with the node configuration through Renovate, not here. Change nothing else
    in production, and never edit a `# renovate:` comment.
 
 3. Verify. Run `oxfmt` on the files you changed, then `flate test helmrelease` and

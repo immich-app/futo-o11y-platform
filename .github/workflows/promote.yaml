@@ -60,4 +60,4 @@ jobs:
             --allowedTools "Read,Glob,Grep,Edit,Write,Bash(git:*),Bash(gh pr:*),Bash(flate:*),Bash(oxfmt:*),Bash(yq:*)"
             --disallowedTools "Bash(gh pr merge:*)"
           # The procedure lives in the repository, so that an agent on a local checkout runs the same steps.
-          prompt: Follow the procedure in .agents/skills/promote/SKILL.md.
+          prompt: Follow the procedure in .agents/skills/promote/SKILL.md. The architecture guide in docs describes the overlays.
