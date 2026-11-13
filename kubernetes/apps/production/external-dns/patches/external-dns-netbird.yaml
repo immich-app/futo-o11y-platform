@@ -13,7 +13,6 @@ spec:
           name: external-dns-netbird
         spec:
           ref:
-            # renovate: datasource=docker depName=ghcr.io/home-operations/charts-mirror/external-dns
             tag: 1.23.0
             digest: sha256:c7b8f2a30597547cde3008f2a1e3b5647a4ac0ea2dd3add0fffe2b84e0429aac
       target:
@@ -29,7 +28,6 @@ spec:
             provider:
               webhook:
                 image:
-                  # renovate: datasource=docker depName=ghcr.io/futo-org/external-dns-netbird-webhook
                   tag: 0.1.0@sha256:506c48eb45a487b2674e9363cd2d6b3ac2f5838cf7122333b36f65ea14c63881
       target:
         kind: HelmRelease

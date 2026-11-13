@@ -13,7 +13,6 @@ spec:
           name: cert-manager-webhook-ovh
         spec:
           ref:
-            # renovate: datasource=docker depName=ghcr.io/aureq/charts/cert-manager-webhook-ovh
             tag: 0.9.19
             digest: sha256:e60d7bc288095e3cfb651f2c8ad4cae62a74f06fcbd5e49a06320247a86b37ea
       target:

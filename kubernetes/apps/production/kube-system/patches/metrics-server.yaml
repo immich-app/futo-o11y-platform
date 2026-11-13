@@ -13,7 +13,6 @@ spec:
           name: metrics-server
         spec:
           ref:
-            # renovate: datasource=docker depName=ghcr.io/home-operations/charts-mirror/metrics-server
             tag: 3.14.0
             digest: sha256:8a9ade2972ba4a1d748da6a78a313a770dab81ebc004441b13099a2c4329ffa9
       target:

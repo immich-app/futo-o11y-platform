@@ -13,7 +13,6 @@ spec:
           name: glitchtip
         spec:
           ref:
-            # renovate: datasource=docker depName=ghcr.io/home-operations/charts-mirror/glitchtip
             tag: 9.2.0
             digest: sha256:3113c7643c94781118126826f6272499220170b53e637d40cdb20bd6b4f37b93
       target:

@@ -13,7 +13,6 @@ spec:
           name: spegel
         spec:
           ref:
-            # renovate: datasource=docker depName=ghcr.io/spegel-org/helm-charts/spegel
             tag: 0.8.1
             digest: sha256:0f6685e12ba49fa57b3fd4329e0e9695d60d00024df102733f337e4752ca2e61
       target:
