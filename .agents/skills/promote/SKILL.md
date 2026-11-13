@@ -1,8 +1,6 @@
 ---
 name: promote
 description: Promote staging to production - fold dated staging overrides into base, set every production pin to the base value, verify with flate, and open one pull request
-disable-model-invocation: true
-allowed-tools: Bash(git:*) Bash(gh pr:*) Bash(flate:*) Bash(oxfmt:*) Bash(yq:*)
 ---
 
 You promote staging to production in this repository. Read docs/03-cluster-architecture-guide.md

@@ -40,8 +40,7 @@ tmp/
 # Mise override
 mise.local.toml
 
-.claude/*
-!.claude/skills/
+.claude/
 
 # Rendered by `mise run //o11y:render`; CI renders and publishes, nothing generated is committed
 o11y/manifests/dashboards.yaml

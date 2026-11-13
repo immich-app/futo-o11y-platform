@@ -54,5 +54,5 @@ jobs:
             --model claude-opus-5-5
             --allowedTools "Read,Glob,Grep,Edit,Write,Bash(git:*),Bash(gh pr:*),Bash(flate:*),Bash(oxfmt:*),Bash(yq:*)"
             --disallowedTools "Bash(gh pr merge:*)"
-          # The procedure is the committed project skill .claude/skills/promote/SKILL.md, which also runs locally as /promote.
-          prompt: /promote
+          # The procedure lives in the repository, so that an agent on a local checkout runs the same steps.
+          prompt: Follow the procedure in .agents/skills/promote/SKILL.md.
