@@ -81,7 +81,7 @@ spec:
           - name: reload
           - name: loadbalance
       # Mesh names resolve through the netbird-router DNS Service
-      # (kubernetes/apps/base/netbird-router/app/service-dns.yaml).
+      # (kubernetes/apps/base/netbird-router/app/helmrelease.yaml).
       - zones:
           - zone: futo.network
         port: 53

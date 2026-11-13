@@ -7,17 +7,32 @@ metadata:
 spec:
   patches:
     - patch: |-
-        apiVersion: apps/v1
-        kind: Deployment
+        apiVersion: source.toolkit.fluxcd.io/v1
+        kind: OCIRepository
         metadata:
           name: netbird-router
         spec:
-          template:
-            spec:
-              containers:
-                - name: netbird
-                  # renovate: datasource=docker depName=netbirdio/netbird
-                  image: netbirdio/netbird:0.82.0@sha256:eca5b274c635bfbb04ec6724a0712d1146190dd450eea199eeb83916fdd94965
+          ref:
+            # renovate: datasource=docker depName=ghcr.io/bjw-s-labs/helm/app-template
+            tag: 5.3.0
+            digest: sha256:0e13b145656490310ada364d8eb708e5f4f6384c7deb60d3f5f0fa56950ff63a
       target:
-        kind: Deployment
+        kind: OCIRepository
+        name: netbird-router
+    - patch: |-
+        apiVersion: helm.toolkit.fluxcd.io/v2
+        kind: HelmRelease
+        metadata:
+          name: netbird-router
+        spec:
+          values:
+            controllers:
+              main:
+                containers:
+                  main:
+                    image:
+                      # renovate: datasource=docker depName=ghcr.io/netbirdio/netbird
+                      tag: 0.82.0@sha256:eca5b274c635bfbb04ec6724a0712d1146190dd450eea199eeb83916fdd94965
+      target:
+        kind: HelmRelease
         name: netbird-router
