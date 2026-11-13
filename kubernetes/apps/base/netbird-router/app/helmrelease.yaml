@@ -1,0 +1,146 @@
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/helm.toolkit.fluxcd.io/helmrelease_v2.json
+#
+# In-cluster NetBird routing peer: routes mesh peers to the Envoy gateway VIP and serves
+# NetBird DNS to the cluster (CoreDNS forwards futo.network to the netbird-dns Service).
+# NET_ADMIN + userspace WireGuard, no tun/privileged.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: netbird-router
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: netbird-router
+  interval: 1h
+  values:
+    global:
+      createDefaultServiceAccount: false
+    controllers:
+      main:
+        replicas: 2
+        # A surge pod can never bind hostPort 51821 on a node that still runs an old replica.
+        strategy: RollingUpdate
+        rollingUpdate:
+          maxSurge: 0
+          maxUnavailable: 1
+        podDisruptionBudget:
+          minAvailable: 1
+        pod:
+          # Public upstreams: NetBird forwards non-mesh names to the pod's original resolvers;
+          # with cluster DNS, undistributed futo.network names would loop back through CoreDNS.
+          dnsPolicy: None
+          dnsConfig:
+            nameservers:
+              - 1.1.1.1
+              - 9.9.9.9
+          topologySpreadConstraints:
+            - maxSkew: 1
+              topologyKey: kubernetes.io/hostname
+              whenUnsatisfiable: DoNotSchedule
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: netbird-router
+        containers:
+          main:
+            nameOverride: netbird
+            image:
+              repository: netbirdio/netbird
+              tag: 0.82.0@sha256:eca5b274c635bfbb04ec6724a0712d1146190dd450eea199eeb83916fdd94965
+            # The flannel masquerade randomizes source ports, so ICE never finds a working
+            # pair and every mesh connection to the routers falls back to NetBird's relays.
+            # Advertise the node's public IP (egress and node IP are the same address;
+            # kubelet nodeIP is vRack-pinned, so the downward API cannot supply it) at the
+            # fixed WireGuard port that hostPort maps in. Discovery failure leaves the map
+            # unset and the peer on the relay path, same as before.
+            command:
+              - /bin/sh
+              - -ec
+              - |
+                ip="$(wget -qO- -T 5 https://one.one.one.one/cdn-cgi/trace | sed -n 's/^ip=//p')" || true
+                [ -n "$ip" ] && export NB_EXTERNAL_IP_MAP="$ip"
+                exec /usr/local/bin/netbird-entrypoint.sh
+            env:
+              NB_SETUP_KEY:
+                valueFrom:
+                  secretKeyRef:
+                    name: netbird-setup-key
+                    key: setupKey
+              NB_MANAGEMENT_URL: https://api.netbird.io
+              # Bind pod-wide (default is the dynamic NetBird IP) so the Service can front it.
+              NB_DNS_RESOLVER_ADDRESS: 0.0.0.0:53
+              # 51820 belongs to the node's own NetBird (Talos extension service).
+              NB_WIREGUARD_PORT: "51821"
+              NB_ENABLE_LOCAL_METRICS: "true"
+              NB_LOCAL_METRICS_ADDRESS: 0.0.0.0:9191
+            ports:
+              - name: dns-udp
+                containerPort: 53
+                protocol: UDP
+              - name: dns-tcp
+                containerPort: 53
+                protocol: TCP
+              # Ingress is allowed by the Talos netbird-router-wg firewall rule (talos module).
+              - name: wireguard
+                containerPort: 51821
+                hostPort: 51821
+                protocol: UDP
+              - name: metrics
+                containerPort: 9191
+                protocol: TCP
+            probes:
+              startup:
+                enabled: true
+                custom: true
+                spec:
+                  exec:
+                    command: [netbird, status, --check, startup]
+                  periodSeconds: 3
+                  failureThreshold: 20
+                  timeoutSeconds: 5
+              readiness:
+                enabled: true
+                custom: true
+                spec:
+                  exec:
+                    command: [netbird, status, --check, ready]
+                  periodSeconds: 10
+                  failureThreshold: 3
+                  timeoutSeconds: 5
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  exec:
+                    command: [netbird, status, --check, live]
+                  periodSeconds: 10
+                  failureThreshold: 6
+                  timeoutSeconds: 5
+            securityContext:
+              capabilities:
+                add:
+                  - NET_ADMIN
+            resources:
+              requests:
+                cpu: 50m
+                memory: 64Mi
+              limits:
+                memory: 128Mi
+    service:
+      dns:
+        controller: main
+        forceRename: netbird-dns
+        clusterIP: 10.96.0.53
+        ports:
+          dns-udp:
+            port: 53
+            protocol: UDP
+          dns-tcp:
+            port: 53
+            protocol: TCP
+    podMonitor:
+      main:
+        controller:
+          identifier: main
+        podMetricsEndpoints:
+          - port: metrics
