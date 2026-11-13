@@ -178,7 +178,7 @@ Uploads, for example sourcemaps, go to the OVH bucket for each environment, name
 
 GlitchTip keeps its own `/metrics` off, because the endpoint has no authentication on the public route.
 
-Sign-in is through Zitadel only. The project role check in Zitadel decides who can log in. The project is `GlitchTip O11y` in core-infra-tf. The first Zitadel login creates the GlitchTip user. GlitchTip has no switch to enforce Zitadel-only sign-in: it allows a signup while no user exists, and it keeps password and passkey login.
+Sign-in is through Zitadel only. The project role check in Zitadel decides who can log in. The project is `GlitchTip O11y` in core-infra-tf. The first Zitadel login creates the GlitchTip user. Any user can create an organization, because `ENABLE_ORGANIZATION_CREATION` is on. GlitchTip has no switch to enforce Zitadel-only sign-in: it allows a signup while no user exists, and it keeps password and passkey login.
 
 Thus the public route answers requests for these parts with a 404:
 
