@@ -60,4 +60,9 @@ jobs:
             --allowedTools "Read,Glob,Grep,Edit,Write,Bash(git:*),Bash(gh pr:*),Bash(flate:*),Bash(oxfmt:*),Bash(yq:*)"
             --disallowedTools "Bash(gh pr merge:*)"
           # The procedure lives in the repository, so that an agent on a local checkout runs the same steps.
-          prompt: Follow the procedure in .agents/skills/promote/SKILL.md. The architecture guide in docs describes the overlays.
+          prompt: |
+            Follow the procedure in .agents/skills/promote/SKILL.md. The source environment is staging, the
+            target environment is production, and base and the overlays live under kubernetes/apps. Validate
+            with `flate test helmrelease` and `flate test kustomization`, format with `oxfmt`. Skip the pins
+            of siderolabs/talos and ghcr.io/siderolabs/kubelet: Renovate moves them together with the node
+            configuration. The architecture guide in docs describes the overlays.
