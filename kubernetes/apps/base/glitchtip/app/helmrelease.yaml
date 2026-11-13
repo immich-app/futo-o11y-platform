@@ -60,6 +60,14 @@ spec:
       # Zitadel issuer must stay on a public address.
       - name: ENABLE_ORGANIZATION_CREATION
         value: "true"
+      # Sends the organization invitation emails (externalsecret.yaml).
+      - name: EMAIL_URL
+        valueFrom:
+          secretKeyRef:
+            name: glitchtip-email
+            key: EMAIL_URL
+      - name: DEFAULT_FROM_EMAIL
+        value: glitchtip@futo.org
       # Uploads (sourcemaps, debug files) go to S3 so every replica sees them;
       # setting the endpoint switches GlitchTip's file storage to S3.
       - name: AWS_S3_ENDPOINT_URL

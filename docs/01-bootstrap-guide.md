@@ -13,11 +13,11 @@ You need these tools and sessions on your machine:
 
 core-infra-tf also provides the values in this table before the first apply. If a value is missing, the tasks fail. They do not invent one.
 
-| Infisical folder           | Values                                                                                                                                                                                                 |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `observability global:/tf` | The Terraform state bucket (`TF_STATE_S3_*`), the OVH API keys (`OVH_*`), `ROOTLY_ZULIP_WEBHOOK`, and the manual items `FUTO_BOOTSTRAP_RELEASES_S3_READER__*` and `FMEET_O11Y_REGISTRY_DEPLOY_TOKEN_*` |
-| `observability <env>:/ci`  | The Universal Auth client ID and secret of the cluster (`INFISICAL_K8S_CLIENT_ID_O11Y_<ENV>`, `INFISICAL_K8S_CLIENT_SECRET_O11Y_<ENV>`)                                                                |
-| `shared global:/tf`        | `NETBIRD_TF_PAT`, `NETBOX_URL`, `NETBOX_API_TOKEN`, `ROOTLY_API_TOKEN`, `FUTO_NETWORK_DNS_CLOUDFLARE_API_TOKEN`, `FUTO_ZITADEL_OAUTH_CLIENT_ID_GRAFANA_O11Y`                                           |
+| Infisical folder           | Values                                                                                                                                                                                                                             |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `observability global:/tf` | The Terraform state bucket (`TF_STATE_S3_*`), the OVH API keys (`OVH_*`), `ROOTLY_ZULIP_WEBHOOK`, `GLITCHTIP_RESEND_API_KEY`, and the manual items `FUTO_BOOTSTRAP_RELEASES_S3_READER__*` and `FMEET_O11Y_REGISTRY_DEPLOY_TOKEN_*` |
+| `observability <env>:/ci`  | The Universal Auth client ID and secret of the cluster (`INFISICAL_K8S_CLIENT_ID_O11Y_<ENV>`, `INFISICAL_K8S_CLIENT_SECRET_O11Y_<ENV>`)                                                                                            |
+| `shared global:/tf`        | `NETBIRD_TF_PAT`, `NETBOX_URL`, `NETBOX_API_TOKEN`, `ROOTLY_API_TOKEN`, `FUTO_NETWORK_DNS_CLOUDFLARE_API_TOKEN`, `FUTO_ZITADEL_OAUTH_CLIENT_ID_GRAFANA_O11Y`                                                                       |
 
 Everything else is written during the bootstrap, so do not create it by hand:
 

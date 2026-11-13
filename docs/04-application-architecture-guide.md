@@ -178,7 +178,7 @@ Uploads, for example sourcemaps, go to the OVH bucket for each environment, name
 
 GlitchTip keeps its own `/metrics` off, because the endpoint has no authentication on the public route.
 
-Sign-in is through Zitadel only. The project role check in Zitadel decides who can log in. The project is `GlitchTip O11y` in core-infra-tf. The first Zitadel login creates the GlitchTip user. Any user can create an organization, because `ENABLE_ORGANIZATION_CREATION` is on. GlitchTip has no switch to enforce Zitadel-only sign-in: it allows a signup while no user exists, and it keeps password and passkey login.
+Sign-in is through Zitadel only. The project role check in Zitadel decides who can log in. The project is `GlitchTip O11y` in core-infra-tf. The first Zitadel login creates the GlitchTip user. Any user can create an organization, because `ENABLE_ORGANIZATION_CREATION` is on. Members join an organization by invitation, in this order: the person signs in with Zitadel once, so that the GlitchTip user exists, because GlitchTip only invites existing users while `ENABLE_USER_REGISTRATION` is off; an organization owner then invites that email address; the person accepts the link while signed in. GlitchTip sends the invitation email through Resend as `glitchtip@futo.org`, with the `GLITCHTIP_RESEND_API_KEY` key that core-infra-tf provides. GlitchTip has no switch to enforce Zitadel-only sign-in: it allows a signup while no user exists, and it keeps password and passkey login.
 
 Thus the public route answers requests for these parts with a 404:
 
