@@ -154,13 +154,10 @@ jobs:
           fi
           test -z "$(find "$RESULT" -name .git)"
           rm -rf kubernetes/apps && cp -R "$RESULT/kubernetes/apps" kubernetes/apps
-          if [ -z "$(git status --porcelain -- kubernetes/apps)" ]; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          elif [ -s "$RESULT/.promote-pr-body.md" ]; then
+          if [ -n "$(git status --porcelain -- kubernetes/apps)" ]; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           else
-            echo "::error::The promotion changed files but left no pull request body."
-            exit 1
+            echo "changed=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Open or update the pull request
