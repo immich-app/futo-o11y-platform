@@ -104,6 +104,12 @@ Today the only overrides are version pins. Production pins the chart versions an
 
 OCI chart refs pin a tag and its digest. Flux gives the digest precedence. If a production patch carries only the tag, the digest from `base/` overrides the environment pin, and nothing reports it. For this reason, the production patches must carry both. A Renovate custom manager updates the tag and the digest of each pair together. The built-in flux manager of Renovate maintains the pairs in `base/`.
 
+### Promotion
+
+A change that must run in staging before production goes into base when it is a plain change, because staging runs base. A change that must not reach production yet goes into a staging override instead, with a header comment of the form `# promote-after: YYYY-MM-DD`. A staging override without that comment is a permanent difference between the environments, and nothing promotes it.
+
+The `Promote` workflow (`.github/workflows/promote.yaml`) runs every Monday and on demand. It sets every production pin to the value in base, folds each staging override whose date passed into base and deletes the override, runs the flate tests, and opens one pull request from the branch `promote/production`. A failed flate test stops the run before the pull request. The pull request goes through the normal review, and nothing merges on its own. The workflow needs the `ANTHROPIC_API_KEY` secret and the app secrets that mint the pull request token.
+
 This guide does not list component versions, because they change all the time. The manifests are the source of truth.
 
 ### Configuration substitution
