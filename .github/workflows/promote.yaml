@@ -81,6 +81,9 @@ jobs:
               }
             }
           github_token: ${{ github.token }}
+          # The transcript goes to the job log. GitHub masks the job's two secrets there, and the
+          # rest is manifest text, which is public like the repository.
+          show_full_output: true
           # The dispatch job starts its runs as github-actions[bot], and the action refuses bot
           # actors that are not listed.
           allowed_bots: github-actions
@@ -153,6 +156,8 @@ jobs:
             exit 1
           fi
           test -z "$(find "$RESULT" -name .git)"
+          # The procedure writes the body last, so a missing body means that the agent stopped early.
+          test -f "$RESULT/.promote-pr-body.md" || { echo "::error::The agent stopped before it wrote the pull request body. Read the Promote job log."; exit 1; }
           rm -rf kubernetes/apps && cp -R "$RESULT/kubernetes/apps" kubernetes/apps
           if [ -n "$(git status --porcelain -- kubernetes/apps)" ]; then
             echo "changed=true" >> "$GITHUB_OUTPUT"

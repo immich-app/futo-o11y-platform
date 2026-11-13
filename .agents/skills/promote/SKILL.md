@@ -77,7 +77,8 @@ Do these steps in order.
    entries of those source overrides and of the target overrides that step 1 removed; and in the
    target overlay, only version pins change and only fields, documents and overrides that a fold
    made redundant go away. If validation fails or the check fails, print what failed, change nothing
-   further, and stop without opening a pull request.
+   further, and stop without opening a pull request. Do not write the `body` file: the missing
+   file tells the caller that the run failed.
 
 4. If `body` is set, write the pull request body that this step describes to that file. If
    `git status` shows no change, write an empty file. Then stop, and do not branch, commit, push or

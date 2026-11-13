@@ -1,4 +1,43 @@
 ---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/generators.external-secrets.io/password_v1alpha1.json
+apiVersion: generators.external-secrets.io/v1alpha1
+kind: Password
+metadata:
+  name: vmuser-client-logs-token
+spec:
+  length: 48
+  digits: 8
+  symbols: 0
+  noUpper: false
+  allowRepeat: true
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/external-secrets.io/pushsecret_v1alpha1.json
+# The write-only logs token of the client shippers, published to the shared
+# project's <env>:/tf. Seeds Infisical from the generator only while the secret
+# does not exist there; to rotate it, delete it in Infisical and release the
+# app with the new value. The cluster's identity needs write on this name in
+# the shared project (kubernetes_shared_writes in core-infra-tf), or the first
+# seed and every rotation fail.
+apiVersion: external-secrets.io/v1alpha1
+kind: PushSecret
+metadata:
+  name: vmuser-client-logs-token
+spec:
+  updatePolicy: IfNotExists
+  secretStoreRefs:
+    - kind: ClusterSecretStore
+      name: infisical-shared
+  selector:
+    generatorRef:
+      apiVersion: generators.external-secrets.io/v1alpha1
+      kind: Password
+      name: vmuser-client-logs-token
+  data:
+    - match:
+        secretKey: password
+        remoteRef:
+          remoteKey: /tf/O11Y_VICTORIALOGS_CLIENT_TOKEN
+---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/external-secrets.io/externalsecret_v1.json
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret

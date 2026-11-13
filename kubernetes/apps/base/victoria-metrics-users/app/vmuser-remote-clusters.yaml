@@ -1,4 +1,43 @@
 ---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/generators.external-secrets.io/password_v1alpha1.json
+apiVersion: generators.external-secrets.io/v1alpha1
+kind: Password
+metadata:
+  name: vmuser-remote-cluster-token
+spec:
+  length: 48
+  digits: 8
+  symbols: 0
+  noUpper: false
+  allowRepeat: true
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/external-secrets.io/pushsecret_v1alpha1.json
+# The shared bearer token of the public gateway, which the remote clusters read
+# from the shared project's <env>:/tf. Seeds Infisical from the generator only
+# while the secret does not exist there, so the token the remotes hold stays
+# until someone deletes it in Infisical to rotate it. The cluster's identity
+# needs write on this name in the shared project (kubernetes_shared_writes in
+# core-infra-tf), or the first seed and every rotation fail.
+apiVersion: external-secrets.io/v1alpha1
+kind: PushSecret
+metadata:
+  name: vmuser-remote-cluster-token
+spec:
+  updatePolicy: IfNotExists
+  secretStoreRefs:
+    - kind: ClusterSecretStore
+      name: infisical-shared
+  selector:
+    generatorRef:
+      apiVersion: generators.external-secrets.io/v1alpha1
+      kind: Password
+      name: vmuser-remote-cluster-token
+  data:
+    - match:
+        secretKey: password
+        remoteRef:
+          remoteKey: /tf/O11Y_VICTORIAMETRICS_VMAUTH_PASSWORD
+---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/external-secrets.io/externalsecret_v1.json
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret

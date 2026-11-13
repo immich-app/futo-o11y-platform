@@ -18,14 +18,13 @@ core-infra-tf also provides the values in this table before the first apply. If 
 | `observability global:/tf` | The Terraform state bucket (`TF_STATE_S3_*`), the OVH API keys (`OVH_*`), `ROOTLY_ZULIP_WEBHOOK`, and the manual items `FUTO_BOOTSTRAP_RELEASES_S3_READER__*` and `FMEET_O11Y_REGISTRY_DEPLOY_TOKEN_*` |
 | `observability <env>:/ci`  | The Universal Auth client ID and secret of the cluster (`INFISICAL_K8S_CLIENT_ID_O11Y_<ENV>`, `INFISICAL_K8S_CLIENT_SECRET_O11Y_<ENV>`)                                                                |
 | `shared global:/tf`        | `NETBIRD_TF_PAT`, `NETBOX_URL`, `NETBOX_API_TOKEN`, `ROOTLY_API_TOKEN`, `FUTO_NETWORK_DNS_CLOUDFLARE_API_TOKEN`, `FUTO_ZITADEL_OAUTH_CLIENT_ID_GRAFANA_O11Y`                                           |
-| `shared <env>:/tf`         | `O11Y_VICTORIAMETRICS_VMAUTH_PASSWORD`, `O11Y_VICTORIALOGS_CLIENT_TOKEN`                                                                                                                               |
 
 Everything else is written during the bootstrap, so do not create it by hand:
 
 - The Terraform modules write the NetBird setup keys, the GlitchTip S3 credentials and the Rootly alert and heartbeat URLs to `observability <env>:/tf`.
 - The NetBird module writes the CI setup key to `observability <env>:/github`, which Infisical syncs to the Actions secrets of this repository.
 - topf stores the Talos secrets bundle in `observability <env>:/talos`.
-- The cluster generates its passwords and the Rootly service-account token, and it stores them in `observability <env>:/k8s`. It also publishes the vmauth URLs for the other clusters to `shared <env>:/tf`.
+- The cluster generates its passwords and the Rootly service-account token, and it stores them in `observability <env>:/k8s`. It also publishes the vmauth URLs, the gateway token and the client logs token for the other clusters to `shared <env>:/tf`, through the write grant that core-infra-tf gives the cluster identity on those names.
 
 ## Apply order
 
