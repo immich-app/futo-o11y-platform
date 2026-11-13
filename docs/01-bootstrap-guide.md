@@ -81,9 +81,10 @@ Steps 1 to 5 apply the Terraform modules in their dependency order. If the OpenS
    The sync uses the immich-app GitHub connection, which an admin made in the Infisical UI with the Infisical GitHub App. The app's installation must have access to this repository, with the permission Secrets set to read and write. The CI plan identities can read the sync because core-infra-tf grants them read on secret syncs (`secret_syncs` in `infisical/instance/access.tf`). After the apply, open the sync in the `observability` project and make sure that its status shows success.
 
    In production, the folder also holds `OPENROUTER_API_KEY` for the Promote workflow. An Infisical secret rotation writes it, and the Terraform provider cannot manage that rotation. The rotation needs the secret rotation feature in the Infisical license. Create it once in the UI, in the `observability` project:
-   1. Add a secret rotation of the type OpenRouter API Key, with the OpenRouter connection (`b2b5f94c-0e7a-45e5-b72d-ff744b5e107d`) and a rotation interval of 30 days.
-   2. Set the key name to `futo-o11y-platform-promote`, the limit to 100 USD and the limit reset to monthly.
-   3. Map the API key to `OPENROUTER_API_KEY` in the `prod` environment, in `/github`.
+   1. Open the `prod` environment and the `github` folder. From there, add a secret rotation of the type OpenRouter API Key. The rotation writes to the folder that you start it from, and you cannot change the path later in the form.
+   2. Select the OpenRouter connection (`b2b5f94c-0e7a-45e5-b72d-ff744b5e107d`) and a rotation interval of 30 days.
+   3. Set the key name to `futo-o11y-platform-promote`, the limit to 100 USD and the limit reset to monthly.
+   4. Map the API key to `OPENROUTER_API_KEY`, and name the rotation `futo-o11y-platform-promote`.
 
    Each rotation creates a new key and updates the secret, and the sync pushes the new value to GitHub. The key it replaces stays valid until the next rotation, which revokes it. To retire a leaked key at once, rotate twice.
 
