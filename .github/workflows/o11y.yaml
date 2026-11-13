@@ -34,7 +34,7 @@ env:
 jobs:
   validate:
     name: Validate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
     steps:
@@ -61,7 +61,7 @@ jobs:
     # Only main may publish and sign; blocks workflow_dispatch on arbitrary
     # branches from minting tags.
     if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
       packages: write
