@@ -65,4 +65,4 @@ jobs:
             target environment is production, and the manifest root is kubernetes/apps. Validate
             with `flate test helmrelease` and `flate test kustomization`, format with `oxfmt`. Skip the pins
             of siderolabs/talos and ghcr.io/siderolabs/kubelet: Renovate moves them together with the node
-            configuration. The architecture guide in docs describes the overlays.
+            configuration.
