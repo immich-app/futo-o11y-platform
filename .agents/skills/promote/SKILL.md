@@ -79,9 +79,9 @@ Do these steps in order.
    made redundant go away. If validation fails or the check fails, print what failed, change nothing
    further, and stop without opening a pull request.
 
-4. If `body` is set, write the pull request body that this step describes to that file, but only
-   when `git status` shows a change. Then stop, and do not branch, commit, push or touch a pull
-   request.
+4. If `body` is set, write the pull request body that this step describes to that file. If
+   `git status` shows no change, write an empty file. Then stop, and do not branch, commit, push or
+   touch a pull request.
 
    Without `body`: if `git status` shows no change, find the open promotion pull request as
    described below. If there is one, close it with `gh pr close <number> --comment` and a comment
