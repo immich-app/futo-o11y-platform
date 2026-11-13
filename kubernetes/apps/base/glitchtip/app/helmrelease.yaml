@@ -55,6 +55,11 @@ spec:
         value: "false"
       - name: ENABLE_SOCIAL_APPS_USER_REGISTRATION
         value: "true"
+      # Without this only the first organization and superusers can create one.
+      # It also turns on SOCIAL_AUTH_BLOCK_PRIVATE_IPS by default, so the
+      # Zitadel issuer must stay on a public address.
+      - name: ENABLE_ORGANIZATION_CREATION
+        value: "true"
       # Uploads (sourcemaps, debug files) go to S3 so every replica sees them;
       # setting the endpoint switches GlitchTip's file storage to S3.
       - name: AWS_S3_ENDPOINT_URL
