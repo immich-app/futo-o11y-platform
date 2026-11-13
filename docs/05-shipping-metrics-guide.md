@@ -33,7 +33,7 @@ The `shared` Infisical project also holds both gateway URLs, in the `/tf` folder
 | `O11Y_VICTORIAMETRICS_VMAUTH_MESH_URL`   | `https://vmauth.<mesh-domain>` |
 | `O11Y_VICTORIAMETRICS_VMAUTH_PUBLIC_URL` | `https://vmauth.<app-domain>`  |
 
-Each secret holds the bare origin: the scheme and the host, with no path. Append the insert path or the select path for your shipper. The o11y cluster writes these secrets with a PushSecret (`kubernetes/apps/base/victoria-metrics-users/app/pushsecret-vmauth-urls.yaml`). Terraform also generates the token, in the `shared-generated-secrets` module of core-infra-tf (`deployment/live/shared/1password/futo-account/shared-secrets.tf`). That module makes a separate random value in each of `shared_tf_prod`, `shared_tf_staging` and `shared_tf_dev`, and writes each value to the `shared` Infisical project too.
+Each secret holds the bare origin: the scheme and the host, with no path. Append the insert path or the select path for your shipper. The o11y cluster writes these secrets with a PushSecret (`kubernetes/apps/base/victoria-metrics-users/app/pushsecret-vmauth-urls.yaml`). It also generates the token of each environment and publishes it to the same folder (`vmuser-remote-clusters.yaml`).
 
 The metrics remote-write path is the same on every host:
 
@@ -76,11 +76,11 @@ spec:
 
 ## Option B: over the internet
 
-The public gateway rejects anonymous requests, so this path requires a shared bearer token. The token is in 1Password as the item `O11Y_VICTORIAMETRICS_VMAUTH_PASSWORD` (field `password`). It is in the `shared_tf_<env>` 1Password vault, and in the same Infisical folder as the gateway URLs above.
+The public gateway rejects anonymous requests, so this path requires a shared bearer token. The token is the secret `O11Y_VICTORIAMETRICS_VMAUTH_PASSWORD` in the `shared` Infisical project, in the same `<env>:/tf` folder as the gateway URLs above.
 
-A cluster that can read the vault pulls the token with an ExternalSecret. As an alternative, it injects the token from Terraform with an `op://shared_tf_<env>/O11Y_VICTORIAMETRICS_VMAUTH_PASSWORD/password` reference. That reference must match the gateway that the cluster ships to: `shared_tf_prod` for production, as yucca and bootstrap do. Do not make a copy of the token by hand. A hand-made copy goes stale at the next rotation.
+A cluster that can read that folder pulls the token with an ExternalSecret. The folder must match the gateway that the cluster ships to: `prod` for production, as yucca and bootstrap do. Do not make a copy of the token by hand. A hand-made copy goes stale at the next rotation.
 
-To rotate the token, replace the `random_password` of that environment in core-infra-tf. Then apply the change in core-infra-tf. A hand edit to the vault item does not last, because the next apply of that module reverts it.
+To rotate the token, delete the secret in Infisical. The o11y cluster of that environment generates a new one and publishes it within the refresh interval of its PushSecret. A shipper that reads the token with an ExternalSecret gets the new value at its next refresh. A shipper that received the token at apply time, as bootstrap does, needs another apply. A hand edit of the value lasts, because the cluster writes only while the secret is missing. The cluster writes the name through a grant in core-infra-tf (`kubernetes_shared_writes`).
 
 This gateway reads the new value through its own ExternalSecret. Consumers that use an ExternalSecret also read the new value. A consumer that copied the token at apply time keeps sending the old token until its own next apply. Until then, the gateway rejects it. An example is the `vmagent-remote-write` Secret of bootstrap, which Terraform injects.
 
@@ -326,7 +326,7 @@ Logs carry the same identity labels as metrics. The shipper stamps them as field
 
 Instead, a client-side shipper gets its own write-only user on the public gateway. Today, that shipper is the Harbor mobile app. `kubernetes/apps/base/victoria-metrics-users/app/vmuser-client-logs.yaml` defines this user:
 
-- Token: the 1Password item `O11Y_VICTORIALOGS_CLIENT_TOKEN`, in the `shared_tf_<env>` vault. The `shared-generated-secrets` module of core-infra-tf generates it, with one value per environment. The token allows nothing but the two insert paths below.
+- Token: the secret `O11Y_VICTORIALOGS_CLIENT_TOKEN` in the `shared` Infisical project, folder `<env>:/tf`. The o11y cluster of each environment generates it and publishes it there. The token allows nothing but the two insert paths below.
 - Paths: `https://vmauth.<app-domain>/client/harbor-mobile/insert/jsonline` for [JSON lines](https://docs.victoriametrics.com/victorialogs/data-ingestion/#json-stream-api), which need no SDK, and `.../client/harbor-mobile/insert/opentelemetry/v1/logs` for OTLP. `vmauth` strips the `/client/<name>/` prefix before the request reaches VictoriaLogs. The prefix lets the gateway rate limit these paths on their own. `httproute-client-logs.yaml` sets a local request limit per Envoy replica, answered with `429`. It also sets a 1 MiB cap per request, answered with `413`. OTLP is protobuf only. VictoriaLogs rejects a JSON-encoded OTLP body, so a hand-rolled client posts JSON lines.
 - Identity fields: these are pinned on the server side as `project=harbor, cluster=harbor-mobile, env=<staging|prod>, provider=mobile, region=world`. The log stream is keyed on `project,cluster,env`. VictoriaLogs reads query args before `VL-*` headers, and the args of the gateway come first. So a client cannot relabel itself into another project or create a stream per device. The `AccountID`/`ProjectID` headers are forced to the single logs tenant. Anything else that the app sends (for example `platform`, `app_version` or `device_id`) is stored as a regular field and stays queryable.
 
@@ -343,7 +343,7 @@ printf '%s\n' \
 
 Batch the logs on the client: a few seconds or a few hundred lines per request, under 1 MiB. If the gateway answers `429`, `413` or `5xx`, back off. Drop logs rather than queue them forever.
 
-The gateway limits are a brake against a leaked token, not a quota per app. A leaked token is still rotated: the 1Password item is regenerated, and the app is released again. Read the logs back as the [Tenants](#tenants) section describes, with a filter on `cluster:harbor-mobile`:
+The gateway limits are a brake against a leaked token, not a quota per app. A leaked token is still rotated: delete the secret in Infisical, the cluster publishes a new one, and the app is released again. Read the logs back as the [Tenants](#tenants) section describes, with a filter on `cluster:harbor-mobile`:
 
 ```sh
 curl -fsS 'https://vlogs.<mesh-domain>/select/logsql/query' --data-urlencode 'query=cluster:harbor-mobile | limit 10'
