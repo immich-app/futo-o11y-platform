@@ -57,10 +57,13 @@ Do these steps in order.
    `git push --force-with-lease origin promote/production`. The branch name is fixed, so a run
    replaces the previous week's branch and the open pull request follows it. If the push is
    rejected, someone changed the branch since the last run: stop and report it, and do not
-   force the push. Then run `gh pr list --head promote/production --base main --state open`.
-   If it lists a pull request, update its title and body with `gh pr edit`; otherwise open one
-   with `gh pr create --base main --head promote/production`. Never open a second pull request
-   from that branch. Title `chore(production): promote staging to production (YYYY-MM-DD)` with
+   force the push. Then run
+   `gh pr list --head promote/production --base main --state open --json number,isCrossRepository`
+   and keep only the entry whose `isCrossRepository` is false, so that a same-named branch in a
+   fork is never picked. If there is one, update its title and body with `gh pr edit <number>`;
+   otherwise open one with `gh pr create --base main --head promote/production`. There is at
+   most one open promotion pull request; a closed and unmerged one is replaced by a new one.
+   Title `chore(production): promote staging to production (YYYY-MM-DD)` with
    today's date. Write the body in plain English: one short line per version
    change with the old and the new value, one short paragraph per folded override that names
    the app, what moved into base, and the commit that put it into staging (`git log` on the
