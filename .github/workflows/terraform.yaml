@@ -12,8 +12,8 @@ name: Terraform
 #
 # Prerequisites (out-of-band, once):
 #   - Per-env repo secrets NETBIRD_O11Y_CI_SETUP_KEY_STAGING /
-#     NETBIRD_O11Y_CI_SETUP_KEY_PROD: the ci_setup_key output of terraform/netbird
-#     in that environment.
+#     NETBIRD_O11Y_CI_SETUP_KEY_PROD: terraform/netbird writes them to Infisical,
+#     which syncs them to this repository (terraform/netbird/github.tf).
 #   - Re-enable the workflow: gh workflow enable terraform.yaml
 
 on:
@@ -45,7 +45,7 @@ jobs:
     name: Plan ${{ matrix.environment }}
     # Fork PRs have no secrets and no mesh access.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
       matrix:

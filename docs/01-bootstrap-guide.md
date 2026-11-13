@@ -23,6 +23,7 @@ core-infra-tf also provides the values in this table before the first apply. If 
 Everything else is written during the bootstrap, so do not create it by hand:
 
 - The Terraform modules write the NetBird setup keys, the GlitchTip S3 credentials and the Rootly alert and heartbeat URLs to `observability <env>:/tf`.
+- The NetBird module writes the CI setup key to `observability <env>:/github`, which Infisical syncs to the Actions secrets of this repository.
 - topf stores the Talos secrets bundle in `observability <env>:/talos`.
 - The cluster generates its passwords and the Rootly service-account token, and it stores them in `observability <env>:/k8s`. It also publishes the vmauth URLs for the other clusters to `shared <env>:/tf`.
 
@@ -75,12 +76,17 @@ Steps 1 to 5 apply the Terraform modules in their dependency order. If the OpenS
    mise run //terraform/netbird:apply
    ```
 
-   Then give CI its setup key, so that the plan workflow can join the mesh. Use `PROD` or `STAGING` in the name:
+   The module also writes the CI setup key to `observability <env>:/github`, as `NETBIRD_O11Y_CI_SETUP_KEY_PROD` or `NETBIRD_O11Y_CI_SETUP_KEY_STAGING`. It creates an Infisical secret sync that pushes that folder to the Actions secrets of this repository, so the plan workflow can join the mesh.
 
-   ```bash
-   mise run //terraform/netbird:output -- -raw ci_setup_key \
-     | gh secret set NETBIRD_O11Y_CI_SETUP_KEY_STAGING --repo immich-app/futo-o11y-platform
-   ```
+   The sync uses the immich-app GitHub connection, which an admin made in the Infisical UI with the Infisical GitHub App. The app's installation must have access to this repository, with the permission Secrets set to read and write. The CI plan identities can read the sync because core-infra-tf grants them read on secret syncs (`secret_syncs` in `infisical/instance/access.tf`). After the apply, open the sync in the `observability` project and make sure that its status shows success.
+
+   In production, the folder also holds `OPENROUTER_API_KEY` for the Promote workflow. An Infisical secret rotation writes it, and the Terraform provider cannot manage that rotation. The rotation needs the secret rotation feature in the Infisical license. Create it once in the UI, in the `observability` project:
+   1. Open the `prod` environment and the `github` folder. From there, add a secret rotation of the type OpenRouter API Key. The rotation writes to the folder that you start it from, and you cannot change the path later in the form.
+   2. Select the OpenRouter connection (`b2b5f94c-0e7a-45e5-b72d-ff744b5e107d`) and a rotation interval of 30 days.
+   3. Set the key name to `futo-o11y-platform-promote`, the limit to 100 USD and the limit reset to monthly.
+   4. Map the API key to `OPENROUTER_API_KEY`, and name the rotation `futo-o11y-platform-promote`.
+
+   Each rotation creates a new key and updates the secret, and the sync pushes the new value to GitHub. The key it replaces stays valid until the next rotation, which revokes it. To retire a leaked key at once, rotate twice.
 
 4. Apply the NetBox module. It registers the ranges of the environment in IPAM: the vRack, the gateway ServiceCIDR and the CIDR for pod egress. It uses the same values that the other modules allocate.
 

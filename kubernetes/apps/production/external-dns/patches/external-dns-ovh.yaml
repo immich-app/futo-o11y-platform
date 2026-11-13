@@ -13,7 +13,6 @@ spec:
           name: external-dns-ovh
         spec:
           ref:
-            # renovate: datasource=docker depName=ghcr.io/home-operations/charts-mirror/external-dns
             tag: 1.23.0
             digest: sha256:c7b8f2a30597547cde3008f2a1e3b5647a4ac0ea2dd3add0fffe2b84e0429aac
       target:

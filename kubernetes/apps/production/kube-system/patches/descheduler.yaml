@@ -13,7 +13,6 @@ spec:
           name: descheduler
         spec:
           ref:
-            # renovate: datasource=docker depName=ghcr.io/home-operations/charts-mirror/descheduler
             tag: 0.37.0
             digest: sha256:6b8dbb8247bdc3b244e997768b0a3002b72e897b3f759dda7ce488de7181478f
       target:

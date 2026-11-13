@@ -13,7 +13,6 @@ spec:
           name: tuppr
         spec:
           ref:
-            # renovate: datasource=docker depName=ghcr.io/home-operations/charts/tuppr
             tag: 0.5.13
             digest: sha256:b291a378d6ce99324c243b4dd5598b0a4e04c51614b68122038c27bbd60de8ec
       target:

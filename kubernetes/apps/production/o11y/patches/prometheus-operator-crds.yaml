@@ -13,7 +13,6 @@ spec:
           name: prometheus-operator-crds
         spec:
           ref:
-            # renovate: datasource=docker depName=ghcr.io/prometheus-community/charts/prometheus-operator-crds
             tag: 33.0.2
             digest: sha256:d327bd0fc1c77b62e481791650ef6fcfff9982646bcaca4cd2483c447630fe77
       target:

@@ -15,20 +15,6 @@
   "kustomize": {
     "managerFilePatterns": ["/(^|/)kustomization\\.ya?ml(?:\\.j2)?$/"]
   },
-  "customManagers": [
-    {
-      "customType": "regex",
-      "description": "OCIRepository tags and digests, and image pins, in the env overlay patches. Every pin is a docker reference, so the defaults match the flux manager that handles the same charts in base; a pin that Renovate resolves differently from its base counterpart is a bug, not a rule to add",
-      "managerFilePatterns": ["/(^|/)kubernetes/apps/.+\\.ya?ml$/"],
-      "matchStrings": [
-        "datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?\\s*\\n\\s*tag:\\s*\"?(?<currentValue>[^\"\\s]+)\"?\\s*\\n\\s*digest:\\s*\"?(?<currentDigest>sha256:[a-f0-9]{64})\"?",
-        "datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?\\s*\\n\\s*(?:-\\s+)?image: \\S+?:(?<currentValue>[^@\\s]+)@(?<currentDigest>sha256:[a-f0-9]{64})",
-        "datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?\\s*\\n\\s*tag:\\s*\"?(?<currentValue>[^@\"\\s]+)@(?<currentDigest>sha256:[a-f0-9]{64})\"?"
-      ],
-      "datasourceTemplate": "{{#if datasource}}{{{datasource}}}{{else}}docker{{/if}}",
-      "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}docker{{/if}}"
-    }
-  ],
   "packageRules": [
     {
       "description": "Split base Kubernetes updates (and the staging Talos config, which tracks base) into their own PRs",
@@ -50,14 +36,9 @@
       "dependencyDashboardApproval": true
     },
     {
-      "description": "Digests in env overlay patches are managed by the custom manager, and a digest-only refresh of an overlay pin (upstream re-pushed the tag) is noise: a version bump rewrites the digest",
-      "matchFileNames": ["kubernetes/apps/staging/**", "kubernetes/apps/production/**"],
-      "matchUpdateTypes": ["pinDigest", "digest"],
-      "enabled": false
-    },
-    {
-      "description": "The shared catch-all regex manager would otherwise read the datasource= capture groups in this file's own match strings",
-      "matchFileNames": ["renovate.json"],
+      "description": "The weekly Promote workflow sets the production pins to the base values, so Renovate proposes nothing for them; the Talos and Kubernetes versions stay with Renovate because they move together with talos/production/topf.yaml",
+      "matchFileNames": ["kubernetes/apps/production/**"],
+      "matchDepNames": ["!siderolabs/talos", "!ghcr.io/siderolabs/kubelet"],
       "enabled": false
     },
     {

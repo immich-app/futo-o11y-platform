@@ -13,7 +13,6 @@ spec:
           name: envoy-gateway
         spec:
           ref:
-            # renovate: datasource=docker depName=mirror.gcr.io/envoyproxy/gateway-helm
             tag: v1.9.3
             digest: sha256:be1b8f163a338f94e7d6532336c08d6856fc70a0b790ac14a2826a54d23e0dd3
       target:

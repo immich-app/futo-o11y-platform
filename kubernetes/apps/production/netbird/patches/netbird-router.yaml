@@ -13,7 +13,6 @@ spec:
           name: netbird-router
         spec:
           ref:
-            # renovate: datasource=docker depName=ghcr.io/bjw-s-labs/helm/app-template
             tag: 5.3.0
             digest: sha256:0e13b145656490310ada364d8eb708e5f4f6384c7deb60d3f5f0fa56950ff63a
       target:
@@ -31,7 +30,6 @@ spec:
                 containers:
                   main:
                     image:
-                      # renovate: datasource=docker depName=ghcr.io/netbirdio/netbird
                       tag: 0.82.0@sha256:eca5b274c635bfbb04ec6724a0712d1146190dd450eea199eeb83916fdd94965
       target:
         kind: HelmRelease

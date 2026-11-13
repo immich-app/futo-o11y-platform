@@ -1,0 +1,192 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Promote
+
+on:
+  schedule:
+    # Thursday 12:00 UTC, two days after Renovate opens its Tuesday base updates.
+    - cron: "0 12 * * 4"
+  # A staging override change can add or move a promotion, so the pull request is rebuilt from the new main.
+  push:
+    branches:
+      - main
+    paths:
+      - kubernetes/apps/staging/**
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  # The promotion action rejects push events, so a push dispatches the workflow instead.
+  dispatch:
+    name: Dispatch the promotion
+    # Merging a promotion that folded an override pushes a staging change; that alone needs no new run.
+    if: "github.event_name == 'push' && !startsWith(github.event.head_commit.message, 'chore(production): promote')"
+    runs-on: ubuntu-26.04
+    permissions:
+      actions: write
+    steps:
+      - name: Dispatch
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run promote.yaml --ref main
+
+  # The agent edits a checkout with the job's read-only GITHUB_TOKEN and hands its result over as
+  # data. Only the publish job, on a fresh runner the agent never touched, holds a token that can
+  # push: the main ruleset lets that App bypass review.
+  promote:
+    name: Promote staging to production
+    if: github.event_name != 'push'
+    # One run at a time: two runs would race for the same branch and pull request.
+    concurrency:
+      group: promote
+    runs-on: ubuntu-26.04
+    # Caps the API spend of a stuck run.
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    outputs:
+      base: ${{ steps.checkout.outputs.commit }}
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+          # The pull request body cites the commit that put each change into staging.
+          fetch-depth: 0
+
+      - name: Install tools
+        uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
+        with:
+          install_args: --locked oxfmt
+          # Runs are usually too far apart for a cache entry to survive until the next one.
+          cache: false
+
+      # No validate input: the Flate workflow tests the pull request.
+      - name: Promote
+        uses: anthropics/claude-code-action@4d75e5f390ee76b2e09c1980ecc99ff3a2e088c8 # v1.0.275
+        with:
+          # Only passes the action's credential check. Claude Code reads the settings env over the
+          # process env, so it talks to OpenRouter with the bearer token and never sends this value.
+          anthropic_api_key: unused
+          settings: |
+            {
+              "env": {
+                "ANTHROPIC_BASE_URL": "https://openrouter.ai/api",
+                "ANTHROPIC_AUTH_TOKEN": "${{ secrets.OPENROUTER_API_KEY }}",
+                "ANTHROPIC_API_KEY": ""
+              }
+            }
+          github_token: ${{ github.token }}
+          # The dispatch job starts its runs as github-actions[bot], and the action refuses bot
+          # actors that are not listed.
+          allowed_bots: github-actions
+          claude_args: |
+            --model anthropic/claude-opus-5.5
+            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(git:*),Bash(oxfmt:*)"
+          # The procedure lives in the repository, so that an agent on a local checkout runs the same steps.
+          # The skip list must match the depNames that renovate.json leaves enabled under kubernetes/apps/production.
+          prompt: |
+            Follow the procedure in .agents/skills/promote/SKILL.md with source=staging target=production
+            root=kubernetes/apps format=oxfmt skip=siderolabs/talos,ghcr.io/siderolabs/kubelet
+            body=.promote-pr-body.md
+
+      - name: Upload the result
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: promotion
+          path: |
+            kubernetes/apps
+            .promote-pr-body.md
+          include-hidden-files: true
+          retention-days: 1
+
+  publish:
+    name: Publish the promotion
+    needs: promote
+    concurrency:
+      group: promote-publish
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    permissions: {}
+    steps:
+      # A GitHub App token, not GITHUB_TOKEN, so that the pull request runs the CI workflows.
+      - name: Mint a token
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ secrets.PUSH_O_MATIC_APP_CLIENT_ID }}
+          private-key: ${{ secrets.PUSH_O_MATIC_APP_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+          # The step below compares main with the commit the agent started from.
+          fetch-depth: 0
+
+      # Outside the checkout: the artifact is the agent's data, and a .git path in it must not land
+      # where git reads it.
+      - name: Download the result
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: promotion
+          path: ${{ runner.temp }}/promotion
+
+      # A full replacement, so that what the agent deleted stays deleted. It applies only to the
+      # kubernetes/apps the agent started from: a change that landed on main meanwhile fails the
+      # run instead of being overwritten, and the next run starts from the new main.
+      - name: Take kubernetes/apps from the result
+        id: take
+        env:
+          BASE: ${{ needs.promote.outputs.base }}
+          RESULT: ${{ runner.temp }}/promotion
+        run: |
+          if ! git diff --quiet "$BASE" HEAD -- kubernetes/apps; then
+            echo "::error::kubernetes/apps changed on main while the agent ran. Run the workflow again."
+            exit 1
+          fi
+          test -z "$(find "$RESULT" -name .git)"
+          rm -rf kubernetes/apps && cp -R "$RESULT/kubernetes/apps" kubernetes/apps
+          if [ -n "$(git status --porcelain -- kubernetes/apps)" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open or update the pull request
+        if: steps.take.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@3ffccacd46053766916f087ce41d627c0b8cf2d1 # v8.1.3
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          base: main
+          branch: promote/production
+          add-paths: kubernetes/apps/**
+          commit-message: "chore(production): promote staging to production"
+          # The App's bot, which also opens the pull request. No sign-commits: its API push drops
+          # the action's force-with-lease.
+          author: immich-push-o-matic[bot] <179150890+immich-push-o-matic[bot]@users.noreply.github.com>
+          committer: immich-push-o-matic[bot] <179150890+immich-push-o-matic[bot]@users.noreply.github.com>
+          signoff: true
+          title: "chore(production): promote staging to production"
+          body-path: ${{ runner.temp }}/promotion/.promote-pr-body.md
+
+      # The branch stays: the action's delete would push without a lease, and the next promotion
+      # replaces the branch with one.
+      - name: Close the pull request
+        if: steps.take.outputs.changed == 'false'
+        # Explicit bash runs with pipefail, so a failed gh pr list fails the step.
+        shell: bash
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          gh pr list --head promote/production --base main --state open --json number,isCrossRepository \
+            --jq '.[] | select(.isCrossRepository | not) | .number' |
+            xargs -r -I{} gh pr close {} --comment "main has nothing left to promote."

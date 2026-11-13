@@ -18,7 +18,7 @@ permissions:
 jobs:
   filter:
     name: Flate - Filter
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     outputs:
       manifests: ${{ steps.changed-files.outputs.manifests_any_modified }}
       tooling: ${{ steps.changed-files.outputs.tooling_any_modified }}
@@ -38,7 +38,7 @@ jobs:
     if: ${{ needs.filter.outputs.manifests == 'true' || needs.filter.outputs.tooling == 'true' }}
     needs: filter
     name: Flate - ${{ matrix.resource }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     strategy:
       matrix:
         resource: ["helmrelease", "kustomization"]
@@ -81,7 +81,7 @@ jobs:
     needs:
       - flate
     name: Flate - Success
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Any jobs failed?
         if: ${{ contains(needs.*.result, 'failure') }}
