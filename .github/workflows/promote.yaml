@@ -4,21 +4,30 @@ name: Promote
 
 on:
   schedule:
-    # Monday 12:00 UTC, one cycle after Renovate's Tuesday base updates have soaked a week.
-    - cron: "0 12 * * 1"
+    # Thursday 12:00 UTC, two days after Renovate opens its Tuesday base updates.
+    - cron: "0 12 * * 4"
+  # A staging override change can add or move a promotion, so the pull request is rebuilt from the new main.
+  push:
+    branches:
+      - main
+    paths:
+      - kubernetes/apps/staging/**
   workflow_dispatch:
 
 permissions: {}
 
-# One run at a time: a manual run during the scheduled one would race for the same branch and pull request.
+# One run at a time: two runs would race for the same branch and pull request.
 concurrency:
   group: promote
-  cancel-in-progress: false
 
 jobs:
   promote:
     name: Promote staging to production
+    # Merging a promotion that folded an override pushes a staging change; that alone needs no new run.
+    if: "github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'chore(production): promote')"
     runs-on: ubuntu-26.04
+    # Caps the API spend of a stuck run.
+    timeout-minutes: 60
     permissions:
       contents: read
     steps:
@@ -43,24 +52,33 @@ jobs:
       - name: Install tools
         uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
         with:
-          install_args: --locked github:home-operations/flate yq oxfmt
+          install_args: --locked oxfmt
+          # Runs are usually too far apart for a cache entry to survive until the next one.
+          cache: false
 
+      # No validate input: the Flate workflow tests the pull request.
       - name: Promote
         uses: anthropics/claude-code-action@4d75e5f390ee76b2e09c1980ecc99ff3a2e088c8 # v1.0.275
-        env:
-          FLATE_PATH: .
-          FLATE_CACHE_DIR: ${{ runner.temp }}/flate
-          # Changed-only mode keeps the unchanged ghcr bundles (anonymous pulls, 429-prone) out of the run.
-          FLATE_BASE: main
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Only passes the action's credential check. Claude Code reads the settings env over the
+          # process env, so it talks to OpenRouter with the bearer token and never sends this value.
+          anthropic_api_key: unused
+          settings: |
+            {
+              "env": {
+                "ANTHROPIC_BASE_URL": "https://openrouter.ai/api",
+                "ANTHROPIC_AUTH_TOKEN": "${{ secrets.OPENROUTER_API_KEY }}",
+                "ANTHROPIC_API_KEY": ""
+              }
+            }
           github_token: ${{ steps.app-token.outputs.token }}
           claude_args: |
-            --model claude-opus-5-5
-            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(git:*),Bash(gh pr:*),Bash(flate:*),Bash(oxfmt:*),Bash(yq:*)"
+            --model anthropic/claude-opus-5.5
+            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(git:*),Bash(gh pr:*),Bash(oxfmt:*)"
             --disallowedTools "Bash(gh pr merge:*)"
           # The procedure lives in the repository, so that an agent on a local checkout runs the same steps.
+          # The skip list must match the depNames that renovate.json leaves enabled under kubernetes/apps/production.
           prompt: |
             Follow the procedure in .agents/skills/promote/SKILL.md with source=staging target=production
-            root=kubernetes/apps validate="flate test helmrelease; flate test kustomization" format=oxfmt
+            root=kubernetes/apps format=oxfmt
             skip=siderolabs/talos,ghcr.io/siderolabs/kubelet
