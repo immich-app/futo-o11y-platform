@@ -100,9 +100,9 @@ To change an app, an overlay adds one patch file for that app to its `patches/` 
 
 Each file patches the Flux Kustomization of the app. The patch adds a `spec.patches` override for each resource that must differ from `base/`. The patch must go on the Kustomization, because Flux renders the resources of the app from `base/`. The overlay build never renders them.
 
-Today the only overrides are version pins. Production pins the chart versions and the version of the CloudNativePG Postgres image. Staging uses `base/` directly and follows its versions. A new version can then run in staging for a time before production moves to it.
+Today the production overrides are version pins, and staging has a few permanent overrides, such as the smaller VictoriaMetrics sizing. Production pins the chart versions and the version of the CloudNativePG Postgres image. Staging uses `base/` directly and follows its versions. A new version can then run in staging for a time before production moves to it.
 
-OCI chart refs pin a tag and its digest. Flux gives the digest precedence. If a production patch carries only the tag, the digest from `base/` overrides the environment pin, and nothing reports it. For this reason, the production patches must carry both. A Renovate custom manager updates the tag and the digest of each pair together. The built-in flux manager of Renovate maintains the pairs in `base/`.
+OCI chart refs pin a tag and its digest. Flux gives the digest precedence. If a production patch carries only the tag, the digest from `base/` overrides the environment pin, and nothing reports it. For this reason, the production patches must carry both. The `Promote` workflow updates the tag and the digest of each production pair together, from the pair in `base/`. The built-in flux manager of Renovate maintains the pairs in `base/`, and Renovate moves the Talos and Kubernetes versions of both environments.
 
 ### Promotion
 

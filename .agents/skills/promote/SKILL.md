@@ -45,18 +45,23 @@ Do these steps in order.
 
 3. Verify. Run `oxfmt` on the files you changed, then `flate test helmrelease` and
    `flate test kustomization`. Then check `git status`: every changed file must be under
-   kubernetes/apps; every changed or deleted staging override must carry the marker (read a
-   deleted file with `git show main:<path>`); and a staging kustomization.yaml may change only
-   by losing the entries of those overrides. If a flate test fails or the check fails, print
-   what failed, change nothing further, and stop without opening a pull request.
+   kubernetes/apps; every changed or deleted staging override must carry the marker with a date
+   on or before today in its version on main (read it with `git show main:<path>`, so that a
+   marker added during this run does not count); and a staging kustomization.yaml may change
+   only by losing the entries of those overrides. If a flate test fails or the check fails,
+   print what failed, change nothing further, and stop without opening a pull request.
 
 4. If `git status` shows no change, stop. Otherwise create the branch `promote/production` from
    the checked-out main, commit everything as one signed-off commit (`git commit -s`) with the
    message `chore(production): promote staging to production`, and push it with
-   `git push --force-with-lease origin promote/production`. If a pull request from that branch
-   is already open, update its title and body with `gh pr edit`; otherwise open one with
-   `gh pr create` against main. Title `chore(production): promote staging to production
-   (YYYY-MM-DD)` with today's date. Write the body in plain English: one short line per version
+   `git push --force-with-lease origin promote/production`. The branch name is fixed, so a run
+   replaces the previous week's branch and the open pull request follows it. If the push is
+   rejected, someone changed the branch since the last run: stop and report it, and do not
+   force the push. Then run `gh pr list --head promote/production --base main --state open`.
+   If it lists a pull request, update its title and body with `gh pr edit`; otherwise open one
+   with `gh pr create --base main --head promote/production`. Never open a second pull request
+   from that branch. Title `chore(production): promote staging to production (YYYY-MM-DD)` with
+   today's date. Write the body in plain English: one short line per version
    change with the old and the new value, one short paragraph per folded override that names
    the app, what moved into base, and the commit that put it into staging (`git log` on the
    deleted staging file), and one line per pin you left alone and why. Do not mention the
