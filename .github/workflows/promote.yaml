@@ -85,6 +85,9 @@ jobs:
               }
             }
           github_token: ${{ steps.app-token.outputs.token }}
+          # The dispatch job starts its runs as github-actions[bot], and the action refuses bot
+          # actors that are not listed.
+          allowed_bots: github-actions
           claude_args: |
             --model anthropic/claude-opus-5.5
             --allowedTools "Read,Glob,Grep,Edit,Write,Bash(git:*),Bash(gh pr:*),Bash(oxfmt:*)"
