@@ -1,7 +1,7 @@
 ---
 name: promote
 description: Promote one environment to the next in a Flux monorepo with a shared base and one overlay folder per environment - fold dated source overrides into base, set every target pin to the base value, validate, and open one pull request
-argument-hint: source=<env> target=<env> root=<folder> validate="<command>; <command>" format=<command> skip=<depName>,<depName>
+argument-hint: source=<env> target=<env> root=<folder> validate="<command>; <command>" format=<command> skip=<depName>,<depName> body=<file>
 arguments:
   - source
   - target
@@ -9,6 +9,7 @@ arguments:
   - validate
   - format
   - skip
+  - body
 ---
 
 ## Inputs
@@ -23,6 +24,8 @@ The invocation passes the inputs as `key=value` pairs. Quote a value that holds 
 - `format`: the formatter to run on the files you changed.
 - `skip`: dependency names whose pins you must not promote, because they move together with
   files outside the manifest root, separated by `,`. Optional.
+- `body`: a file for the pull request body. Optional. With it, the caller publishes: you write the
+  body there and leave the branch, the commit, the push and the pull request to the caller.
 
 If `source`, `target` or `root` is missing, find it in the tree before you change anything: the
 base folder is the one every overlay refers to, and an overlay folder is named after its
@@ -30,7 +33,8 @@ environment. If `format` is missing, use the formatter that the repository's own
 
 ## Procedure
 
-Change files only under the manifest root. Open at most one pull request. Do not merge anything.
+Change files only under the manifest root, apart from the `body` file. Open at most one pull
+request. Do not merge anything.
 
 How the layout works. Base holds the definition of every app, and every environment runs it.
 An overlay changes an app only where that environment must differ: with a kustomize patch, with
@@ -75,10 +79,14 @@ Do these steps in order.
    made redundant go away. If validation fails or the check fails, print what failed, change nothing
    further, and stop without opening a pull request.
 
-4. If `git status` shows no change, find the open promotion pull request as described below. If
-   there is one, close it with `gh pr close <number> --comment` and a comment that says the
-   default branch has nothing left to promote. Then stop. Otherwise create the branch `promote/<target>` from the
-   checked-out default branch, commit everything as one signed-off commit (`git commit -s`) with
+4. If `body` is set, write the pull request body that this step describes to that file, but only
+   when `git status` shows a change. Then stop, and do not branch, commit, push or touch a pull
+   request.
+
+   Without `body`: if `git status` shows no change, find the open promotion pull request as
+   described below. If there is one, close it with `gh pr close <number> --comment` and a comment
+   that says the default branch has nothing left to promote. Then stop. Otherwise create the
+   branch `promote/<target>` from the checked-out default branch, commit everything as one signed-off commit (`git commit -s`) with
    the message `chore(<target>): promote <source> to <target>`, and push it with
    `git push --force-with-lease origin promote/<target>`. The branch name is fixed, so a run
    replaces the previous run's branch and every commit on it, and the open pull request follows

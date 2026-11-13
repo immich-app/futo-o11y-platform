@@ -32,6 +32,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: gh workflow run promote.yaml --ref main
 
+  # The agent edits a checkout with the job's read-only GITHUB_TOKEN and hands its result over as
+  # data. Only the publish job, on a fresh runner the agent never touched, holds a token that can
+  # push: the main ruleset lets that App bypass review.
   promote:
     name: Promote staging to production
     if: github.event_name != 'push'
@@ -43,18 +46,11 @@ jobs:
     timeout-minutes: 60
     permissions:
       contents: read
+    outputs:
+      base: ${{ steps.checkout.outputs.commit }}
     steps:
-      # A GitHub App token, not GITHUB_TOKEN, so that the pull request runs the CI workflows.
-      - name: Mint a token
-        id: app-token
-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
-        with:
-          client-id: ${{ secrets.PUSH_O_MATIC_APP_CLIENT_ID }}
-          private-key: ${{ secrets.PUSH_O_MATIC_APP_KEY }}
-          permission-contents: write
-          permission-pull-requests: write
-
       - name: Checkout
+        id: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: main
@@ -84,17 +80,106 @@ jobs:
                 "ANTHROPIC_API_KEY": ""
               }
             }
-          github_token: ${{ steps.app-token.outputs.token }}
+          github_token: ${{ github.token }}
           # The dispatch job starts its runs as github-actions[bot], and the action refuses bot
           # actors that are not listed.
           allowed_bots: github-actions
           claude_args: |
             --model anthropic/claude-opus-5.5
-            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(git:*),Bash(gh pr:*),Bash(oxfmt:*)"
-            --disallowedTools "Bash(gh pr merge:*)"
+            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(git:*),Bash(oxfmt:*)"
           # The procedure lives in the repository, so that an agent on a local checkout runs the same steps.
           # The skip list must match the depNames that renovate.json leaves enabled under kubernetes/apps/production.
           prompt: |
             Follow the procedure in .agents/skills/promote/SKILL.md with source=staging target=production
-            root=kubernetes/apps format=oxfmt
-            skip=siderolabs/talos,ghcr.io/siderolabs/kubelet
+            root=kubernetes/apps format=oxfmt skip=siderolabs/talos,ghcr.io/siderolabs/kubelet
+            body=.promote-pr-body.md
+
+      - name: Upload the result
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: promotion
+          path: |
+            kubernetes/apps
+            .promote-pr-body.md
+          include-hidden-files: true
+          retention-days: 1
+
+  publish:
+    name: Publish the promotion
+    needs: promote
+    concurrency:
+      group: promote-publish
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    permissions: {}
+    steps:
+      # A GitHub App token, not GITHUB_TOKEN, so that the pull request runs the CI workflows.
+      - name: Mint a token
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ secrets.PUSH_O_MATIC_APP_CLIENT_ID }}
+          private-key: ${{ secrets.PUSH_O_MATIC_APP_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.promote.outputs.base }}
+          persist-credentials: false
+          # The force-with-lease push compares against the fetched promote/production.
+          fetch-depth: 0
+
+      - name: Download the result
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: promotion
+          path: ${{ runner.temp }}/promotion
+
+      # Takes only kubernetes/apps and the pull request body from the artifact. A run with no
+      # changes closes the open promotion pull request, because main has nothing left to promote.
+      - name: Publish
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          RESULT: ${{ runner.temp }}/promotion
+        run: |
+          set -euo pipefail
+          branch=promote/production
+          body="$RESULT/.promote-pr-body.md"
+          if [ -n "$(find "$RESULT" ! -type f ! -type d)" ]; then
+            echo "::error::The result holds something other than files and directories."
+            exit 1
+          fi
+          rm -rf kubernetes/apps
+          cp -R "$RESULT/kubernetes/apps" kubernetes/apps
+          pr=$(gh pr list --head "$branch" --base main --state open --json number,isCrossRepository \
+            --jq '[.[] | select(.isCrossRepository | not)][0].number // empty')
+
+          git switch -q -c "$branch"
+          git add -A kubernetes/apps
+          if git diff --cached --quiet; then
+            if [ -n "$pr" ]; then
+              gh pr close "$pr" --comment "main has nothing left to promote."
+            fi
+            exit 0
+          fi
+          if [ ! -s "$body" ]; then
+            echo "::error::The promotion changed files but left no pull request body."
+            exit 1
+          fi
+
+          git -c user.name='github-actions[bot]' \
+            -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit -q -s -m "chore(production): promote staging to production"
+          expected=$(git rev-parse -q --verify "refs/remotes/origin/$branch" || true)
+          git push -q --force-with-lease="refs/heads/$branch:$expected" \
+            "https://x-access-token:${GH_TOKEN}@github.com/${GH_REPO}.git" "HEAD:refs/heads/$branch"
+
+          title="chore(production): promote staging to production ($(date -u +%F))"
+          if [ -n "$pr" ]; then
+            gh pr edit "$pr" --title "$title" --body-file "$body"
+          else
+            gh pr create --base main --head "$branch" --title "$title" --body-file "$body"
+          fi
