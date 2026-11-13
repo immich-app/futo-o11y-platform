@@ -258,7 +258,7 @@ resource "netbird_network_resource" "k8s_egress" {
 }
 
 # CI peers (GitHub Actions runners). The workflow joins with this key from the
-# NETBIRD_O11Y_CI_SETUP_KEY_<ENV> repo secret, set from the ci_setup_key output.
+# NETBIRD_O11Y_CI_SETUP_KEY_<ENV> repo secret, which Infisical syncs (github.tf).
 # Ephemeral: runners are transient.
 resource "netbird_group" "ci" {
   name = "o11y-${var.env}-ci"

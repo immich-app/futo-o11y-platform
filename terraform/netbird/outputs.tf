@@ -1,9 +1,3 @@
-# CI runner setup key; the infra workflow reads it from state to join the mesh.
-output "ci_setup_key" {
-  sensitive = true
-  value     = netbird_setup_key.ci.key
-}
-
 # The bootstrap-settings ConfigMap that //bootstrap:resources applies; Flux
 # substitutes its values into the manifests (kubernetes/clusters/<env>/apps.yaml).
 # An apply does not update the cluster: run //bootstrap:resources after a change.
